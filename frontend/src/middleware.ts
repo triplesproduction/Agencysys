@@ -3,9 +3,17 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
+    const userSession = request.cookies.get('user_session')?.value;
     const { pathname } = request.nextUrl;
 
     const isLoginPath = pathname === '/login';
+
+    // Discard stale sessions where token exists but user_session is missing (Legacy cookie state)
+    if (token && !userSession && !isLoginPath && !pathname.startsWith('/api/')) {
+        const response = NextResponse.redirect(new URL('/login', request.url));
+        response.cookies.delete('token');
+        return response;
+    }
 
     if (!token && !isLoginPath && !pathname.startsWith('/api/v1') && !pathname.startsWith('/api/auth')) {
         return NextResponse.redirect(new URL('/login', request.url));
