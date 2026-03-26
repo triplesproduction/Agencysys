@@ -1,0 +1,107 @@
+/* Anti-Gravity Floating Notifications Stack */
+
+.floating-notification-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 9999;
+    pointer-events: none;
+    /* Let clicks pass through empty space */
+}
+
+.notification-wrapper {
+    pointer-events: auto;
+    /* Re-enable clicks on the card itself */
+    animation: antiGravityFloat 4s ease-in-out infinite alternate;
+}
+
+.notification-card {
+    position: relative;
+    padding: 1rem 1.5rem;
+    min-width: 300px;
+    max-width: 400px;
+    background: rgba(15, 23, 42, 0.8) !important;
+    /* #0f172a frosted layer */
+    border: 1px solid rgba(124, 58, 237, 0.4) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 10px 40px -10px rgba(124, 58, 237, 0.5), inset 0 0 20px rgba(124, 58, 237, 0.1) !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+}
+
+.notification-glow-ring {
+    position: absolute !important;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(124, 58, 237, 0.15) 90deg, transparent 180deg);
+    animation: rotateGlow 8s linear infinite;
+    pointer-events: none !important;
+    z-index: 0 !important;
+}
+
+.notification-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.notification-content strong {
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.notification-content p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.notification-close {
+    position: relative;
+    z-index: 1;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 0 0 1rem;
+    transition: var(--transition-smooth);
+}
+
+.notification-close:hover {
+    color: white;
+    transform: scale(1.1);
+}
+
+@keyframes antiGravityFloat {
+    0% {
+        transform: translateY(0px) scale(1);
+    }
+
+    100% {
+        transform: translateY(-8px) scale(1.02);
+    }
+}
+
+@keyframes rotateGlow {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}

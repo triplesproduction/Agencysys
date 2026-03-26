@@ -1,0 +1,46 @@
+/* Anti-Gravity Board Wrapper */
+
+.kanban-board-container {
+    width: 100%;
+    margin-top: 2rem;
+    position: relative;
+    /* Removed z-index to avoid creating a new stacking context that traps fixed children */
+}
+
+.kanban-columns-wrapper {
+    display: flex;
+    gap: 1.5rem;
+    overflow-x: auto;
+    overflow-y: visible;
+    /* Crucial for vertical dragging */
+    padding-bottom: 2rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    scrollbar-color: rgba(124, 58, 237, 0.5) rgba(0, 0, 0, 0.1);
+    scrollbar-width: thin;
+}
+
+/* Force minimum width on columns so they scroll horizontally instead of squishing */
+.kanban-column {
+    flex: 0 0 320px;
+    min-width: 320px;
+    max-width: 380px;
+}
+
+.kanban-columns-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.kanban-columns-wrapper::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.kanban-columns-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.4);
+    border-radius: 10px;
+}
+
+.kanban-columns-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.8);
+}

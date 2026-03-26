@@ -1,0 +1,82 @@
+/* Anti-Gravity Kanban Column Styles */
+
+.kanban-column-ag {
+    flex: 0 0 auto;
+    /* Prevent growing to fill empty space excessively */
+    min-width: 320px;
+    max-width: 380px;
+    /* Calculate remaining viewport height minus headers, padding, and offset */
+    max-height: calc(100vh - 280px);
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Changed from visible to prevent child elements from escaping the column */
+    transition: all 0.3s ease;
+    backdrop-filter: blur(8px);
+}
+
+.kanban-column-ag.is-over-column {
+    background: rgba(124, 58, 237, 0.1);
+    border-color: rgba(124, 58, 237, 0.3);
+    box-shadow: inset 0 0 30px rgba(124, 58, 237, 0.1);
+}
+
+.column-header-ag {
+    padding: 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.column-header-ag h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.column-count {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+}
+
+.column-dropzone {
+    padding: 1rem;
+    flex: 1;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+/* Empty State Styling */
+.empty-zone-phantom {
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.is-over-column .empty-zone-phantom {
+    opacity: 1;
+    border-color: rgba(124, 58, 237, 0.4);
+    color: rgba(124, 58, 237, 0.6);
+}

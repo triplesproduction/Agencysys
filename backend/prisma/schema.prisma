@@ -1,0 +1,262 @@
+// Prisma Schema for TripleS OS Phase 1
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id              String             @id @default(uuid())
+  firstName       String
+  lastName        String
+  email           String             @unique
+  passwordHash    String?
+  requirePasswordReset Boolean       @default(true)
+  roleId          String
+  department      String?
+  status          String             @default("ACTIVE") // ACTIVE | INACTIVE | ON_LEAVE | TERMINATED | SUSPENDED
+  
+  // Phase 4 Enterprise Fields
+  profilePhoto    String?
+  dob             DateTime?
+  gender          String?            // MALE | FEMALE | OTHER
+  phone           String?
+  address         String?
+  emergencyContact String?
+  designation     String?
+  workLocation    String             @default("OFFICE") // OFFICE | REMOTE | HYBRID
+  
+  joinedAt        DateTime           @default(now())
+
+  tasksAssigned   Task[]             @relation("TaskAssignee")
+  tasksCreated    Task[]             @relation("TaskCreator")
+  eodSubmissions  EODSubmission[]
+  kpis            KPIMetric[]
+  leaves          LeaveApplication[] @relation("Applicant")
+  leavesApproved  LeaveApplication[] @relation("Approver")
+  workHourLogs    WorkHourLog[]
+  activityLogs    ActivityLog[]
+  notifications   Notification[]
+  managedTasks    Task[]             @relation("TaskManager")
+  rulesCreated    Rule[]
+  announcements   Announcement[]
+
+  documents       EmployeeDocument[]
+  sentMessages    Message[]          @relation("SentMessages")
+  receivedMessages Message[]         @relation("ReceivedMessages")
+
+  @@map("employees")
+}
+
+model EmployeeDocument {
+  id          String   @id @default(uuid())
+  employeeId  String
+  name        String
+  fileType    String   // application/pdf, image/png, etc.
+  content     String   @db.Text // Base64 content
+  uploadedAt  DateTime @default(now())
+
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("employee_documents")
+}
+
+model Task {
+  id              String        @id @default(uuid())
+  title           String
+  description     String?
+  instructions    String?
+  assigneeId      String
+  creatorId       String
+  managerId       String?
+  status          String        @default("TODO") // TODO | IN_PROGRESS | SUBMITTED | APPROVED | REJECTED | MISSED_DEADLINE
+  priority        String        @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  startDate       DateTime?     @default(now())
+  dueDate         DateTime
+  expectedHours   Float?
+  estimatedHours  Float?
+  attachments     String[]      // JSON array of URLs
+  createdAt       DateTime      @default(now())
+
+  assignee        Employee      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  creator         Employee      @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  manager         Employee?     @relation("TaskManager", fields: [managerId], references: [id], onDelete: Cascade)
+  eodSubmissions  EODSubmission[] @relation("CompletedTasks")
+  eodInProgress   EODSubmission[] @relation("InProgressTasks")
+
+  workHourLogs    WorkHourLog[]
+
+  @@map("tasks")
+}
+
+model EODSubmission {
+  id              String        @id @default(uuid())
+  employeeId      String
+  reportDate      DateTime
+  blockers        String?
+  sentiment       String?       // GREAT | GOOD | OKAY | BAD | TERRIBLE
+  completedText   String?       // Raw free-text entries for completed tasks
+  inProgressText  String?       // Raw free-text entries for in-progress tasks
+  submittedAt     DateTime      @default(now())
+
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tasksCompleted  Task[]        @relation("CompletedTasks")
+  tasksInProgress Task[]        @relation("InProgressTasks")
+
+  @@map("eod_submissions")
+}
+
+model KPIMetric {
+  id              String        @id @default(uuid())
+  employeeId      String
+  metricName      String
+  targetValue     Float
+  currentValue    Float
+  period          String        // WEEKLY | MONTHLY | QUARTERLY | YEARLY
+  lastUpdated     DateTime      @default(now()) @updatedAt
+
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("kpi_metrics")
+}
+
+model LeaveApplication {
+  id              String        @id @default(uuid())
+  employeeId      String
+  leaveType       String        // SICK | CASUAL | EARNED | UNPAID
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          String        @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+  approverId      String?
+  appliedAt       DateTime      @default(now())
+
+  employee        Employee      @relation("Applicant", fields: [employeeId], references: [id], onDelete: Cascade)
+  approver        Employee?     @relation("Approver", fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@map("leave_applications")
+}
+
+model WorkHourLog {
+  id              String        @id @default(uuid())
+  employeeId      String
+  taskId          String?
+  date            DateTime
+  hoursLogged     Float
+  description     String?
+  loggedAt        DateTime      @default(now())
+
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  task            Task?         @relation(fields: [taskId], references: [id])
+
+  @@map("work_hour_logs")
+}
+
+model Message {
+  id              String        @id @default(uuid())
+  senderId        String
+  receiverId      String?
+  channelId       String?
+  content         String        @db.Text
+  attachments     String[]
+  sentAt          DateTime      @default(now())
+
+  sender          Employee      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver        Employee?     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model ActivityLog {
+  id              String        @id @default(uuid())
+  employeeId      String
+  action          String        // LOGIN | LOGOUT | EOD_SUBMITTED | TASK_UPDATED | ADMIN_CHAT_VIEW
+  metadata        String?       // Storing JSON stringified details (e.g., target task ID, viewed chat)
+  timestamp       DateTime      @default(now())
+
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model AdminActionLog {
+  id              String        @id @default(uuid())
+  adminId         String
+  targetId        String?       // e.g. the employee ID being mutated
+  action          String        // SUSPEND_EMPLOYEE | RESET_PASSWORD | ASSIGN_ROLE | UPDATE_PROFILE
+  oldValue        String?
+  newValue        String?
+  timestamp       DateTime      @default(now())
+
+  @@map("admin_action_logs")
+}
+
+model LoginLog {
+  id              String        @id @default(uuid())
+  employeeId      String
+  loginTime       DateTime      @default(now())
+  logoutTime      DateTime?
+  ipAddress       String?
+  device          String?
+
+  @@map("login_logs")
+}
+
+model ChatAccessLog {
+  id              String        @id @default(uuid())
+  adminId         String
+  targetEmployeeId String
+  accessedAt      DateTime      @default(now())
+  reason          String?
+
+  @@map("chat_access_logs")
+}
+
+model Notification {
+  id              String        @id @default(uuid())
+  recipientId     String
+  title           String
+  message         String
+  type            String        // TASK_ASSIGNED | DEADLINE_MISSED | TASK_UPDATED | SYSTEM
+  read            Boolean       @default(false)
+  metadata        String?       // JSON stringified context (e.g. taskId)
+  createdAt       DateTime      @default(now())
+
+  recipient       Employee      @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Rule {
+  id              String        @id @default(uuid())
+  title           String
+  description     String
+  category        String
+  priority        String
+  effectiveDate   DateTime?
+  createdBy       String
+  createdAt       DateTime      @default(now())
+
+  author          Employee      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("rules")
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  title       String
+  message     String
+  type        String    @default("ANNOUNCEMENT") // ANNOUNCEMENT | URGENT | SYSTEM
+  status      String    @default("active")       // active | inactive
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author      Employee  @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("announcements")
+}

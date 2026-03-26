@@ -1,0 +1,370 @@
+/* Anti-Gravity Admin Task Modal */
+
+.anti-gravity-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1000px;
+}
+
+.anti-gravity-modal {
+    position: relative;
+    width: 100%;
+    max-width: 680px;
+    background: rgba(15, 23, 42, 0.75) !important;
+    /* #0f172a */
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 24px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75),
+        0 0 30px rgba(124, 58, 237, 0.15),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    transform-style: preserve-3d;
+}
+
+/* Glowing 3D Borders */
+.modal-glow-top,
+.modal-glow-bottom {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    height: 100px;
+    border-radius: 100%;
+    filter: blur(40px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.modal-glow-top {
+    top: -50px;
+    background: rgba(124, 58, 237, 0.4);
+}
+
+.modal-glow-bottom {
+    bottom: -50px;
+    background: rgba(236, 72, 153, 0.3);
+}
+
+/* Modal Inner Structure */
+.modal-header {
+    position: relative;
+    z-index: 10;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+}
+
+.close-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    transform: rotate(90deg);
+}
+
+.modal-form {
+    position: relative;
+    z-index: 10;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Form Grid */
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.split-row {
+    flex-direction: row;
+    gap: 1.5rem;
+}
+
+.split-row>* {
+    flex: 1;
+}
+
+.input-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.02em;
+}
+
+/* Glass Inputs & Selects */
+.glass-select,
+.glass-textarea {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    appearance: none;
+    cursor: pointer;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.glass-select:focus,
+.glass-textarea:focus {
+    outline: none;
+    border-color: #7C3AED;
+    background: rgba(124, 58, 237, 0.1);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* For native selects, we add a custom arrow via background */
+select.glass-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+    padding-right: 2.5rem;
+}
+
+.glass-select option {
+    background: #1e1b4b; /* Dark indigo */
+    color: #fff;
+    padding: 10px;
+}
+
+.glass-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Custom Dropdown Styling (For non-native) */
+.dropdown-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.dropdown-trigger:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-options-container {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    z-index: 1000;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: fadeInScale 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.options-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.options-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.options-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.options-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.option-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.option-item:hover {
+    background: rgba(124, 58, 237, 0.2);
+    color: #fff;
+}
+
+.option-item.selected {
+    background: rgba(124, 58, 237, 0.4);
+    color: #fff;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+/* Custom Priority Pills */
+.priority-pills {
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.priority-pill {
+    flex: 1;
+    padding: 0.5rem 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.priority-pill:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.priority-pill.active.low {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.priority-pill.active.medium {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.priority-pill.active.high {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+.priority-pill.active.critical {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+
+/* Footer Action Bar */
+.modal-footer {
+    position: relative;
+    z-index: 10;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+}
+
+/* Magnetic Button Override */
+.magnetic-btn {
+    background: linear-gradient(135deg, #7C3AED, #3B82F6, #EC4899) !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.magnetic-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+.magnetic-btn:disabled {
+    filter: grayscale(1) opacity(0.5);
+    cursor: not-allowed;
+}
+
+/* Multi-Select Container Styling */
+.multi-select-container {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0.5rem;
+    max-height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.multi-select-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.multi-select-option:hover {
+    background: rgba(124, 58, 237, 0.1);
+    color: #fff;
+}
+
+.multi-select-option input[type="checkbox"] {
+    accent-color: var(--purple-main, #7C3AED);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
