@@ -695,13 +695,11 @@ export default function DashboardPage() {
 
     useEffect(() => {
         async function fetchData() {
+            // ONLY run when employee profile is strictly available
+            if (!authEmployee) return;
+
             setLoading(true);
             try {
-                if (!authEmployee) {
-                    console.warn('[Dashboard] No employee profile available for data fetching.');
-                    return;
-                }
-
                 let activeRole = authEmployee.roleId || 'EMPLOYEE';
                 activeRole = activeRole.toUpperCase();
                 if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
@@ -731,7 +729,8 @@ export default function DashboardPage() {
             }
         }
 
-        if (!authLoading) {
+        // Only attempt to fetch data once the auth handshake is complete and the profile is present
+        if (!authLoading && authEmployee) {
             fetchData();
         }
 
