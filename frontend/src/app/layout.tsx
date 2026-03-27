@@ -1,8 +1,8 @@
 import './globals.css';
 import './layout.css';
 import type { Metadata } from 'next';
-import Sidebar from '@/components/Sidebar';
 import { Providers } from './providers';
+import MainLayout from '@/components/MainLayout';
 
 export const metadata: Metadata = {
     title: 'TripleS OS Phase 1',
@@ -17,16 +17,9 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body>
-                <div className="app-container">
-                    <Providers>
-                        <Sidebar />
-                        <main className="main-content">
-                            <div className="main-content-inner">
-                                {children}
-                            </div>
-                        </main>
-                    </Providers>
-                </div>
+                <Providers>
+                    <MainLayout>{children}</MainLayout>
+                </Providers>
             </body>
         </html>
     );
