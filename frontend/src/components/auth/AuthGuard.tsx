@@ -3,10 +3,12 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
+
+import { canAccessPath } from '@/lib/permissions';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-    const { user, loading } = useAuth();
+    const { user, employee, loading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -22,7 +24,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         }
     }, [user, loading, pathname, router]);
 
-    if (loading) {
+    // Check for role-based path access
+    const hasRoleAccess = canAccessPath(employee?.roleId, pathname);
+
+    // Show loading screen only if we're still loading AND have no user session yet
+    if (loading && !user) {
         return (
             <div style={{
                 display: 'flex',
@@ -41,6 +47,47 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     if (!user && pathname !== '/login') {
         return null;
+    }
+
+
+    // Role-based Path protection
+    if (user && employee && !hasRoleAccess && pathname !== '/login' && pathname !== '/dashboard') {
+        return (
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100vh',
+                width: '100vw',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-dark)',
+                color: 'white',
+                padding: '24px',
+                textAlign: 'center'
+            }}>
+                <ShieldAlert size={48} style={{ marginBottom: '16px', color: '#EF4444' }} />
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Access Denied</h2>
+                <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', marginBottom: '24px' }}>
+                    You don't have the required permissions to access this page. 
+                    This area is restricted to {pathname.startsWith('/employees') ? 'ADMINs' : 'authorized personnel'} only.
+                </p>
+                <button 
+                    onClick={() => router.push('/dashboard')}
+                    style={{
+                        background: 'var(--purple-main)',
+                        border: 'none',
+                        color: 'white',
+                        padding: '10px 24px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        transition: 'opacity 0.2s'
+                    }}
+                >
+                    Back to Dashboard
+                </button>
+            </div>
+        );
     }
 
     return <>{children}</>;

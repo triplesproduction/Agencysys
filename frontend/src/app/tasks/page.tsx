@@ -12,7 +12,11 @@ import { api } from '@/lib/api';
 import { TaskDTO } from '@/types/dto';
 import './Tasks.css';
 
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
+
 export default function TasksPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const [tasks, setTasks] = useState<TaskDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
@@ -22,17 +26,12 @@ export default function TasksPage() {
     const { addNotification } = useNotifications();
 
     const loadTasks = async () => {
+        if (!authEmployee) return;
         setLoading(true);
         try {
-            const { getUserFromToken } = await import('@/lib/auth');
-            const tokenData = getUserFromToken();
-            let activeRole = tokenData?.role || tokenData?.roleId || 'EMPLOYEE';
-            activeRole = activeRole.toUpperCase();
-            if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
-            else if (activeRole.includes('MANAGER')) activeRole = 'MANAGER';
-
+            const activeRole = authEmployee.roleId || 'EMPLOYEE';
             setUserRole(activeRole);
-            const activeEmpId = tokenData?.sub || tokenData?.employeeId;
+            const activeEmpId = authEmployee.id;
 
             // Employees only fetch their own tasks
             const data = await api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined);
@@ -50,7 +49,9 @@ export default function TasksPage() {
     };
 
     useEffect(() => {
-        loadTasks();
+        if (!authLoading) {
+            loadTasks();
+        }
 
         const handleLiveUpdate = (e: any) => {
             const detail = e.detail;
@@ -61,7 +62,7 @@ export default function TasksPage() {
 
         window.addEventListener('app:live-notification', handleLiveUpdate);
         return () => window.removeEventListener('app:live-notification', handleLiveUpdate);
-    }, []);
+    }, [authEmployee, authLoading]);
 
     const handleAllocationSuccess = () => {
         addNotification({
@@ -72,7 +73,9 @@ export default function TasksPage() {
         loadTasks(); // Refresh board gracefully
     };
 
-    if (loading) {
+    const canCreate = hasPermission(userRole, 'CREATE_TASKS');
+
+    if (authLoading || loading) {
         return <div className="page-loader"><div className="spinner"></div></div>;
     }
 
@@ -80,10 +83,10 @@ export default function TasksPage() {
         <div className="tasks-page fade-in">
             <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0' }}>
                 <div>
-                    <h1 className="greeting" style={{ margin: 0 }}>{userRole === 'EMPLOYEE' ? 'My Tasks' : 'Task Allocation'}</h1>
-                    <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.6 }}>{userRole === 'EMPLOYEE' ? 'Track and update your assigned work.' : 'Manage and assign tasks across your team.'}</p>
+                    <h1 className="greeting" style={{ margin: 0 }}>{!canCreate ? 'My Tasks' : 'Task Allocation'}</h1>
+                    <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.6 }}>{!canCreate ? 'Track and update your assigned work.' : 'Manage and assign tasks across your team.'}</p>
                 </div>
-                {userRole !== 'EMPLOYEE' && (
+                {canCreate && (
                     <Button
                         variant="primary"
                         className="magnetic-btn"
@@ -104,7 +107,7 @@ export default function TasksPage() {
                                 <h2>{status === 'IN_PROGRESS' ? 'Planned/In Progress' : status.replace('_', ' ')}</h2>
                                 <span className="column-count">{tasks.filter(t => t.status === status).length}</span>
                             </div>
-                            {userRole !== 'EMPLOYEE' && (
+                            {canCreate && (
                                 <button className="add-task-inline" onClick={() => setIsAllocateModalOpen(true)}>
                                     <Plus size={16} />
                                 </button>
@@ -152,7 +155,7 @@ export default function TasksPage() {
                                     </div>
                                 </GlassCard>
                             ))}
-                            {userRole !== 'EMPLOYEE' && (
+                            {canCreate && (
                                 <button className="column-add-footer" onClick={() => setIsAllocateModalOpen(true)}>
                                     <Plus size={14} /> Add Task
                                 </button>

@@ -13,8 +13,6 @@ import {
     Users,
     UserPlus, // Added for Employee Management
     Briefcase,
-    Wallet,
-    CreditCard,
     RefreshCcw,
     RefreshCw,
     UserCircle,
@@ -28,7 +26,7 @@ import {
     ChevronLeft, // Added for collapse
     ChevronRight // Added for expand
 } from 'lucide-react';
-import { getUserFromToken, clearAuthToken } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 import './Sidebar.css';
 
 // Centralized navigation configurations dictated by Role
@@ -67,37 +65,19 @@ const RoleNavItems: Record<string, NavItem[]> = {
 };
 
 export default function Sidebar() {
+    const { employee, signOut } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(false); // New state for desktop collapse
-    const [user, setUser] = useState<{ employeeId?: string, roleId?: string, firstName?: string, lastName?: string } | null>(null);
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
-        const decoded = getUserFromToken();
-        if (decoded) {
-            // Support both standard JWT Claims and custom DTO formats
-            let rawRole = decoded.role || decoded.roleId || '';
-            rawRole = rawRole.toUpperCase();
-
-            // Fallback for concatenated role bugs
-            if (rawRole.includes('ADMIN')) rawRole = 'ADMIN';
-            else if (rawRole.includes('MANAGER')) rawRole = 'MANAGER';
-
-            setUser({
-                employeeId: decoded.sub || decoded.employeeId,
-                roleId: rawRole,
-                firstName: decoded.firstName,
-                lastName: decoded.lastName
-            });
-        }
-    }, [pathname]); // Re-check when route changes
+    }, []);
 
     const handleLogout = () => {
-        clearAuthToken();
-        router.push('/login');
+        signOut();
     };
 
     useEffect(() => {
@@ -107,7 +87,12 @@ export default function Sidebar() {
         }
     }, [isCollapsed]);
 
-    if (pathname === '/login') return null; // Don't show sidebar on login
+    if (!isMounted) return null;
+    if (pathname === '/login') return null;
+
+    const displayRole = (employee?.roleId || 'EMPLOYEE').toUpperCase();
+    const fullName = employee ? `${employee.firstName} ${employee.lastName}` : 'User';
+    const firstInitial = employee?.firstName?.charAt(0).toUpperCase() || 'U';
 
     return (
         <>
@@ -137,51 +122,41 @@ export default function Sidebar() {
 
                 <nav className="sidebar-nav">
                     <ul>
-                        {!isMounted ? (
-                            // Skeleton loaders while mounting
-                            [1, 2, 3, 4, 5, 6].map((i) => (
-                                <li key={`skeleton-${i}`} style={{ padding: '8px 16px' }}>
-                                    <div className="skeleton-pulse" style={{ height: '32px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}></div>
-                                </li>
-                            ))
-                        ) : (
-                            (user?.roleId && RoleNavItems[user.roleId] ? RoleNavItems[user.roleId] : RoleNavItems.EMPLOYEE).map((item, index) => {
-                                if (item.isGroup) {
-                                    return (
-                                        !isCollapsed && <div key={`group-${index}`} className="nav-group">
-                                            {item.name}
-                                        </div>
-                                    );
-                                }
-
-                                const Icon = item.icon;
-                                // Dashboard is exact match, others are prefix match to keep active state when viewing details
-                                const isActive = item.href === '/dashboard'
-                                    ? pathname === '/dashboard'
-                                    : pathname?.startsWith(item.href || '');
-
+                        {(employee?.roleId && RoleNavItems[employee.roleId.toUpperCase()] ? RoleNavItems[employee.roleId.toUpperCase()] : RoleNavItems.EMPLOYEE).map((item, index) => {
+                            if (item.isGroup) {
                                 return (
-                                    <li key={item.name}>
-                                        <Link href={item.href || '#'} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)} title={isCollapsed ? item.name : undefined}>
-                                            {Icon && <Icon className="nav-icon" size={20} />}
-                                            {!isCollapsed && <span>{item.name}</span>}
-                                        </Link>
-                                    </li>
+                                    !isCollapsed && <div key={`group-${index}`} className="nav-group">
+                                        {item.name}
+                                    </div>
                                 );
-                            })
-                        )}
+                            }
+
+                            const Icon = item.icon;
+                            const isActive = item.href === '/dashboard'
+                                ? pathname === '/dashboard'
+                                : pathname?.startsWith(item.href || '');
+
+                            return (
+                                <li key={item.name}>
+                                    <Link href={item.href || '#'} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)} title={isCollapsed ? item.name : undefined}>
+                                        {Icon && <Icon className="nav-icon" size={20} />}
+                                        {!isCollapsed && <span>{item.name}</span>}
+                                    </Link>
+                                </li>
+                            );
+                        })}
                     </ul>
                 </nav>
 
                 <div className="sidebar-footer">
-                    {user ? (
+                    {employee ? (
                         <div className={`user-profile ${isCollapsed ? 'collapsed-profile' : ''}`}>
-                            <div className="avatar">{user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}</div>
+                            <div className="avatar">{firstInitial}</div>
                             {!isCollapsed && (
                                 <>
                                     <div className="user-info">
-                                        <div className="user-name">{user.firstName} {user.lastName}</div>
-                                        <div className="user-role">{user.roleId || 'Role'}</div>
+                                        <div className="user-name">{fullName}</div>
+                                        <div className="user-role">{displayRole}</div>
                                     </div>
                                     <button className="logout-btn" onClick={handleLogout} title="Logout">
                                         <LogOut size={18} />
@@ -199,7 +174,7 @@ export default function Sidebar() {
                             <div className="avatar">...</div>
                             {!isCollapsed && (
                                 <div className="user-info">
-                                    <div className="user-name">Loading...</div>
+                                    <div className="user-name">Loading Profile...</div>
                                 </div>
                             )}
                         </div>

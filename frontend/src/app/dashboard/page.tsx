@@ -672,7 +672,12 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 // ---------------------------------------------------------------------------
 // MAIN LAYOUT WRAPPER
 // ---------------------------------------------------------------------------
+import { useAuth } from '@/hooks/useAuth';
+
+// ... existing code ...
+
 export default function DashboardPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
     const [tasks, setTasks] = useState<TaskDTO[]>([]);
     const [recentLogs, setRecentLogs] = useState<WorkHourLogDTO[]>([]);
@@ -690,24 +695,29 @@ export default function DashboardPage() {
 
     useEffect(() => {
         async function fetchData() {
+            setLoading(true);
             try {
-                const tokenData = getUserFromToken();
-                let activeRole = tokenData?.role || tokenData?.roleId || 'EMPLOYEE';
+                if (!authEmployee) {
+                    console.warn('[Dashboard] No employee profile available for data fetching.');
+                    return;
+                }
+
+                let activeRole = authEmployee.roleId || 'EMPLOYEE';
                 activeRole = activeRole.toUpperCase();
                 if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
                 else if (activeRole.includes('MANAGER')) activeRole = 'MANAGER';
-                const activeEmpId = tokenData?.sub || tokenData?.employeeId || 'emp-001';
+                
+                const activeEmpId = authEmployee.id;
                 setUserRole(activeRole);
+                setEmployee(authEmployee as any);
 
-                const [empData, taskData, kpiData, statsData, eodData] = await Promise.all([
-                    api.getEmployeeById(activeEmpId).catch(() => null),
+                const [taskData, kpiData, statsData, eodData] = await Promise.all([
                     api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined).catch(() => []),
                     api.getEmployeeKPIs(activeEmpId).catch(() => []),
                     activeRole === 'ADMIN' ? api.getEmployeeStats().catch(() => ({ total: 0, active: 0 })) : Promise.resolve({ total: 0, active: 0 }),
                     activeRole === 'ADMIN' ? api.getAllEODs().catch(() => []) : Promise.resolve([])
                 ]);
 
-                setEmployee(empData);
                 // For ADMIN, we show first 5 system-wide, for EMPLOYEE we show up to 15 assigned
                 setTasks(activeRole === 'ADMIN' ? taskData.slice(0, 5) : taskData.slice(0, 15));
                 setKpis(kpiData || []);
@@ -715,14 +725,15 @@ export default function DashboardPage() {
                 setRecentEods(eodData || []);
                 setRecentLogs([]);
             } catch (err) {
-                console.error(err);
+                console.error('[Dashboard] Error fetching data:', err);
             } finally {
                 setLoading(false);
             }
         }
 
-        // Initial Fetch
-        fetchData();
+        if (!authLoading) {
+            fetchData();
+        }
 
         // Listen for Real-Time Notification dispatches
         const handleLiveUpdate = (e: any) => {
@@ -734,9 +745,10 @@ export default function DashboardPage() {
 
         window.addEventListener('app:live-notification', handleLiveUpdate);
         return () => window.removeEventListener('app:live-notification', handleLiveUpdate);
-    }, []);
+    }, [authEmployee, authLoading]);
 
-    if (loading) {
+    // Only block if we strictly have no user found yet
+    if (authLoading && !authEmployee) {
         return <div className="page-loader"><div className="spinner"></div></div>;
     }
 
