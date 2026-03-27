@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { LogIn, Loader2 } from 'lucide-react';
+import { LogIn, Loader2, Eye, EyeOff } from 'lucide-react';
 import './Login.css';
 
 function LoginForm() {
@@ -12,6 +12,7 @@ function LoginForm() {
 
     const [email, setEmail] = useState(searchParams?.get('email') || '');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -108,41 +109,43 @@ function LoginForm() {
 
                 <div className="form-group">
                     <label className="form-label" htmlFor="password">Password</label>
-                    <input
-                        id="password"
-                        type="password"
-                        className="flat-input"
-                        placeholder="*************"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={loading}
-                        required
-                    />
+                    <div className="password-input-wrapper">
+                        <input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            className="flat-input with-toggle"
+                            placeholder="*************"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            disabled={loading}
+                            required
+                        />
+                        <button
+                            type="button"
+                            className="password-toggle"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                    </div>
                 </div>
 
-                <div className="login-utils">
-                    <label className="remember-me">
-                        <input type="checkbox" className="remember-checkbox" />
-                        Remember Me
-                    </label>
-                    <a href="#" className="forgot-link" onClick={(e) => e.preventDefault()}>
-                        Forgot Password?
-                    </a>
+                <div style={{ marginTop: '0.75rem' }}>
+                    <button type="submit" className="login-submit" disabled={loading || !isFormValid}>
+                        {loading ? (
+                            <>
+                                <Loader2 size={18} className="spin-icon" style={{ marginRight: '8px' }} />
+                                Authenticating...
+                            </>
+                        ) : (
+                            <>
+                                <LogIn size={18} style={{ marginRight: '8px' }} />
+                                Sign In
+                            </>
+                        )}
+                    </button>
                 </div>
-
-                <button type="submit" className="login-submit" disabled={loading || !isFormValid}>
-                    {loading ? (
-                        <>
-                            <Loader2 size={18} className="spin-icon" style={{ marginRight: '8px' }} />
-                            Authenticating...
-                        </>
-                    ) : (
-                        <>
-                            <LogIn size={18} style={{ marginRight: '8px' }} />
-                            Sign In
-                        </>
-                    )}
-                </button>
 
                 {error && (
                     <div className="error-message">

@@ -132,61 +132,33 @@
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
-/* Utility Links Row */
-.login-utils {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.remember-me {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-weight: 400;
-}
-
-.remember-checkbox {
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    background: #121212;
-    cursor: pointer;
+.password-input-wrapper {
     position: relative;
-    transition: all 0.2s ease;
+    width: 100%;
 }
 
-.remember-checkbox:checked {
-    background: var(--purple-main);
-    border-color: var(--purple-main);
-}
-
-.remember-checkbox:checked::after {
-    content: '✓';
+.password-toggle {
     position: absolute;
+    right: 12px;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 10px;
-    font-weight: bold;
-}
-
-.forgot-link {
-    color: var(--text-secondary);
-    text-decoration: none;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #737373;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     transition: color 0.2s ease;
 }
 
-.forgot-link:hover {
-    color: var(--purple-light);
+.password-toggle:hover {
+    color: var(--text-primary);
+}
+
+.flat-input.with-toggle {
+    padding-right: 44px;
 }
 
 /* Submit Action */
