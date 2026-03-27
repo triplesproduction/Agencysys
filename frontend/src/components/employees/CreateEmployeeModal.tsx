@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, User, Briefcase, Key, ChevronRight, ChevronLeft, Save, FileText, Plus, Eye, Trash2, Download } from 'lucide-react';
+import { X, User, Briefcase, Key, ChevronRight, ChevronLeft, Save, FileText, Plus, Eye, Trash2, Download, Copy, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 
@@ -17,6 +17,11 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
     const [error, setError] = useState('');
     const [phoneError, setPhoneError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Credentials shown after successful creation
+    const [createdCredentials, setCreatedCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
+    const [copiedEmail, setCopiedEmail] = useState(false);
+    const [copiedPassword, setCopiedPassword] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -36,10 +41,8 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
         joinedAt: new Date().toISOString().split('T')[0],
         reportingManager: '',
         // System
-        id: '',
         email: '', // Work Email
         roleId: 'EMPLOYEE',
-        password: '',
         status: 'ACTIVE'
     });
 
@@ -60,18 +63,15 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
         setFormData(prev => ({ ...prev, phone: digits.slice(0, 10) }));
     };
 
-    const autoGenerateId = () => {
-        const randomNum = Math.floor(100 + Math.random() * 900);
-        setFormData(prev => ({ ...prev, id: `TRS-EMP-${randomNum}` }));
-    };
-
-    const autoGeneratePassword = () => {
-        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-        let pass = '';
-        for (let i = 0; i < 12; i++) {
-            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    const copyToClipboard = async (text: string, field: 'email' | 'password') => {
+        await navigator.clipboard.writeText(text);
+        if (field === 'email') {
+            setCopiedEmail(true);
+            setTimeout(() => setCopiedEmail(false), 2000);
+        } else {
+            setCopiedPassword(true);
+            setTimeout(() => setCopiedPassword(false), 2000);
         }
-        setFormData(prev => ({ ...prev, password: pass }));
     };
 
     const validateStep = (currentStep: number) => {
@@ -86,7 +86,6 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
                 return null;
             case 3:
                 if (!formData.email.trim()) return 'Work Email is required.';
-                if (!formData.password.trim()) return 'Temporary Password is required.';
                 return null;
             default:
                 return null;
@@ -161,21 +160,19 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
 
         try {
             const payload = {
-                id: formData.id || undefined,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 email: formData.email,
-                password: formData.password,
                 roleId: formData.roleId,
                 department: formData.department,
-                status: formData.status as any,
+                status: formData.status,
                 dob: formData.dob ? new Date(formData.dob).toISOString() : undefined,
-                gender: formData.gender as any,
+                gender: formData.gender,
                 phone: formData.phone,
                 address: formData.address,
                 emergencyContact: formData.emergencyContact,
                 designation: formData.designation,
-                workLocation: formData.workLocation as any,
+                workLocation: formData.workLocation,
                 joinedAt: formData.joinedAt ? new Date(formData.joinedAt).toISOString() : undefined,
                 documents: documents.map(d => ({
                     name: d.name,
@@ -184,18 +181,20 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
                 }))
             };
 
-            await api.createEmployee(payload);
+            const result = await api.createEmployeeAccount(payload);
 
             addNotification({
                 title: 'Employee Onboarded',
-                message: `Successfully provisioned credentials for ${formData.firstName} ${formData.lastName}.`,
+                message: `Account created for ${formData.firstName} ${formData.lastName}. Share credentials securely.`,
                 type: 'SYSTEM',
                 metadata: null
             });
 
-            onClose();
+            // Show credentials screen (Step 5) instead of closing immediately
+            setCreatedCredentials({ email: result.email, tempPassword: result.tempPassword });
+            setStep(5);
         } catch (err: any) {
-            setError(err.message || 'Failed to create employee record. Ensure Email/ID is unique.');
+            setError(err.message || 'Failed to provision account. Ensure the email is not already in use.');
         } finally {
             setLoading(false);
         }
@@ -215,6 +214,55 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
         </div>
     );
 
+    // Step 5: Credentials reveal screen
+    if (step === 5 && createdCredentials) {
+        return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ background: 'var(--bg-dark)', width: '100%', maxWidth: '520px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', overflow: 'hidden' }}>
+                    <div style={{ padding: '32px', textAlign: 'center' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '2px solid #10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                            <CheckCircle size={32} color="#10B981" />
+                        </div>
+                        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'white', margin: '0 0 8px' }}>Account Provisioned</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0 0 32px' }}>Share these credentials securely with the employee.</p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+                            {/* Email */}
+                            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Login Email</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'white' }}>{createdCredentials.email}</span>
+                                    <button onClick={() => copyToClipboard(createdCredentials.email, 'email')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedEmail ? '#10B981' : 'var(--text-secondary)', padding: '4px', borderRadius: '4px', transition: 'color 0.2s' }} title="Copy email">
+                                        {copiedEmail ? <CheckCircle size={16} /> : <Copy size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Password */}
+                            <div style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Temporary Password</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: '1.05rem', fontWeight: 700, color: 'var(--purple-light)', letterSpacing: '0.05em' }}>{createdCredentials.tempPassword}</span>
+                                    <button onClick={() => copyToClipboard(createdCredentials.tempPassword, 'password')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedPassword ? '#10B981' : 'var(--text-secondary)', padding: '4px', borderRadius: '4px', transition: 'color 0.2s' }} title="Copy password">
+                                        {copiedPassword ? <CheckCircle size={16} /> : <Copy size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: '#F59E0B', textAlign: 'left' }}>
+                            ⚠ This password is shown only once. Copy it before closing.
+                        </div>
+
+                        <button onClick={onClose} className="primary-button hoverable" style={{ marginTop: '24px', width: '100%', justifyContent: 'center', background: '#10B981', color: 'black', fontWeight: 600 }}>
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ background: 'var(--bg-dark)', width: '100%', maxWidth: '800px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
@@ -223,6 +271,7 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
                     <div>
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'white', margin: 0 }}>Create Employee Profile</h2>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px' }}>Enterprise Unified Provisioning - Step {step} of 4</p>
+                        <p style={{ color: 'rgba(139,92,246,0.8)', fontSize: '0.75rem', marginTop: '2px' }}>🔒 Auth account created securely by server</p>
                     </div>
                     <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                         <X size={24} />
@@ -301,22 +350,11 @@ export default function CreateEmployeeModal({ onClose }: { onClose: () => void }
 
                         {/* STEP 3: SYSTEM CREDENTIALS */}
                         <div style={{ display: step === 3 ? 'block' : 'none' }} className="fade-in">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '16px' }}><Key size={18} color="var(--purple-main)" /> System Credentials</h3>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><Key size={18} color="var(--purple-main)" /> System Credentials</h3>
+                            <div style={{ padding: '12px 16px', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--purple-light)', marginBottom: '20px' }}>
+                                🔒 A secure temporary password will be <strong>auto-generated by the server</strong> and shown to you after creation.
+                            </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <div>
-                                    <label className="input-label">Employee ID (Optional)</label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input name="id" value={formData.id} onChange={handleChange} className="input-field" placeholder="TRS-EMP-XXX" />
-                                        <button type="button" onClick={autoGenerateId} className="secondary-button" style={{ padding: '0 12px' }}>Auto</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="input-label">Temporary Password *</label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input required name="password" value={formData.password} onChange={handleChange} className="input-field" placeholder="••••••••" />
-                                        <button type="button" onClick={autoGeneratePassword} className="secondary-button" style={{ padding: '0 12px' }}>Gen</button>
-                                    </div>
-                                </div>
                                 <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Work Email (Login ID) *</label><input required type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="user@triples.os" /></div>
                                 <div>
                                     <label className="input-label">System Role *</label>

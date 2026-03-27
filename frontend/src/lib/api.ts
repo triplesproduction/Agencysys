@@ -102,6 +102,19 @@ export const api = {
         handleSupabaseError(error, 'Create Employee');
         return res as EmployeeDTO;
     },
+    createEmployeeAccount: async (data: any): Promise<{ userId: string; email: string; tempPassword: string }> => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) throw new Error('Not authenticated. Please log in again.');
+
+        const { data: res, error } = await supabase.functions.invoke('create-user', {
+            body: data,
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (error) throw new Error(error.message || 'Edge function error');
+        if (res?.error) throw new Error(res.error);
+        return res as { userId: string; email: string; tempPassword: string };
+    },
     updateEmployeeStatus: async (id: string, status: string) => {
         const { data, error } = await supabase.from('employees').update({ status }).eq('id', id).select().single();
         handleSupabaseError(error, 'Update Status');
