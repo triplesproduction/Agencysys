@@ -8,207 +8,295 @@ import {
     RuleDTO,
     PaginatedResponse
 } from '../types/dto';
-import { getAuthToken, clearAuthToken } from './auth';
+import { getAuthToken, clearAuthToken, getUserFromToken } from './auth';
+import { supabase } from './supabase';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const headers: Record<string, string> = {
-        ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...((options?.headers as Record<string, string>) || {}),
-    };
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
-
-    if (!response.ok) {
-        let errorData;
-        try {
-            errorData = await response.json();
-        } catch {
-            throw new Error(`API Request Failed: ${response.statusText}`);
-        }
-
-        if (response.status === 401) {
-            console.error('Auth Error - clearing stale token:', errorData);
-            if (typeof window !== 'undefined') {
-                setTimeout(() => {
-                    clearAuthToken();
-                    window.location.href = '/login';
-                }, 1500);
-            }
-        }
-
-        const errObj = errorData?.error;
-        const errMsg = typeof errObj === 'string'
-            ? errObj
-            : (errObj?.message || errorData?.message || `Error ${response.status}`);
-        throw new Error(Array.isArray(errMsg) ? errMsg.join(', ') : errMsg);
+const handleSupabaseError = (error: any, context: string) => {
+    if (error) {
+        console.error(`Supabase Error (${context}):`, error);
+        throw new Error(error.message || `An error occurred during ${context}`);
     }
-
-    if (response.status === 204) {
-        return {} as T;
-    }
-
-    const json = await response.json();
-    return json.data !== undefined ? json.data : json;
-}
+};
 
 export const api = {
     // Auth
     login: async (email: string, password: string) => {
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed');
-        return data as { access_token: string; employee?: any };
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        handleSupabaseError(error, 'Login');
+
+        const { data: employee, error: empError } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        if (empError || !employee) {
+            throw new Error('Employee profile not found. Please contact support.');
+        }
+
+        const access_token = data.session?.access_token || '';
+
+        // Manually set Next.js middleware bypass tokens
+        document.cookie = `token=${access_token}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `user_session=${encodeURIComponent(JSON.stringify({
+            id: employee.id,
+            roleId: employee.roleId,
+            role: employee.roleId,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            sub: employee.id
+        }))}; path=/; max-age=86400; SameSite=Lax`;
+
+        return { access_token, employee };
     },
-    testLogin: (employeeId: string, roleId: string) => fetchApi<{ access_token: string }>('/auth/test-login', {
-        method: 'POST',
-        body: JSON.stringify({ employeeId, roleId })
-    }),
 
     // Employees
-    getEmployeeStats: () => fetchApi<{ total: number, active: number }>('/employees/stats'),
-    getEmployees: (options?: { page?: number, limit?: number, search?: string, roleId?: string, status?: string, department?: string, sortBy?: string }) => {
-        const params = new URLSearchParams();
-        if (options) {
-            Object.entries(options).forEach(([key, value]) => {
-                if (value !== undefined) params.append(key, String(value));
-            });
-        }
-        const qs = params.toString() ? `?${params.toString()}` : '';
-        return fetchApi<PaginatedResponse<EmployeeDTO>>(`/employees${qs}`);
+    getEmployeeStats: async () => {
+        const { data, error } = await supabase.from('employees').select('id, status');
+        handleSupabaseError(error, 'Fetch Stats');
+        return {
+            total: data?.length || 0,
+            active: data?.filter(e => e.status === 'ACTIVE').length || 0
+        };
     },
-    getEmployeeById: (id: string) => fetchApi<EmployeeDTO>(`/employees/${id}`),
-    createEmployee: (data: any) => fetchApi<EmployeeDTO>('/employees', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    updateEmployeeStatus: (id: string, status: string) => fetchApi<EmployeeDTO>(`/employees/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-    }),
-    updateEmployee: (id: string, data: any) => fetchApi<EmployeeDTO>(`/employees/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-    }),
-    deleteEmployee: (id: string) => fetchApi<void>(`/employees/${id}`, {
-        method: 'DELETE'
-    }),
+    getEmployees: async (options?: { page?: number, limit?: number, search?: string, roleId?: string, status?: string, department?: string, sortBy?: string }) => {
+        let query = supabase.from('employees').select('*', { count: 'exact' });
+        
+        if (options?.search) {
+            query = query.or(`firstName.ilike.%${options.search}%,lastName.ilike.%${options.search}%,email.ilike.%${options.search}%`);
+        }
+        if (options?.roleId) query = query.eq('roleId', options.roleId);
+        if (options?.status) query = query.eq('status', options.status);
+        if (options?.department) query = query.eq('department', options.department);
+        
+        if (options?.sortBy) {
+            const [col, dir] = options.sortBy.split(':');
+            query = query.order(col || 'firstName', { ascending: dir !== 'desc' });
+        } else {
+            query = query.order('firstName', { ascending: true });
+        }
+
+        const page = options?.page || 1;
+        const limit = options?.limit || 10;
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
+        handleSupabaseError(error, 'Fetch Employees');
+
+        return {
+            data: data as EmployeeDTO[],
+            total: count || 0,
+            page
+        };
+    },
+    getEmployeeById: async (id: string) => {
+        const { data, error } = await supabase.from('employees').select('*').eq('id', id).single();
+        handleSupabaseError(error, 'Fetch Employee');
+        return data as EmployeeDTO;
+    },
+    createEmployee: async (data: any) => {
+        const { data: res, error } = await supabase.from('employees').insert(data).select().single();
+        handleSupabaseError(error, 'Create Employee');
+        return res as EmployeeDTO;
+    },
+    updateEmployeeStatus: async (id: string, status: string) => {
+        const { data, error } = await supabase.from('employees').update({ status }).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Status');
+        return data as EmployeeDTO;
+    },
+    updateEmployee: async (id: string, data: any) => {
+        const { data: res, error } = await supabase.from('employees').update(data).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Employee');
+        return res as EmployeeDTO;
+    },
+    deleteEmployee: async (id: string) => {
+        const { error } = await supabase.from('employees').delete().eq('id', id);
+        handleSupabaseError(error, 'Delete Employee');
+    },
 
     // Tasks
-    getTasks: (assigneeId?: string, status?: string) => {
-        const params = new URLSearchParams();
-        if (assigneeId) params.append('assigneeId', assigneeId);
-        if (status) params.append('status', status);
-        const q = params.toString() ? `?${params.toString()}` : '';
-        return fetchApi<TaskDTO[]>(`/tasks${q}`);
+    getTasks: async (assigneeId?: string, status?: string) => {
+        let query = supabase.from('tasks').select('*, assignee:employees(*)');
+        if (assigneeId) query = query.eq('assigneeId', assigneeId);
+        if (status) query = query.eq('status', status);
+        const { data, error } = await query.order('createdAt', { ascending: false });
+        handleSupabaseError(error, 'Fetch Tasks');
+        return data as TaskDTO[];
     },
-    createTask: (data: Partial<TaskDTO>) => fetchApi<TaskDTO>('/tasks', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    updateTaskStatus: (id: string, status: string) => fetchApi<TaskDTO>(`/tasks/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-    }),
-    updateTask: (id: string, data: Partial<TaskDTO>) => fetchApi<TaskDTO>(`/tasks/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-    }),
+    createTask: async (data: Partial<TaskDTO>) => {
+        const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
+        handleSupabaseError(error, 'Create Task');
+        return res as TaskDTO;
+    },
+    updateTaskStatus: async (id: string, status: string) => {
+        const { data, error } = await supabase.from('tasks').update({ status }).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Task Status');
+        return data as TaskDTO;
+    },
+    updateTask: async (id: string, data: Partial<TaskDTO>) => {
+        const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Task');
+        return res as TaskDTO;
+    },
 
     // EOD
-    submitEOD: (data: Partial<EODSubmissionDTO>) => fetchApi<EODSubmissionDTO>('/eod-reports', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    getMyEODs: () => fetchApi<EODSubmissionDTO[]>('/eod-reports/me'),
-    getAllEODs: () => fetchApi<any[]>('/eod-reports'),
-    updateEODSentiment: (id: string, sentiment: string) => fetchApi<any>(`/eod-reports/${id}/sentiment`, {
-        method: 'PATCH',
-        body: JSON.stringify({ sentiment })
-    }),
+    submitEOD: async (data: Partial<EODSubmissionDTO>) => {
+        const { data: res, error } = await supabase.from('eod_reports').insert(data).select().single();
+        handleSupabaseError(error, 'Submit EOD');
+        return res as EODSubmissionDTO;
+    },
+    getMyEODs: async () => {
+        const user = getUserFromToken();
+        if (!user || !user.id) throw new Error('Not authenticated');
+        const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', user.id).order('reportDate', { ascending: false });
+        handleSupabaseError(error, 'Fetch My EODs');
+        return data as EODSubmissionDTO[];
+    },
+    getAllEODs: async () => {
+        const { data, error } = await supabase.from('eod_reports').select('*, employee:employees(id, firstName, lastName, profilePhoto)').order('reportDate', { ascending: false });
+        handleSupabaseError(error, 'Fetch All EODs');
+        return data as any[];
+    },
+    updateEODSentiment: async (id: string, sentiment: string) => {
+        const { data, error } = await supabase.from('eod_reports').update({ sentiment }).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Sentiment');
+        return data as any;
+    },
 
     // Work Hours
-    logWorkHours: (data: Partial<WorkHourLogDTO>) => fetchApi<WorkHourLogDTO>('/work-hours', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
+    logWorkHours: async (data: Partial<WorkHourLogDTO>) => {
+        const { data: res, error } = await supabase.from('work_hours').insert(data).select().single();
+        handleSupabaseError(error, 'Log Work Hours');
+        return res as WorkHourLogDTO;
+    },
 
     // Leaves
-    applyForLeave: (data: Partial<LeaveApplicationDTO>) => fetchApi<LeaveApplicationDTO>('/leaves', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    getMyLeaves: () => fetchApi<LeaveApplicationDTO[]>('/leaves/me'),
-    getLeaves: () => fetchApi<LeaveApplicationDTO[]>('/leaves'),
-    approveLeave: (id: string, status: 'APPROVED' | 'REJECTED') => fetchApi<LeaveApplicationDTO>(`/leaves/${id}/approve`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-    }),
+    applyForLeave: async (data: Partial<LeaveApplicationDTO>) => {
+        const { data: res, error } = await supabase.from('leaves').insert(data).select().single();
+        handleSupabaseError(error, 'Apply for Leave');
+        return res as LeaveApplicationDTO;
+    },
+    getMyLeaves: async () => {
+        const user = getUserFromToken();
+        if (!user || !user.id) throw new Error('Not authenticated');
+        const { data, error } = await supabase.from('leaves').select('*').eq('employeeId', user.id).order('createdAt', { ascending: false });
+        handleSupabaseError(error, 'Fetch My Leaves');
+        return data as LeaveApplicationDTO[];
+    },
+    getLeaves: async () => {
+        const { data, error } = await supabase.from('leaves').select('*, employee:employees(*)').order('createdAt', { ascending: false });
+        handleSupabaseError(error, 'Fetch Leaves');
+        return data as LeaveApplicationDTO[];
+    },
+    approveLeave: async (id: string, status: 'APPROVED' | 'REJECTED') => {
+        const user = getUserFromToken();
+        const updateData = { status, approverId: user?.id };
+        const { data, error } = await supabase.from('leaves').update(updateData).eq('id', id).select().single();
+        handleSupabaseError(error, 'Approve Leave');
+        return data as LeaveApplicationDTO;
+    },
 
     // KPIs
-    getEmployeeKPIs: (employeeId: string) => fetchApi<KPIMetricDTO[]>(`/kpis/employees/${employeeId}`),
+    getEmployeeKPIs: async (employeeId: string) => {
+        const { data, error } = await supabase.from('kpi_metrics').select('*').eq('employeeId', employeeId).order('lastUpdated', { ascending: false });
+        handleSupabaseError(error, 'Fetch KPIs');
+        return data as KPIMetricDTO[];
+    },
 
     // Chats
-    sendChatMessage: (data: { receiverId: string; content: string }) => fetchApi<any>('/chats/send', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    getMyChats: () => fetchApi<{ data: any[] }>('/chats/me'),
-    getAdminChats: () => fetchApi<{ data: any[], message: string }>('/chats/admin'),
-    deleteChatMessage: (messageId: string, forEveryone: boolean) => fetchApi<any>(`/chats/${encodeURIComponent(messageId)}/delete`, {
-        method: 'POST',
-        body: JSON.stringify({ forEveryone })
-    }),
+    sendChatMessage: async (data: { receiverId: string; content: string }) => {
+        const user = getUserFromToken();
+        if (!user || !user.id) throw new Error('Not authenticated');
+        const msg = { ...data, senderId: user.id };
+        const { data: res, error } = await supabase.from('messages').insert(msg).select().single();
+        handleSupabaseError(error, 'Send Message');
+        return res;
+    },
+    getMyChats: async () => {
+        const user = getUserFromToken();
+        if (!user || !user.id) throw new Error('Not authenticated');
+        const { data, error } = await supabase.from('messages')
+            .select('*')
+            .or(`senderId.eq.${user.id},receiverId.eq.${user.id}`)
+            .order('sentAt', { ascending: true });
+        handleSupabaseError(error, 'Fetch My Chats');
+        return { data: data || [] };
+    },
+    getAdminChats: async () => {
+        const { data, error } = await supabase.from('messages')
+            .select('*, sender:employees!senderId(*), receiver:employees!receiverId(*)')
+            .order('sentAt', { ascending: false });
+        handleSupabaseError(error, 'Fetch Admin Chats');
+        return { data: data || [], message: 'Admin chats' };
+    },
+    deleteChatMessage: async (messageId: string, forEveryone: boolean) => {
+        const { error } = await supabase.from('messages').delete().eq('id', messageId);
+        handleSupabaseError(error, 'Delete Message');
+        return { success: true };
+    },
 
     // Notifications
-    broadcastNotification: (data: { title: string; message: string; type: string; metadata?: any }) => fetchApi<{ success: boolean; count: number }>('/notifications/broadcast', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
+    broadcastNotification: async (data: { title: string; message: string; type: string; metadata?: any }) => {
+        const { error } = await supabase.from('notifications').insert(data);
+        handleSupabaseError(error, 'Broadcast Notification');
+        return { success: true, count: 1 };
+    },
 
     // Rules
-    getRules: () => fetchApi<RuleDTO[]>('/rules'),
-    createRule: (data: Partial<RuleDTO>) => fetchApi<RuleDTO>('/rules', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    updateRule: (id: string, data: Partial<RuleDTO>) => fetchApi<RuleDTO>(`/rules/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-    }),
-    deleteRule: (id: string) => fetchApi<void>(`/rules/${id}`, {
-        method: 'DELETE'
-    }),
+    getRules: async () => {
+        const { data, error } = await supabase.from('rules').select('*, author:employees(id, firstName, lastName)').order('createdAt', { ascending: false });
+        handleSupabaseError(error, 'Fetch Rules');
+        return data as RuleDTO[];
+    },
+    createRule: async (data: Partial<RuleDTO>) => {
+        const user = getUserFromToken();
+        const ruleData = { ...data, createdBy: user?.id };
+        const { data: res, error } = await supabase.from('rules').insert(ruleData).select().single();
+        handleSupabaseError(error, 'Create Rule');
+        return res as RuleDTO;
+    },
+    updateRule: async (id: string, data: Partial<RuleDTO>) => {
+        const { data: res, error } = await supabase.from('rules').update(data).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Rule');
+        return res as RuleDTO;
+    },
+    deleteRule: async (id: string) => {
+        const { error } = await supabase.from('rules').delete().eq('id', id);
+        handleSupabaseError(error, 'Delete Rule');
+    },
 
     // Announcements
-    getAnnouncements: () => fetchApi<any[]>('/announcements'),
-    createAnnouncement: (data: { title: string; message: string; type?: string }) => fetchApi<any>('/announcements', {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    updateAnnouncementStatus: (id: string, status: 'active' | 'inactive') => fetchApi<any>(`/announcements/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-    }),
-    deleteAnnouncement: (id: string) => fetchApi<void>(`/announcements/${id}`, {
-        method: 'DELETE'
-    }),
+    getAnnouncements: async () => {
+        const { data, error } = await supabase.from('announcements').select('*').order('createdAt', { ascending: false });
+        handleSupabaseError(error, 'Fetch Announcements');
+        return data as any[];
+    },
+    createAnnouncement: async (data: { title: string; message: string; type?: string }) => {
+        const { data: res, error } = await supabase.from('announcements').insert(data).select().single();
+        handleSupabaseError(error, 'Create Announcement');
+        return res as any;
+    },
+    updateAnnouncementStatus: async (id: string, status: 'active' | 'inactive') => {
+        const { data, error } = await supabase.from('announcements').update({ status }).eq('id', id).select().single();
+        handleSupabaseError(error, 'Update Announcement Status');
+        return data as any;
+    },
+    deleteAnnouncement: async (id: string) => {
+        const { error } = await supabase.from('announcements').delete().eq('id', id);
+        handleSupabaseError(error, 'Delete Announcement');
+    },
 
     // Uploads
-    uploadFile: (file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return fetchApi<{ url: string }>('/uploads/file', {
-            method: 'POST',
-            body: formData
-        });
+    uploadFile: async (file: File) => {
+        const ext = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
+        const { error } = await supabase.storage.from('uploads').upload(fileName, file);
+        handleSupabaseError(error, 'File Upload');
+        
+        const { data: pubData } = supabase.storage.from('uploads').getPublicUrl(fileName);
+        return { url: pubData.publicUrl };
     },
 };

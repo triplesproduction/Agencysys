@@ -15,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import KanbanColumn from './KanbanColumn';
 import DraggableTaskCard, { TaskCardProps, TaskCardDisplay } from './DraggableTaskCard';
+import { api } from '@/lib/api';
 import './KanbanBoard.css';
 
 const COLUMNS = [
@@ -38,23 +39,17 @@ export default function KanbanBoard({ refreshFlag = 0 }: { refreshFlag?: number 
     // Mock initial fetch (Will wire to actual API)
     useEffect(() => {
         const fetchTasks = async () => {
-            const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:3001/api/v1/tasks', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const mapped = data.map((t: any) => ({
-                        id: t.id,
-                        title: t.title,
-                        assigneeName: t.assigneeId, // In reality, we'd expand the SQL include to get user names
-                        priority: t.priority,
-                        status: t.status,
-                        dueDate: t.dueDate,
-                    }));
-                    setTasks(mapped);
-                }
+                const data = await api.getTasks();
+                const mapped = data.map((t: any) => ({
+                    id: t.id,
+                    title: t.title,
+                    assigneeName: t.assignee?.firstName ? `${t.assignee.firstName} ${t.assignee.lastName}` : t.assigneeId, 
+                    priority: t.priority,
+                    status: t.status,
+                    dueDate: t.dueDate,
+                }));
+                setTasks(mapped);
             } catch (err) {
                 console.error("Failed to load tasks:", err);
             }
@@ -84,16 +79,8 @@ export default function KanbanBoard({ refreshFlag = 0 }: { refreshFlag?: number 
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
 
         // Network Sync to Backend -> Triggers Notification WebSocket & KPIs natively
-        const token = localStorage.getItem('token');
         try {
-            await fetch(`http://localhost:3001/api/v1/tasks/${taskId}/status`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ status: newStatus })
-            });
+            await api.updateTaskStatus(taskId, newStatus);
         } catch (err) {
             console.error('Failed to sync Kanban drop event', err);
             // On failure, we'd ideally revert the optimistic UI

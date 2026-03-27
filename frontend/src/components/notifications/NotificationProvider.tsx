@@ -1,9 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 import { getUserFromToken } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import GlassCard from '../GlassCard';
 import './Notifications.css';
 
@@ -28,7 +28,6 @@ const NotificationContext = createContext<NotificationContextProps>({
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-    const [socket, setSocket] = useState<Socket | null>(null);
     const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
     const router = useRouter();
 
@@ -37,36 +36,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         const activeUserId = user?.sub || user?.employeeId;
         if (!activeUserId) return;
 
-        // Initialize Socket
-        const newSocket = io('http://localhost:3001', {
-            query: { userId: activeUserId },
-            transports: ['websocket'],
-        });
+        // Initialize Supabase Channel for Realtime Notifications
+        const channel = supabase.channel('system_events');
 
-        // Listen for new inbound websocket messages
-        newSocket.on('notification', (payload: NotificationMessage) => {
+        channel
+            .on('broadcast', { event: 'notification' }, ({ payload }: { payload: NotificationMessage }) => {
+                // Assign ephemeral ID if missing from transit
+                const liveMessage = { ...payload, id: payload.id || `live-${Date.now()}` };
 
+                setNotifications((prev) => [...prev, liveMessage]);
 
-            // Assign ephemeral ID if missing from transit
-            const liveMessage = { ...payload, id: payload.id || `live-${Date.now()}` };
+                // Dispatch global event for instant UI refreshing across active pages 
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('app:live-notification', { detail: liveMessage }));
+                }
 
-            setNotifications((prev) => [...prev, liveMessage]);
-
-            // Dispatch global event for instant UI refreshing across active pages 
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('app:live-notification', { detail: liveMessage }));
-            }
-
-            // Auto-dismiss after 6 seconds
-            setTimeout(() => {
-                removeNotification(liveMessage.id);
-            }, 6000);
-        });
-
-        setSocket(newSocket);
+                // Auto-dismiss after 6 seconds
+                setTimeout(() => {
+                    removeNotification(liveMessage.id);
+                }, 6000);
+            })
+            .subscribe();
 
         return () => {
-            newSocket.disconnect();
+            channel.unsubscribe();
         };
     }, []);
 

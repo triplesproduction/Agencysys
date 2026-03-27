@@ -6,11 +6,18 @@ export function setAuthToken(token: string) {
     // Session is handled by Next.js Server Route HttpOnly Cookie securely
 }
 
-export function clearAuthToken() {
+import { supabase } from './supabase';
+
+export async function clearAuthToken() {
     if (typeof window !== 'undefined') {
-        fetch('/api/auth/logout', { method: 'POST' }).then(() => {
-            window.location.href = '/login';
-        });
+        // Clear Supabase session explicitly
+        await supabase.auth.signOut();
+        
+        // Remove 'token' and 'user_session' cookies so middleware drops access
+        document.cookie = 'token=; Max-Age=0; path=/;';
+        document.cookie = 'user_session=; Max-Age=0; path=/;';
+
+        window.location.href = '/login';
     }
 }
 

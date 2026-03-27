@@ -773,27 +773,7 @@ export default function DashboardPage() {
                 isOpen={isAssignModalOpen}
                 onClose={() => setIsAssignModalOpen(false)}
                 onAssign={async (data) => {
-                    const { getAuthToken } = await import('@/lib/auth');
-                    const token = getAuthToken();
-                    const res = await fetch('http://localhost:3001/api/v1/tasks', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify(data)
-                    });
-
-                    if (!res.ok) {
-                        let errMsg = `Server error: ${res.status}`;
-                        try {
-                            const errData = await res.json();
-                            errMsg = errData.message || errMsg;
-                            if (Array.isArray(errMsg)) errMsg = errMsg.join(', '); // Handle ValidationPipe arrays
-                        } catch (e) { }
-                        throw new Error(errMsg);
-                    }
+                    await api.createTask(data);
 
                     addNotification({
                         title: 'Task Assignment Created',

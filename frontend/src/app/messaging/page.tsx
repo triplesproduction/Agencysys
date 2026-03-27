@@ -26,7 +26,7 @@ export default function MessagingPage() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Drag, Drop, & Image State (Dummies)
+    // Drag, Drop, & Image State
     const [isDragging, setIsDragging] = useState(false);
     const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -52,9 +52,8 @@ export default function MessagingPage() {
 
             // Fetch list of employees (Contacts)
             const employeesRes: any = await api.getEmployees({ limit: 100 });
-            // fetchApi automatically returns json.data if present, or the raw array
             const employeeArray = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.data || []);
-            // Remove self and sort: Admins -> Managers -> Employees
+            
             const filteredContacts = employeeArray
                 .filter((emp: any) => {
                     const myId = user.id || user.sub || user.employeeId;
@@ -66,18 +65,13 @@ export default function MessagingPage() {
                 });
             setContacts(filteredContacts);
 
-            // Fetch self details
             const myId = user.id || user.sub || user.employeeId;
             const selfRes: any = await api.getEmployeeById(myId);
             setSelfInfo(selfRes);
 
-            // Fetch list of employees (Contacts)
             const personalRes: any = await api.getMyChats();
             const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
             setMyChats(chats);
-
-            // Auto-selection of first contact disabled as per worker site requirement
-            // if (filteredContacts.length > 0 && !activeContactId) { ... }
         } catch (err) {
             console.error('Failed to load messaging data:', err);
         } finally {
@@ -97,7 +91,6 @@ export default function MessagingPage() {
     useEffect(() => {
         fetchInitialData();
 
-        // Listen for live socket notifications from NotificationProvider
         const handleLiveNotification = (event: any) => {
             const notif = event.detail;
             if (notif?.type === 'CHAT_MESSAGE') {
@@ -110,7 +103,6 @@ export default function MessagingPage() {
             window.addEventListener('app:live-notification', handleLiveNotification);
         }
 
-        // Set up polling for new messages every 5 seconds as fallback
         const interval = setInterval(() => {
             if (activeTab === 'personal') {
                 api.getMyChats().then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
@@ -134,20 +126,20 @@ export default function MessagingPage() {
     }, [activeTab]);
 
     useEffect(() => {
-        // Auto scroll
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [myChats, adminChats, activeContactId]);
 
-    // Handle File Drop Event
     const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        alert('File uploads are restricted in Phase 1.');
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+             // Handle drop upload logic would go here if needed
+        }
     };
 
-    // Text Send
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmedMessage = messageInput.trim();
@@ -158,15 +150,8 @@ export default function MessagingPage() {
             return;
         }
 
-        // Limit message length to prevent browser/V8 'Invalid string length' errors
-        const MAX_LENGTH = 10000;
-        if (trimmedMessage.length > MAX_LENGTH) {
-            window.alert(`Message is too long (max ${MAX_LENGTH} characters). Please shorten it.`);
-            return;
-        }
-
         const previousMessage = messageInput;
-        setMessageInput(''); // Optimistic clear
+        setMessageInput(''); 
 
         try {
             await api.sendChatMessage({
@@ -174,73 +159,43 @@ export default function MessagingPage() {
                 content: trimmedMessage
             });
 
-            // Re-fetch to update immediately
             const personalRes: any = await api.getMyChats();
             const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
             setMyChats(chats);
 
-            // Focus scroll after a tiny delay to allow DOM render
             setTimeout(() => {
                 messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             }, 100);
         } catch (err: any) {
             console.error('Failed to send message:', err);
-            setMessageInput(previousMessage); // Restore on failure
-            const errorMessage = err.message || 'Unknown error occurred';
-            window.alert(`Failed to send message: ${errorMessage}`);
+            setMessageInput(previousMessage);
+            window.alert(`Failed to send message: ${err.message || 'Unknown error'}`);
         }
     };
 
-    // Filtered Contacts List
-    const filteredSearchContacts = contacts.filter(c => {
-        const q = searchQuery.toLowerCase();
-        return c.firstName.toLowerCase().includes(q) ||
-            c.lastName.toLowerCase().includes(q) ||
-            c.id.toLowerCase().includes(q);
-    });
-
-    const activeContactInfo = contacts.find(c => c.id === activeContactId);
-
-    // Sort and filter messages for the thread
-    const currentThreadModeMessages = myChats.filter(msg => {
-        if (!currentUserId || !activeContactId) return false;
-
-        const mSender = String(msg.senderId);
-        const mReceiver = String(msg.receiverId);
-        const myId = String(currentUserId);
-        const partnerId = String(activeContactId);
-
-        return (mSender === myId && mReceiver === partnerId) ||
-            (mSender === partnerId && mReceiver === myId);
-    });
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !activeContactId || !currentUserId) return;
 
         try {
             setIsUploading(true);
-            // Simulate upload delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Content includes a reference to the file for simulation
-            const content = file.type.startsWith('image/') ? `Sent an image: ${file.name}` : `Sent a file: ${file.name}`;
+            const { url } = await api.uploadFile(file);
 
             await api.sendChatMessage({
                 receiverId: String(activeContactId),
-                content: content
+                content: `Sent an attachment: ${url}`
             });
 
-            // Re-fetch to update
             const personalRes: any = await api.getMyChats();
             const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
             setMyChats(chats);
 
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
-        } catch (err) {
+        } catch (err: any) {
             console.error('Upload failed:', err);
             setIsUploading(false);
-            alert('Upload simulation failed.');
+            alert(`File upload failed: ${err.message || 'Unknown error'}`);
         }
     };
 
@@ -250,36 +205,38 @@ export default function MessagingPage() {
 
         try {
             setIsUploading(true);
-            // In a real app we'd upload this file to S3 and then save the URL
-            // For Phase 1 we use base64 for a persistent simulation
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                try {
-                    const base64String = reader.result as string;
+            const { url } = await api.uploadFile(file);
 
-                    await api.updateEmployee(String(currentUserId), { profilePhoto: base64String });
+            await api.updateEmployee(String(currentUserId), { profilePhoto: url });
 
-                    // Refresh self data
-                    const updated = await api.getEmployeeById(String(currentUserId));
-                    setSelfInfo(updated);
-                } catch (err: any) {
-                    console.error('Inner photo upload error:', err);
-                    alert(`Failed to save photo: ${err.message || 'Unknown error'}`);
-                } finally {
-                    setIsUploading(false);
-                }
-            };
-            reader.onerror = () => {
-                alert('Failed to read the selected file.');
-                setIsUploading(false);
-            };
-            reader.readAsDataURL(file);
+            // Refresh self data
+            const updated = await api.getEmployeeById(String(currentUserId));
+            setSelfInfo(updated);
+            setIsUploading(false);
         } catch (err: any) {
-            console.error('Outer photo upload error:', err);
-            alert(`Failed to start upload: ${err.message || 'Unknown error'}`);
+            console.error('Profile photo upload error:', err);
+            alert(`Failed to save photo: ${err.message || 'Unknown error'}`);
             setIsUploading(false);
         }
     };
+
+    const filteredSearchContacts = contacts.filter(c => {
+        const q = searchQuery.toLowerCase();
+        return c.firstName.toLowerCase().includes(q) ||
+            c.lastName.toLowerCase().includes(q) ||
+            c.id.toLowerCase().includes(q);
+    });
+
+    const activeContactInfo = contacts.find(c => c.id === activeContactId);
+
+    const currentThreadModeMessages = myChats.filter(msg => {
+        if (!currentUserId || !activeContactId) return false;
+        const mSender = String(msg.senderId);
+        const mReceiver = String(msg.receiverId);
+        const myId = String(currentUserId);
+        const partnerId = String(activeContactId);
+        return (mSender === myId && mReceiver === partnerId) || (mSender === partnerId && mReceiver === myId);
+    });
 
     const renderMessageContent = (content: string | null | undefined) => {
         if (!content) return null;
@@ -315,10 +272,7 @@ export default function MessagingPage() {
             </header>
 
             <div className="messages-container">
-                {/* 1. LEFT PANEL: Chat List */}
                 <GlassCard className="chat-list-panel fade-in slide-up" style={{ animationDelay: '0.1s' }}>
-
-                    {/* Self Profile Header */}
                     {selfInfo && (
                         <div className="self-profile-mini" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div
@@ -326,7 +280,7 @@ export default function MessagingPage() {
                                 style={{ position: 'relative', cursor: 'pointer', borderColor: 'var(--purple-main)', padding: 0, overflow: 'hidden' }}
                                 onClick={() => selfFileInputRef.current?.click()}
                             >
-                                {selfInfo.profilePhoto && selfInfo.profilePhoto.startsWith('data:image') ? (
+                                {selfInfo.profilePhoto ? (
                                     <img src={selfInfo.profilePhoto} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
                                     selfInfo.firstName?.charAt(0) || '?'
@@ -388,7 +342,6 @@ export default function MessagingPage() {
                                 <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>No matches found.</div>
                             ) : (
                                 filteredSearchContacts.map((contact, i) => {
-                                    // Extract last message snippet if any exists between currentUser & this contact
                                     const thread = myChats.filter(m => {
                                         const mSender = String(m.senderId);
                                         const mReceiver = String(m.receiverId);
@@ -414,11 +367,8 @@ export default function MessagingPage() {
                                             <div className="chat-preview">
                                                 <div className="chat-user-name">
                                                     {contact.firstName} {contact.lastName}
-                                                    <span style={{ fontSize: '0.7rem', marginLeft: '6px', color: contact.roleId === 'ADMIN' ? '#FCA5A5' : contact.roleId === 'MANAGER' ? '#FCD34D' : 'var(--purple-accent)' }}>
-                                                        ({contact.roleId})
-                                                    </span>
                                                 </div>
-                                                <div className="chat-snippet" style={{ fontStyle: lastMessage ? 'normal' : 'italic', color: lastMessage ? 'var(--text-secondary)' : 'rgba(255,255,255,0.2)' }}>
+                                                <div className="chat-snippet">
                                                     {lastMessage ? lastMessage.content : 'Start a conversation'}
                                                 </div>
                                             </div>
@@ -427,18 +377,14 @@ export default function MessagingPage() {
                                 })
                             )
                         ) : (
-                            // Admin Feed Mode Simulation
                             adminChats.length === 0 ? (
-                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No system messages found in global database.</div>
+                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>No system messages found.</div>
                             ) : (
-                                adminChats.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase()) || m.sender?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) || m.receiver?.firstName?.toLowerCase().includes(searchQuery.toLowerCase())).map((msg, i) => (
-                                    <div key={msg.id} className="chat-item fade-in slide-up" style={{ animationDelay: `${0.15 + (i * 0.05)}s`, borderLeft: '3px solid #EF4444' }}>
+                                adminChats.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase())).map((msg, i) => (
+                                    <div key={msg.id} className="chat-item fade-in slide-up" style={{ borderLeft: '3px solid #EF4444' }}>
                                         <div className="chat-preview" style={{ width: '100%' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#FCA5A5', marginBottom: '4px' }}>
-                                                <span>
-                                                    {msg.sender ? `${msg.sender.firstName} ${msg.sender.lastName}` : 'System'} →
-                                                    {msg.receiver ? ` ${msg.receiver.firstName} ${msg.receiver.lastName}` : ' Global'}
-                                                </span>
+                                                <span>{msg.sender?.firstName || 'System'} → {msg.receiver?.firstName || 'Global'}</span>
                                                 <span>{new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                             <div className="chat-snippet" style={{ color: 'white' }}>{msg.content}</div>
@@ -450,25 +396,21 @@ export default function MessagingPage() {
                     </div>
                 </GlassCard>
 
-                {/* 2. RIGHT PANEL: Active Conversation (Drag & Drop Zone) */}
                 <div
                     className={`conversation-wrapper fade-in slide-up ${isDragging ? 'drag-active' : ''}`}
-                    style={{ animationDelay: '0.2s', flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                 >
-                    {/* Drag Overlay UI */}
                     {isDragging && (
                         <div className="drag-overlay fade-in">
-                            <ImageIcon size={48} className="pulse-badge" style={{ color: 'var(--purple-main)', marginBottom: '16px' }} />
-                            <h3>Drop image to send (Disabled)</h3>
-                            <p>Attachments are not supported in Phase 1.</p>
+                            <ImageIcon size={48} style={{ color: 'var(--purple-main)', marginBottom: '16px' }} />
+                            <h3>Drop to Upload</h3>
                         </div>
                     )}
 
                     <GlassCard className="conversation-panel">
-                        {/* Chat Header & Content Integration */}
                         {activeTab === 'personal' ? (
                             activeContactInfo ? (
                                 <>
@@ -482,22 +424,10 @@ export default function MessagingPage() {
                                         </div>
                                         <div className="conversation-meta" style={{ flex: 1 }}>
                                             <h2>{activeContactInfo.firstName} {activeContactInfo.lastName}</h2>
-                                            <p>{activeContactInfo.department || 'No Department'} • {activeContactInfo.roleId}</p>
+                                            <p>{activeContactInfo.roleId}</p>
                                         </div>
                                         <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)' }}>
-                                            {activeContactInfo.phone && (
-                                                <span
-                                                    className="hoverable-icon"
-                                                    style={{ color: '#25D366' }}
-                                                    onClick={() => window.open(`https://wa.me/${activeContactInfo.phone.replace(/\D/g, '')}`, '_blank')}
-                                                    title="Open WhatsApp Chat"
-                                                >
-                                                    <MessageCircle size={20} />
-                                                </span>
-                                            )}
-                                            <Phone size={20} className="hoverable-icon" onClick={() => alert('Feature coming soon')} />
-                                            <Video size={20} className="hoverable-icon" onClick={() => alert('Feature coming soon')} />
-                                            <span className="hoverable-icon" onClick={() => setActiveContactId(null)} title="Close Chat">
+                                            <span className="hoverable-icon" onClick={() => setActiveContactId(null)}>
                                                 <X size={20} />
                                             </span>
                                         </div>
@@ -505,62 +435,23 @@ export default function MessagingPage() {
 
                                     <div className="chat-history scroll-smooth">
                                         {currentThreadModeMessages.length === 0 ? (
-                                            <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-secondary)' }}>
-                                                <p>No message history with {activeContactInfo.firstName}.</p>
-                                                <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>Send a message to start the conversation securely.</p>
-                                            </div>
+                                            <div style={{ textAlign: 'center', margin: 'auto' }}>No message history.</div>
                                         ) : (
                                             currentThreadModeMessages.map((msg) => {
                                                 const isMine = String(msg.senderId) === String(currentUserId);
                                                 return (
                                                     <div key={msg.id} className={`message-bubble-row ${isMine ? 'sent' : 'received'}`}>
-                                                        {/* Avatar always on the left of the bubble as requested */}
                                                         <div className="chat-avatar mini-avatar">
                                                             {isMine ? (
-                                                                selfInfo?.profilePhoto ? (
-                                                                    <img src={selfInfo.profilePhoto} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                                ) : selfInfo?.firstName?.charAt(0)
+                                                                selfInfo?.profilePhoto ? <img src={selfInfo.profilePhoto} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'M'
                                                             ) : (
-                                                                activeContactInfo.profilePhoto ? (
-                                                                    <img src={activeContactInfo.profilePhoto} alt="Partner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                                ) : activeContactInfo.firstName.charAt(0)
+                                                                activeContactInfo.profilePhoto ? <img src={activeContactInfo.profilePhoto} alt="Partner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'P'
                                                             )}
                                                         </div>
-
                                                         <div className="message-content-wrapper">
-                                                            {!isMine && <span className="message-sender-name">{activeContactInfo.firstName}</span>}
-
-                                                            <div className="message-text">
-                                                                {renderMessageContent(msg.content)}
-
-                                                                {msg.attachments && msg.attachments.length > 0 && (
-                                                                    <div className="message-attachments" style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                                        {msg.attachments.map((url: string, idx: number) => {
-                                                                            const isImg = url.match(/\.(jpeg|jpg|gif|png)$/i);
-                                                                            if (isImg) {
-                                                                                return (
-                                                                                    <div key={idx} className="message-image-wrapper" onClick={() => setPreviewModalImage(url)}>
-                                                                                        <img src={url} alt="Attachment" className="message-image" />
-                                                                                    </div>
-                                                                                );
-                                                                            }
-                                                                            return (
-                                                                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="file-attachment-link">
-                                                                                    <Paperclip size={14} /> {url.split('/').pop()}
-                                                                                </a>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
+                                                            <div className="message-text">{renderMessageContent(msg.content)}</div>
                                                             <div className="message-meta">
                                                                 <span>{new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                {isMine && (
-                                                                    <span style={{ marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
-                                                                        <CheckCheck size={14} color="var(--purple-main)" />
-                                                                    </span>
-                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -571,90 +462,45 @@ export default function MessagingPage() {
                                     </div>
 
                                     <form className="conversation-compose" onSubmit={handleSend}>
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            style={{ display: 'none' }}
-                                            onChange={handleFileUpload}
-                                        />
-                                        <button
-                                            type="button"
-                                            className={`attach-button hoverable-icon ${isUploading ? 'pulse-badge' : ''}`}
-                                            onClick={() => fileInputRef.current?.click()}
-                                            title="Attach File"
-                                            disabled={isUploading}
-                                        >
+                                        <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
+                                        <button type="button" className="attach-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                                             <Paperclip size={20} />
                                         </button>
-
                                         <input
                                             type="text"
-                                            className="compose-input hover-focus-glow"
-                                            placeholder={`Message ${activeContactInfo.firstName}...`}
+                                            className="compose-input"
+                                            placeholder="Write a message..."
                                             value={messageInput}
                                             onChange={(e) => setMessageInput(e.target.value)}
                                         />
-
-                                        <button type="submit" className="send-button hover-lift" disabled={!messageInput.trim()}>
-                                            <Send size={18} style={{ marginLeft: '-2px' }} />
+                                        <button type="submit" className="send-button" disabled={!messageInput.trim()}>
+                                            <Send size={18} />
                                         </button>
                                     </form>
                                 </>
                             ) : (
                                 <div className="no-chat-selected fade-in">
-                                    <div className="no-chat-selected-icon">
-                                        <MessageSquare size={64} strokeWidth={1.5} />
-                                    </div>
+                                    <MessageSquare size={64} />
                                     <h3>TripleS Messaging</h3>
-                                    <p>Select a conversation from the left to start chatting with your colleagues.</p>
+                                    <p>Select a contact to start chatting.</p>
                                 </div>
                             )
                         ) : (
-                            <>
-                                <div className="conversation-header" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
-                                    <div className="conversation-meta" style={{ flex: 1, textAlign: 'center' }}>
-                                        <h2 style={{ color: '#FCA5A5' }}>GLOBAL AUDIT TRAIL SENSOR</h2>
+                            <div className="chat-history scroll-smooth" style={{ padding: '20px' }}>
+                                <h2 style={{ color: '#FCA5A5', textAlign: 'center' }}>Global Audit Trail</h2>
+                                {adminChats.map((msg: any) => (
+                                    <div key={msg.id} style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                            {msg.sender?.firstName || 'System'} → {msg.receiver?.firstName || 'Global'}
+                                        </div>
+                                        <div>{msg.content}</div>
                                     </div>
-                                </div>
-                                <div className="chat-history scroll-smooth" style={{ background: 'transparent' }}>
-                                    <div style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.3)', padding: '12px', textAlign: 'center', color: '#FCA5A5', fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '1rem' }}>
-                                        OVERVIEW MODE - INTERACTION DISABLED
-                                    </div>
-                                    {adminChats.length === 0 ? (
-                                        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', marginTop: '2rem' }}>No system messages found.</div>
-                                    ) : (
-                                        adminChats.map((msg: any) => {
-                                            const isMe = String(msg.senderId) === String(currentUserId);
-                                            return (
-                                                <div key={msg.id} style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--purple-main)' }}>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                                                        <span>
-                                                            From: {msg.sender ? `${msg.sender.firstName} ${msg.sender.lastName}` : 'System'} →
-                                                            To: {msg.receiver ? `${msg.receiver.firstName} ${msg.receiver.lastName}` : 'Global'}
-                                                        </span>
-                                                        <span style={{ marginLeft: 'auto' }}>{new Date(msg.sentAt).toLocaleString()}</span>
-                                                    </div>
-                                                    <div style={{ fontSize: '0.9rem' }}>{renderMessageContent(msg.content)}</div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            </>
+                                ))}
+                            </div>
                         )}
                     </GlassCard>
                 </div>
             </div>
-
-            {/* Click-to-Expand Full Image Modal */}
-            {
-                previewModalImage && (
-                    <div className="image-preview-modal fade-in" onClick={() => setPreviewModalImage(null)}>
-                        <button className="modal-close"><X size={24} /></button>
-                        <img src={previewModalImage} alt="Full Screen Preview" className="modal-image scale-up" onClick={(e) => e.stopPropagation()} />
-                    </div>
-                )
-            }
-        </div >
+        </div>
     );
 }
