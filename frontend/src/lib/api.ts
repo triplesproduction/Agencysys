@@ -101,7 +101,7 @@ export const api = {
 
     // Tasks
     getTasks: async (assigneeId?: string, status?: string) => {
-        let query = supabase.from('tasks').select('*, assignee:employees(*)');
+        let query = supabase.from('tasks').select('*, assignee:employees!assigneeId(*)');
         if (assigneeId) query = query.eq('assigneeId', assigneeId);
         if (status) query = query.eq('status', status);
         const { data, error } = await query.order('createdAt', { ascending: false });
@@ -138,7 +138,7 @@ export const api = {
         return data as EODSubmissionDTO[];
     },
     getAllEODs: async () => {
-        const { data, error } = await supabase.from('eod_reports').select('*, employee:employees(id, firstName, lastName, profilePhoto)').order('reportDate', { ascending: false });
+        const { data, error } = await supabase.from('eod_reports').select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)').order('reportDate', { ascending: false });
         handleSupabaseError(error, 'Fetch All EODs');
         return data as any[];
     },
@@ -169,7 +169,7 @@ export const api = {
         return data as LeaveApplicationDTO[];
     },
     getLeaves: async () => {
-        const { data, error } = await supabase.from('leaves').select('*, employee:employees(*)').order('createdAt', { ascending: false });
+        const { data, error } = await supabase.from('leaves').select('*, employee:employees!employeeId(*)').order('createdAt', { ascending: false });
         handleSupabaseError(error, 'Fetch Leaves');
         return data as LeaveApplicationDTO[];
     },
@@ -229,7 +229,7 @@ export const api = {
 
     // Rules
     getRules: async () => {
-        const { data, error } = await supabase.from('rules').select('*, author:employees(id, firstName, lastName)').order('createdAt', { ascending: false });
+        const { data, error } = await supabase.from('rules').select('*, author:employees!createdBy(id, firstName, lastName)').order('createdAt', { ascending: false });
         handleSupabaseError(error, 'Fetch Rules');
         return data as RuleDTO[];
     },

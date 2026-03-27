@@ -71,7 +71,7 @@ export default function Sidebar() {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false); // New state for desktop collapse
-    const [user, setUser] = useState<{ employeeId?: string, roleId?: string } | null>(null);
+    const [user, setUser] = useState<{ employeeId?: string, roleId?: string, firstName?: string, lastName?: string } | null>(null);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
@@ -88,7 +88,9 @@ export default function Sidebar() {
 
             setUser({
                 employeeId: decoded.sub || decoded.employeeId,
-                roleId: rawRole
+                roleId: rawRole,
+                firstName: decoded.firstName,
+                lastName: decoded.lastName
             });
         }
     }, [pathname]); // Re-check when route changes
@@ -174,11 +176,11 @@ export default function Sidebar() {
                 <div className="sidebar-footer">
                     {user ? (
                         <div className={`user-profile ${isCollapsed ? 'collapsed-profile' : ''}`}>
-                            <div className="avatar">{user.employeeId ? user.employeeId.charAt(0).toUpperCase() : 'U'}</div>
+                            <div className="avatar">{user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}</div>
                             {!isCollapsed && (
                                 <>
                                     <div className="user-info">
-                                        <div className="user-name">{user.employeeId || 'Unknown User'}</div>
+                                        <div className="user-name">{user.firstName} {user.lastName}</div>
                                         <div className="user-role">{user.roleId || 'Role'}</div>
                                     </div>
                                     <button className="logout-btn" onClick={handleLogout} title="Logout">
