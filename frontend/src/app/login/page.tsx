@@ -2,8 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api } from '@/lib/api';
-import { setAuthToken } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { LogIn, Loader2 } from 'lucide-react';
 import './Login.css';
 
@@ -11,9 +10,6 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // The UI represents these as Username and Password to the user
-    // but under the hood they securely map to employeeId and roleId
-    // to preserve the existing backend API endpoint and logic seamlessly
     const [email, setEmail] = useState(searchParams?.get('email') || '');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -30,15 +26,53 @@ function LoginForm() {
 
         try {
             setLoading(true);
-            const res = await api.login(email, password);
-            if (res.access_token) {
-                setAuthToken(res.access_token);
-                // Force full refresh to establish new jwt decode context across the hydration tree
-                window.location.href = '/dashboard';
-            } else {
-                setError('Login failed. No token received.');
+
+            // Step 1: Supabase Auth login
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (authError || !authData.session) {
+                console.error('[Login] Auth error:', authError);
+                throw new Error(authError?.message || 'Login failed. Check your credentials.');
             }
+
+            console.log('[Login] Auth success:', authData.user?.id);
+
+            // Step 2: Fetch employee profile to get role info
+            const { data: employee, error: empError } = await supabase
+                .from('employees')
+                .select('id, email, roleId, firstName, lastName')
+                .eq('id', authData.user.id)
+                .single();
+
+            if (empError || !employee) {
+                console.error('[Login] Employee fetch error:', empError);
+                await supabase.auth.signOut();
+                throw new Error('Employee profile not found. Please contact your administrator.');
+            }
+
+            console.log('[Login] Employee profile:', employee);
+
+            // Step 3: Write middleware-compatible cookies so protected routes stay accessible
+            const token = authData.session.access_token;
+            document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
+            document.cookie = `user_session=${encodeURIComponent(JSON.stringify({
+                id: employee.id,
+                roleId: employee.roleId,
+                role: employee.roleId,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                sub: employee.id,
+            }))}; path=/; max-age=86400; SameSite=Lax`;
+
+            // Step 4: Redirect to dashboard
+            console.log('[Login] Redirecting to dashboard...');
+            window.location.href = '/dashboard';
+
         } catch (err: any) {
+            console.error('[Login] Error:', err);
             setError(err.message || 'Verification failed. Double check your credentials.');
         } finally {
             setLoading(false);

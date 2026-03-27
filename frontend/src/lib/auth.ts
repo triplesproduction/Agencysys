@@ -1,31 +1,43 @@
+import { supabase } from './supabase';
+
+// No-op: Supabase manages the session automatically
 export function getAuthToken(): string | null {
     return null;
 }
 
-export function setAuthToken(token: string) {
-    // Session is handled by Next.js Server Route HttpOnly Cookie securely
-}
-
-import { supabase } from './supabase';
+// No-op: kept for backwards compatibility — cookie is written directly in login page
+export function setAuthToken(_token: string) {}
 
 export async function clearAuthToken() {
     if (typeof window !== 'undefined') {
-        // Clear Supabase session explicitly
         await supabase.auth.signOut();
-        
-        // Remove 'token' and 'user_session' cookies so middleware drops access
         document.cookie = 'token=; Max-Age=0; path=/;';
         document.cookie = 'user_session=; Max-Age=0; path=/;';
-
         window.location.href = '/login';
     }
 }
 
-export function getUserFromToken(): { sub?: string, role?: string, employeeId?: string, roleId?: string, id?: string } | null {
+/**
+ * Reads the user_session cookie written at login.
+ * Returns id, roleId, role, firstName, lastName, sub.
+ */
+export function getUserFromToken(): {
+    sub?: string;
+    role?: string;
+    employeeId?: string;
+    roleId?: string;
+    id?: string;
+    firstName?: string;
+    lastName?: string;
+} | null {
     if (typeof window !== 'undefined') {
-        const match = document.cookie.match(new RegExp('(^| )user_session=([^;]+)'));
+        const match = document.cookie.match(/(^| )user_session=([^;]+)/);
         if (match) {
-            try { return JSON.parse(decodeURIComponent(match[2])); } catch { return null; }
+            try {
+                return JSON.parse(decodeURIComponent(match[2]));
+            } catch {
+                return null;
+            }
         }
     }
     return null;
@@ -33,12 +45,9 @@ export function getUserFromToken(): { sub?: string, role?: string, employeeId?: 
 
 export function checkPermission(requiredRole: string | string[], userRole?: string): boolean {
     if (!userRole) return false;
-
-    const normalizedUserRole = userRole.toUpperCase();
-
+    const normalized = userRole.toUpperCase();
     if (Array.isArray(requiredRole)) {
-        return requiredRole.map(r => r.toUpperCase()).includes(normalizedUserRole);
+        return requiredRole.map(r => r.toUpperCase()).includes(normalized);
     }
-
-    return requiredRole.toUpperCase() === normalizedUserRole;
+    return requiredRole.toUpperCase() === normalized;
 }

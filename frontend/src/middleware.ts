@@ -8,27 +8,21 @@ export function middleware(request: NextRequest) {
 
     const isLoginPath = pathname === '/login';
 
-    // Discard stale sessions where token exists but user_session is missing (Legacy cookie state)
-    if (token && !userSession && !isLoginPath && !pathname.startsWith('/api/')) {
+    // If token but no user_session — stale/corrupted state, force re-login
+    if (token && !userSession && !isLoginPath) {
         const response = NextResponse.redirect(new URL('/login', request.url));
         response.cookies.delete('token');
         return response;
     }
 
-    if (!token && !isLoginPath && !pathname.startsWith('/api/v1') && !pathname.startsWith('/api/auth')) {
+    // Unauthenticated: redirect to login
+    if (!token && !isLoginPath) {
         return NextResponse.redirect(new URL('/login', request.url));
     }
 
+    // Already logged in: skip login page
     if (token && isLoginPath) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-
-    if (pathname.startsWith('/api/v1') && token) {
-        const requestHeaders = new Headers(request.headers);
-        requestHeaders.set('Authorization', `Bearer ${token}`);
-        return NextResponse.next({
-            request: { headers: requestHeaders },
-        });
     }
 
     return NextResponse.next();
@@ -57,8 +51,8 @@ export const config = {
         '/wiki/:path*',
         '/permissions',
         '/permissions/:path*',
-        '/test-suite',
+        '/rulebook',
+        '/rulebook/:path*',
         '/login',
-        '/api/v1/:path*'
-    ]
+    ],
 };

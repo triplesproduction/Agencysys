@@ -8,7 +8,7 @@ import {
     RuleDTO,
     PaginatedResponse
 } from '../types/dto';
-import { getAuthToken, clearAuthToken, getUserFromToken } from './auth';
+import { getUserFromToken } from './auth';
 import { supabase } from './supabase';
 
 const handleSupabaseError = (error: any, context: string) => {
@@ -19,37 +19,6 @@ const handleSupabaseError = (error: any, context: string) => {
 };
 
 export const api = {
-    // Auth
-    login: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        handleSupabaseError(error, 'Login');
-
-        const { data: employee, error: empError } = await supabase
-            .from('employees')
-            .select('*')
-            .eq('email', email)
-            .single();
-
-        if (empError || !employee) {
-            throw new Error('Employee profile not found. Please contact support.');
-        }
-
-        const access_token = data.session?.access_token || '';
-
-        // Manually set Next.js middleware bypass tokens
-        document.cookie = `token=${access_token}; path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `user_session=${encodeURIComponent(JSON.stringify({
-            id: employee.id,
-            roleId: employee.roleId,
-            role: employee.roleId,
-            firstName: employee.firstName,
-            lastName: employee.lastName,
-            sub: employee.id
-        }))}; path=/; max-age=86400; SameSite=Lax`;
-
-        return { access_token, employee };
-    },
-
     // Employees
     getEmployeeStats: async () => {
         const { data, error } = await supabase.from('employees').select('id, status');
