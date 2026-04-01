@@ -1,0 +1,85 @@
+.deadline-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--glass-card-bg);
+    border: 1px solid var(--glass-card-border);
+}
+
+.deadline-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.deadline-indicator.normal {
+    color: #a3e635;
+    background: rgba(163, 230, 53, 0.1);
+    border-color: rgba(163, 230, 53, 0.2);
+}
+
+.deadline-indicator.normal .deadline-dot {
+    background: #a3e635;
+    box-shadow: 0 0 8px rgba(163, 230, 53, 0.5);
+}
+
+.deadline-indicator.warning {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.2);
+}
+
+.deadline-indicator.warning .deadline-dot {
+    background: #fbbf24;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+.deadline-indicator.critical {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.2);
+}
+
+.deadline-indicator.critical .deadline-dot {
+    background: #f87171;
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+}
+
+.deadline-indicator.overdue {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    animation: pulse-overdue 2s infinite;
+}
+
+.deadline-indicator.overdue .deadline-dot {
+    background: #ef4444;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+}
+
+.deadline-indicator.done {
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.deadline-indicator.done .deadline-dot {
+    background: var(--text-secondary);
+}
+
+@keyframes pulse-overdue {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}

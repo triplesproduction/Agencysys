@@ -1,0 +1,166 @@
+/* Anti-Gravity Task Card Styles */
+
+.draggable-card-wrapper {
+    touch-action: none;
+    /* Required for dnd-kit on mobile */
+    cursor: grab;
+    margin-bottom: 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.draggable-card-wrapper:active {
+    cursor: grabbing;
+}
+
+/* New fixed overlay class to force high z-index and break out of flex clipping  */
+.fixed-drag-overlay {
+    z-index: 9999 !important;
+}
+
+/* When dragged, clear background blurs so the card solidifies */
+.fixed-drag-overlay .task-card-ag {
+    backdrop-filter: none !important;
+    background: #0f172a !important;
+    /* Solid fallback */
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(124, 58, 237, 0.3) !important;
+    transform: scale(1.02) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    opacity: 1 !important;
+}
+
+.task-card-ag {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border-radius: 16px !important;
+    padding: 1.25rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.draggable-card-wrapper:hover .task-card-ag {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(124, 58, 237, 0.15);
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Priority Base Theming */
+.task-card-ag.priority-critical {
+    border-left: 3px solid #ef4444 !important;
+}
+
+.task-card-ag.priority-high {
+    border-left: 3px solid #f59e0b !important;
+}
+
+.task-card-ag.priority-medium {
+    border-left: 3px solid #3b82f6 !important;
+}
+
+.task-card-ag.priority-low {
+    border-left: 3px solid #10b981 !important;
+}
+
+.task-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.task-priority-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.priority-critical .task-priority-badge {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+}
+
+.priority-high .task-priority-badge {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+}
+
+.priority-medium .task-priority-badge {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+}
+
+.priority-low .task-priority-badge {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+
+.task-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+}
+
+.status-todo .task-status-dot {
+    color: #a1a1aa;
+    background: #a1a1aa;
+}
+
+.status-in_progress .task-status-dot {
+    color: #3b82f6;
+    background: #3b82f6;
+}
+
+.status-submitted .task-status-dot {
+    color: #8b5cf6;
+    background: #8b5cf6;
+}
+
+.status-approved .task-status-dot {
+    color: #10b981;
+    background: #10b981;
+}
+
+.status-rejected .task-status-dot {
+    color: #f59e0b;
+    background: #f59e0b;
+}
+
+.status-missed_deadline .task-status-dot {
+    color: #ef4444;
+    background: #ef4444;
+}
+
+.task-card-title {
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.4;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.task-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.task-assignee,
+.task-deadline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.task-deadline.expired {
+    color: #ef4444;
+    font-weight: 600;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}

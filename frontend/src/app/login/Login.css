@@ -1,0 +1,236 @@
+/* =========================================
+   Modern SaaS Sign-In Theme
+   ========================================= */
+
+.login-page-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    width: 100vw;
+    /* Soft background radial gradient */
+    background: radial-gradient(circle at 50% 0%, #1a103c 0%, #000000 70%);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    overflow: hidden;
+    color: var(--text-primary);
+}
+
+/* Smooth fade-in animation on page load */
+.login-card {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 420px;
+    padding: 3.5rem 3rem;
+    margin: 1rem;
+
+    /* Soft elevated dark container */
+    background: #0a0a0a;
+    border: 1px solid rgba(124, 58, 237, 0.15);
+    /* Subtle gradient border glow + slight shadow elevation */
+    box-shadow:
+        0 20px 40px -10px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(124, 58, 237, 0.05);
+    border-radius: 20px;
+
+    animation: fadeInSmooth 0.6s ease-out forwards;
+}
+
+@keyframes fadeInSmooth {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header & Branding */
+.login-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.login-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-size: 2rem;
+    /* Increased heading size */
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.login-icon {
+    width: 48px; /* Slightly larger for the new logo */
+    height: 48px;
+    background: url('/logo.png') no-repeat center center;
+    background-size: contain;
+    border-radius: 8px;
+    /* Soft purple glow behind logo */
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+}
+
+.login-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    margin-top: 0.25rem;
+}
+
+/* Form Styles */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    /* Improved spacing between fields */
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #e5e5e5;
+    /* Improved label readability */
+    margin-left: 0.1rem;
+}
+
+/* Flat Dark Input Fields */
+.flat-input {
+    width: 100%;
+    background: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    /* Rounded corners 10px */
+    padding: 0.875rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+}
+
+.flat-input::placeholder {
+    color: #737373;
+}
+
+.flat-input:focus {
+    background: #171717;
+    border-color: var(--purple-main);
+    /* Smooth purple outline glow */
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #737373;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: var(--text-primary);
+}
+
+.flat-input.with-toggle {
+    padding-right: 44px;
+}
+
+/* Submit Action */
+.login-submit {
+    width: 100%;
+    height: 48px;
+    /* 48px height */
+    background: linear-gradient(135deg, var(--purple-hover), var(--purple-main));
+    color: white;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.login-submit:hover:not(:disabled) {
+    /* Hover lift effect */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+.login-submit:active:not(:disabled) {
+    /* Active press-down animation */
+    transform: scale(0.98) translateY(0);
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+.login-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #2a2a2a;
+    color: #737373;
+    box-shadow: none;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin-icon {
+    animation: spin 1s linear infinite;
+}
+
+.error-message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 8px;
+    color: #ef4444;
+    font-size: 0.875rem;
+    text-align: center;
+    animation: fadeInSmooth 0.3s ease;
+}
+
+/* Mobile Constraints */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+    }
+}

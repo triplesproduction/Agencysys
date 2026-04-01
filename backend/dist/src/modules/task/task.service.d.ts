@@ -1,0 +1,61 @@
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateTaskDto } from './dto/task.dto';
+import { ActivityService } from '../activity/activity.service';
+import { NotificationService } from '../notification/notification.service';
+export declare class TaskService {
+    private prisma;
+    private activityService;
+    private notificationService;
+    constructor(prisma: PrismaService, activityService: ActivityService, notificationService: NotificationService);
+    findAll(assigneeId?: string, status?: string): Promise<{
+        id: string;
+        status: string;
+        title: string;
+        description: string | null;
+        instructions: string | null;
+        priority: string;
+        startDate: Date | null;
+        dueDate: Date;
+        expectedHours: number | null;
+        estimatedHours: number | null;
+        attachments: string[];
+        createdAt: Date;
+        assigneeId: string;
+        creatorId: string;
+        managerId: string | null;
+    }[]>;
+    create(creatorId: string, data: CreateTaskDto): Promise<{
+        id: string;
+        status: string;
+        title: string;
+        description: string | null;
+        instructions: string | null;
+        priority: string;
+        startDate: Date | null;
+        dueDate: Date;
+        expectedHours: number | null;
+        estimatedHours: number | null;
+        attachments: string[];
+        createdAt: Date;
+        assigneeId: string;
+        creatorId: string;
+        managerId: string | null;
+    }>;
+    updateStatus(id: string, status: string): Promise<{
+        id: string;
+        status: string;
+        title: string;
+        description: string | null;
+        instructions: string | null;
+        priority: string;
+        startDate: Date | null;
+        dueDate: Date;
+        expectedHours: number | null;
+        estimatedHours: number | null;
+        attachments: string[];
+        createdAt: Date;
+        assigneeId: string;
+        creatorId: string;
+        managerId: string | null;
+    }>;
+}
