@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, Loader2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { getUserFromToken } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 interface Message {
@@ -22,12 +22,12 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
-        const user = getUserFromToken();
-        const myId = user?.sub || user?.employeeId || (user as any)?.id;
-        setCurrentUserId(String(myId));
-
         async function fetchChats() {
             try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const myId = user?.id; // Using UUID from auth for the check
+                setCurrentUserId(myId ? String(myId) : null);
+
                 const response: any = await api.getMyChats();
                 const messages: Message[] = Array.isArray(response) ? response : (response?.data || []);
 
@@ -40,6 +40,7 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
                         conversationMap.set(partnerId, msg);
                     }
                 });
+
 
                 const lastMessages = Array.from(conversationMap.values())
                     .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())

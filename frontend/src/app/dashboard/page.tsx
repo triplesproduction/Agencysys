@@ -666,7 +666,10 @@ export default function DashboardPage() {
 
     useEffect(() => {
         async function fetchData() {
-            if (!authEmployee) return;
+            if (!authEmployee) {
+                if (!authLoading) setLoading(false);
+                return;
+            }
 
             setLoading(true);
             
@@ -735,8 +738,7 @@ export default function DashboardPage() {
             fetchDataAsync();
         }
 
-        // Only attempt to fetch data once the auth handshake is complete and the profile is present
-        if (!authLoading && authEmployee) {
+        if (!authLoading) {
             fetchData();
         }
 

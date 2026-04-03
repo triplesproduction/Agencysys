@@ -8,23 +8,30 @@ import { getUserFromToken } from '@/lib/auth';
 import { TrendingUp, Target, Award, Calendar, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+import { useAuth } from '@/hooks/useAuth';
+
 export default function KPIsPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const [kpis, setKpis] = useState<KPIMetricDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchKPIs() {
-            try {
-                const user = getUserFromToken();
-                const userId = user?.sub || user?.employeeId;
-                if (!userId) {
-                    setError('Unable to identify current user.');
-                    return;
+            if (!authEmployee) {
+                if (!authLoading) {
+                    setError('Unable to identify current user. Please ensure you are logged in.');
+                    setLoading(false);
                 }
+                return;
+            }
 
+            try {
+                setLoading(true);
+                const userId = authEmployee.id;
                 const data = await api.getEmployeeKPIs(userId);
                 setKpis(data || []);
+                setError(null);
             } catch (err: any) {
                 console.error('Failed to fetch KPIs:', err);
                 setError(err.message || 'Failed to load performance metrics.');
@@ -33,8 +40,10 @@ export default function KPIsPage() {
             }
         }
 
-        fetchKPIs();
-    }, []);
+        if (!authLoading) {
+            fetchKPIs();
+        }
+    }, [authEmployee, authLoading]);
 
     if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
 

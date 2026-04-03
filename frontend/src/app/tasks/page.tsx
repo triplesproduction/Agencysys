@@ -26,7 +26,10 @@ export default function TasksPage() {
     const { addNotification } = useNotifications();
 
     const loadTasks = async () => {
-        if (!authEmployee) return;
+        if (!authEmployee) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const activeRole = authEmployee.roleId || 'EMPLOYEE';
@@ -43,6 +46,7 @@ export default function TasksPage() {
                 message: err.message || 'Could not fetch tasks. Please check server connection.',
                 type: 'error'
             });
+            setTasks([]); // Safe fallback
         } finally {
             setLoading(false);
         }

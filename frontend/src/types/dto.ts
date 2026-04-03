@@ -72,8 +72,10 @@ export interface EODSubmissionDTO {
     id: string;
     employeeId: string;
     reportDate: string; // ISO Date
-    tasksCompleted: string[];
-    tasksInProgress: string[];
+    tasksCompleted: any[]; // Can be string[] or {id, title}[] depending on legacy status
+    tasksInProgress: any[];
+    completedText?: string | null;
+    inProgressText?: string | null;
     blockers?: string;
     sentiment?: 'GREAT' | 'GOOD' | 'OKAY' | 'BAD' | 'TERRIBLE';
     submittedAt: string; // ISO DateTime

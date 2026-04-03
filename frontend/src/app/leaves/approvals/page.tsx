@@ -31,7 +31,12 @@ const STATUS_COLOR: Record<string, { color: string; bg: string; border: string }
     CANCELLED: { color: '#6B7280', bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.25)' },
 };
 
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+
 export default function LeaveApprovalsPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [leaves, setLeaves] = useState<LeaveWithEmployee[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState<string | null>(null);
@@ -39,26 +44,40 @@ export default function LeaveApprovalsPage() {
     const [filterStatus, setFilterStatus] = useState('');
 
     const fetchLeaves = async () => {
+        if (!authEmployee) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             const data = await api.getLeaves();
+            const normalizedData = Array.isArray(data) ? data : [];
             // Sort pending first, then by date applied
-            (data as LeaveWithEmployee[]).sort((a, b) => {
+            (normalizedData as LeaveWithEmployee[]).sort((a, b) => {
                 if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
                 if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
-                return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime();
+                return new Date(b.appliedAt || 0).getTime() - new Date(a.appliedAt || 0).getTime();
             });
-            setLeaves(data as LeaveWithEmployee[]);
+            setLeaves(normalizedData as LeaveWithEmployee[]);
         } catch (err) {
             console.error('Failed to load leaves:', err);
+            setLeaves([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchLeaves();
-    }, []);
+        if (!authLoading) {
+            if (!authEmployee || !['ADMIN', 'MANAGER'].includes(authEmployee.roleId || '')) {
+                router.push('/dashboard');
+                setLoading(false);
+                return;
+            }
+            fetchLeaves();
+        }
+    }, [authLoading, authEmployee, router]);
 
     const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED') => {
         setProcessingId(id);

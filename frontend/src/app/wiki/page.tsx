@@ -5,10 +5,11 @@ import { BookOpen, Plus, Search, Filter, Trash2, Edit2, ShieldAlert, Zap, AlertT
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { RuleDTO } from '@/types/dto';
-import { getUserFromToken } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 
 export default function RuleBookPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const { addNotification } = useNotifications();
     const [rules, setRules] = useState<RuleDTO[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,20 +32,27 @@ export default function RuleBookPage() {
     });
 
     useEffect(() => {
-        const user = getUserFromToken();
-        const role = String(user?.role || user?.roleId || '').toUpperCase();
-        if (role.includes('ADMIN')) {
-            setIsAdmin(true);
+        if (!authLoading) {
+            if (authEmployee) {
+                const role = String(authEmployee.roleId || '').toUpperCase();
+                if (role.includes('ADMIN')) {
+                    setIsAdmin(true);
+                }
+                fetchRules();
+            } else {
+                setLoading(false);
+            }
         }
-        fetchRules();
-    }, []);
+    }, [authLoading, authEmployee]);
 
     const fetchRules = async () => {
         try {
+            setLoading(true);
             const data = await api.getRules();
-            setRules(data);
+            setRules(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Failed to load rules:', err);
+            setRules([]);
         } finally {
             setLoading(false);
         }

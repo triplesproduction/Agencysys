@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getUserFromToken } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import GlassCard from '../GlassCard';
 import './Notifications.css';
@@ -32,12 +31,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const router = useRouter();
 
     useEffect(() => {
-        const user = getUserFromToken();
-        const activeUserId = user?.sub || user?.employeeId;
-        if (!activeUserId) return;
+        async function initAuth() {
+            const { data: { user } } = await supabase.auth.getUser();
+            const activeUserId = user?.id;
+            if (!activeUserId) return;
 
-        // Initialize Supabase Channel for Realtime Notifications
-        const channel = supabase.channel('system_events');
+            // Initialize Supabase Channel for Realtime Notifications
+            const channel = supabase.channel('system_events');
+
 
         channel
             .on('broadcast', { event: 'notification' }, ({ payload }: { payload: NotificationMessage }) => {
@@ -61,6 +62,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return () => {
             channel.unsubscribe();
         };
+        }
+        initAuth();
     }, []);
 
     const removeNotification = (id: string) => {

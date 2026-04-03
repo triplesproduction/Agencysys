@@ -94,24 +94,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         }
         
-        const checkSession = async () => {
+        const checkUser = async () => {
             try {
-                const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-                if (error) console.error('[Auth] getSession error:', error.message);
+                // Use getUser() for high-reliability initial session verification
+                const { data: { user: currentUser }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    console.error('[Auth] getUser error:', error.message);
+                    if (mounted) setLoading(false);
+                    return;
+                }
                 
                 if (!mounted) return;
 
-                if (currentSession?.user) {
-                    setUser(currentSession.user);
+                if (currentUser) {
+                    setUser(currentUser);
+                    // Fetch session separately for context availability if needed by components
+                    const { data: { session: currentSession } } = await supabase.auth.getSession();
                     setSession(currentSession);
                     
-                    // Optimization: Release loading screen AS SOON AS session is found
+                    // Optimization: Release loading screen AS SOON AS user is verified
                     setLoading(false); 
                     
-                    const profileData = await fetchProfile(currentSession.user.id, currentSession.user.email);
+                    const profileData = await fetchProfile(currentUser.id, currentUser.email);
                     if (mounted && profileData) {
                         setEmployee(profileData);
-                        // Update storage with the latest role and profile
                         localStorage.setItem('cached_profile', JSON.stringify(profileData));
                     }
                 } else {
@@ -119,12 +126,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     if (typeof window !== 'undefined') localStorage.removeItem('cached_profile');
                 }
             } catch (err) {
-                console.error('[Auth] Session check failed:', err);
+                console.error('[Auth] User verification failed:', err);
                 if (mounted) setLoading(false);
             }
         };
 
-        checkSession();
+        checkUser();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {

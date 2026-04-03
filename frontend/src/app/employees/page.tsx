@@ -63,8 +63,14 @@ export default function EmployeesPage() {
     useEffect(() => {
         if (authLoading) return; // Wait for auth initialization
         
-        if (!authEmployee || !authEmployee.roleId?.toUpperCase().includes('ADMIN')) {
+        if (!authEmployee) {
+            setLoading(false);
+            return;
+        }
+
+        if (!authEmployee.roleId?.toUpperCase().includes('ADMIN')) {
             router.push('/dashboard');
+            setLoading(false);
             return;
         }
 
@@ -81,9 +87,9 @@ export default function EmployeesPage() {
                     status: statusFilter || undefined,
                 });
                 if (cancelled) return;
-                const employeeData = res.data || (Array.isArray(res) ? res : []);
-                setEmployees(employeeData);
-                setTotal(res.total ?? employeeData.length);
+                const employeeData = res?.data || (Array.isArray(res) ? res : []);
+                setEmployees(employeeData || []);
+                setTotal(res?.total ?? (employeeData?.length || 0));
                 setError('');
             } catch (err: any) {
                 if (!cancelled) setError(err.message || 'Error fetching employees');

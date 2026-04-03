@@ -18,19 +18,11 @@ const sentimentColor: Record<string, string> = {
     GREAT: '#10B981', GOOD: '#3B82F6', OKAY: '#F59E0B', BAD: '#EF4444', TERRIBLE: '#991B1B'
 };
 
-interface MyEOD {
-    id: string;
-    reportDate: string;
-    blockers: string | null;
-    sentiment: string;
-    completedText: string | null;
-    inProgressText: string | null;
-    submittedAt: string;
-    tasksCompleted: { id: string; title: string }[];
-    tasksInProgress: { id: string; title: string }[];
-}
+import { EODSubmissionDTO } from '@/types/dto';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function EODPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -41,30 +33,43 @@ export default function EODPage() {
     });
 
     // My past submissions
-    const [myReports, setMyReports] = useState<MyEOD[]>([]);
+    const [myReports, setMyReports] = useState<EODSubmissionDTO[]>([]);
     const [reportsLoading, setReportsLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const fetchMyReports = useCallback(async () => {
+        if (!authEmployee) {
+            if (!authLoading) setReportsLoading(false);
+            return;
+        }
+
         try {
             setReportsLoading(true);
             const data = await api.getMyEODs();
-            setMyReports(data as any);
-        } catch {
-            // Silently fail — reports section is supplementary
+            setMyReports(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Failed to load my EODs:', err);
+            setMyReports([]);
         } finally {
             setReportsLoading(false);
         }
-    }, []);
+    }, [authEmployee, authLoading]);
 
     useEffect(() => {
-        fetchMyReports();
-    }, [fetchMyReports]);
+        if (!authLoading) {
+            fetchMyReports();
+        }
+    }, [authLoading, fetchMyReports]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setSuccess(false);
+
+        if (!authEmployee) {
+            setError('System is still re-verifying your session. Please wait a moment.');
+            return;
+        }
 
         if (!formData.tasksCompleted.trim()) {
             setError('Please list at least one completed task before submitting.');
@@ -73,14 +78,12 @@ export default function EODPage() {
 
         setLoading(true);
         try {
-            const { getUserFromToken } = await import('@/lib/auth');
-            const tokenData = getUserFromToken();
-            const empId = tokenData?.sub || tokenData?.employeeId || 'unknown';
+            const empId = authEmployee.id;
 
             await api.submitEOD({
                 employeeId: empId,
                 reportDate: new Date().toISOString().split('T')[0],
-                tasksCompleted: formData.tasksCompleted.split('\n').filter(t => t.trim() !== ''),
+                tasksCompleted: formData.tasksCompleted.split('\n').filter(t => t && t.trim() !== ''),
                 tasksInProgress: [],
                 blockers: formData.blockers,
                 sentiment: 'GOOD',
@@ -116,14 +119,18 @@ export default function EODPage() {
         try { return JSON.parse(raw); } catch { return []; }
     };
 
-    const getCompletedItems = (report: MyEOD): string[] => {
-        if (report.tasksCompleted?.length > 0) return report.tasksCompleted.map(t => t.title);
-        return parseRawText(report.completedText);
+    const getCompletedItems = (report: EODSubmissionDTO): string[] => {
+        if ((report.tasksCompleted as any)?.length > 0 && typeof (report.tasksCompleted as any)[0] === 'object') {
+            return (report.tasksCompleted as any).map((t: any) => t.title);
+        }
+        return Array.isArray(report.tasksCompleted) ? report.tasksCompleted as string[] : parseRawText(report.completedText || null);
     };
 
-    const getInProgressItems = (report: MyEOD): string[] => {
-        if (report.tasksInProgress?.length > 0) return report.tasksInProgress.map(t => t.title);
-        return parseRawText(report.inProgressText);
+    const getInProgressItems = (report: EODSubmissionDTO): string[] => {
+        if ((report.tasksInProgress as any)?.length > 0 && typeof (report.tasksInProgress as any)[0] === 'object') {
+            return (report.tasksInProgress as any).map((t: any) => t.title);
+        }
+        return Array.isArray(report.tasksInProgress) ? report.tasksInProgress as string[] : parseRawText(report.inProgressText || null);
     };
 
     return (

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye } from 'lucide-react';
 import { EmployeeDTO } from '@/types/dto';
 import { api } from '@/lib/api';
-import { getUserFromToken } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
 
 export default function EmployeeProfileDrawer({ employee, onClose }: { employee: EmployeeDTO, onClose: () => void }) {
@@ -12,17 +13,23 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
     const [isIdCardOpen, setIsIdCardOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [profilePhoto, setProfilePhoto] = useState(employee.profilePhoto);
+    const [currentUser, setCurrentUser] = useState<any>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const token = getUserFromToken();
-    const currentUserId = token?.sub || token?.employeeId;
-    const isOwnProfile = currentUserId === employee.id;
+    // Fetch user for permissions
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user));
+    }, []);
+
+    const isOwnProfile = String(currentUser?.id) === String(employee.id) || String(currentUser?.id) === String((employee as any).user_id);
+    const isAdmin = currentUser?.user_metadata?.role?.toUpperCase() === 'ADMIN' || (employee as any).roleId?.toUpperCase() === 'ADMIN';
 
     const handlePhotoClick = () => {
-        if (isOwnProfile || getUserFromToken()?.roleId === 'ADMIN') {
+        if (isOwnProfile || isAdmin) {
             fileInputRef.current?.click();
         }
     };
+
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -260,13 +267,14 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                                 justifyContent: 'center', fontSize: '2.5rem', fontWeight: 700,
                                 overflow: 'hidden', border: '4px solid rgba(255,255,255,0.1)',
                                 boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)',
-                                cursor: (isOwnProfile || getUserFromToken()?.roleId === 'ADMIN') ? 'pointer' : 'default',
+                                cursor: (isOwnProfile || isAdmin) ? 'pointer' : 'default',
                                 position: 'relative'
                             }}
                         >
                             {profilePhoto ? <img src={profilePhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" /> : employee.firstName.charAt(0)}
 
-                            {(isOwnProfile || getUserFromToken()?.roleId === 'ADMIN') && (
+                            {(isOwnProfile || isAdmin) && (
+
                                 <div className="avatar-hover-overlay" style={{
                                     position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center',
