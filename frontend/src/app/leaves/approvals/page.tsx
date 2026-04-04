@@ -31,7 +31,7 @@ const STATUS_COLOR: Record<string, { color: string; bg: string; border: string }
     CANCELLED: { color: '#6B7280', bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.25)' },
 };
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function LeaveApprovalsPage() {
@@ -80,9 +80,10 @@ export default function LeaveApprovalsPage() {
     }, [authLoading, authEmployee, router]);
 
     const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+        if (!authEmployee) return;
         setProcessingId(id);
         try {
-            await api.approveLeave(id, status);
+            await api.approveLeave(id, status, authEmployee.id);
             await fetchLeaves();
         } catch (err) {
             console.error(`Failed to ${status.toLowerCase()} leave:`, err);
@@ -107,6 +108,10 @@ export default function LeaveApprovalsPage() {
     });
 
     const pendingCount = leaves.filter(l => l.status === 'PENDING').length;
+
+    if (authLoading) {
+        return <div className="page-loader"><div className="spinner"></div></div>;
+    }
 
     return (
         <div className="main-content fade-in" style={{ padding: '24px 24px 40px' }}>

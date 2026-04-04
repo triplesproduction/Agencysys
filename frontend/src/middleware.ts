@@ -15,26 +15,8 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    const isLoginPath = pathname === '/login';
-
-    // 1. If token but no user_session — state is corrupted, force clear and login
-    if (token && !userSession && !isLoginPath) {
-        const response = NextResponse.redirect(new URL('/login', request.url));
-        response.cookies.delete('token');
-        response.cookies.delete('user_session'); // Extra safety
-        return response;
-    }
-
-    // 2. Unauthenticated: catch-all redirect to login for protected routes
-    if (!token && !isLoginPath) {
-        return NextResponse.redirect(new URL('/login', request.url));
-    }
-
-    // 3. Already logged in: redirect away from login page to dashboard
-    if (token && isLoginPath) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-
+    // Note: Legacy cookie-based auth is deprecated. 
+    // We now rely on client-side AuthGuard + Supabase sessions to avoid redirection race conditions.
     return NextResponse.next();
 }
 

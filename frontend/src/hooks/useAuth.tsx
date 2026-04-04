@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
+        console.log(`[Auth TRACE] Fetching profile for ${userId} (${email})...`);
         try {
             const { data, error } = await supabase
                 .from('employees')
@@ -39,191 +40,158 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle();
 
             if (error) {
-                console.error('[Auth] Profile fetch error:', error.message);
-                
+                console.error('[Auth DEBUG] Profile fetch database error:', error.message);
                 // Fallback for Admin
                 if (email?.toLowerCase().includes('admin')) {
+                    console.log('[Auth DEBUG] Using Admin fallback profile due to error');
                     return { id: userId, email: email, roleId: 'ADMIN', firstName: 'TripleS', lastName: 'Admin' };
                 }
                 return null;
             }
             
-            // Optimization: Cache profile in localStorage for instant subsequent loads
-            if (data && typeof window !== 'undefined') {
-                localStorage.setItem('cached_profile', JSON.stringify(data));
+            if (!data) {
+                console.warn('[Auth DEBUG] No profile record found in database');
+                // Admin fallback even if record is missing but token is valid
+                if (email?.toLowerCase().includes('admin')) {
+                    console.log('[Auth DEBUG] Using Admin fallback profile (no record)');
+                    return { id: userId, email: email, roleId: 'ADMIN', firstName: 'TripleS', lastName: 'Admin' };
+                }
+                return null;
             }
             
-            return data as EmployeeProfile | null;
+            console.log('[Auth DEBUG] Profile successfully retrieved:', data.roleId);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('cached_profile', JSON.stringify(data));
+            }
+            return data as EmployeeProfile;
         } catch (err) {
-            // Fallback for Admin on unexpected error
+            console.error('[Auth DEBUG] Unexpected profile fetch exception:', err);
             if (email?.toLowerCase().includes('admin')) {
                 return { id: userId, email: email, roleId: 'ADMIN', firstName: 'TripleS', lastName: 'Admin' };
             }
-            console.error('[Auth] Unexpected profile fetch error:', err);
             return null;
         }
     };
 
-    useEffect(() => {
-        if (!loading) return;
-        
-        const timeoutId = setTimeout(() => {
-            if (loading) {
-                setLoading(false);
-            }
-        }, 3000); // Reduced safety timeout
-        
-        return () => clearTimeout(timeoutId);
-    }, [loading]);
+    // Auth resolution is now strictly driven by onAuthStateChange and checkUser callbacks
+
 
     useEffect(() => {
         let mounted = true;
+        let isResolving = false;
         
-        // Optimization: Try to load profile and role from cache immediately
-        if (typeof window !== 'undefined') {
-            const cached = localStorage.getItem('cached_profile');
-            if (cached) {
-                try {
-                    const profile = JSON.parse(cached);
-                    setEmployee(profile);
-                    // Force loading to false if we have a cached profile to skip the "Verifying Session" screen
-                    setLoading(false);
-                } catch (e) {
-                    localStorage.removeItem('cached_profile');
-                }
+        // Safety fallback: ensure loading never hangs forever
+        const safetyTimeout = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn('[AUTH DEBUG] Resolution safety timeout reached. Forcing loading false.');
+                setLoading(false);
             }
-        }
-        
-        const checkUser = async () => {
+        }, 8000);
+
+        console.log('[AUTH DEBUG] AuthProvider mounted. Initializing session listener...');
+
+        const resolveAuth = async (currentUser: User | null, currentSession: Session | null, source: string) => {
+            if (!mounted) return;
+            if (isResolving) {
+                console.log(`[AUTH DEBUG] Resolution already in progress, skipping (${source})`);
+                return;
+            }
+            isResolving = true;
+            
             try {
-                // Use getUser() for high-reliability initial session verification
-                const { data: { user: currentUser }, error } = await supabase.auth.getUser();
-                
-                if (error) {
-                    console.error('[Auth] getUser error:', error.message);
-                    if (mounted) setLoading(false);
-                    return;
-                }
-                
-                if (!mounted) return;
-
                 if (currentUser) {
+                    console.log(`[AUTH DEBUG] Active session detected (${source}):`, currentUser.id);
                     setUser(currentUser);
-                    // Fetch session separately for context availability if needed by components
-                    const { data: { session: currentSession } } = await supabase.auth.getSession();
                     setSession(currentSession);
                     
-                    // Optimization: Release loading screen AS SOON AS user is verified
-                    setLoading(false); 
-                    
-                    const profileData = await fetchProfile(currentUser.id, currentUser.email);
-                    if (mounted && profileData) {
-                        setEmployee(profileData);
-                        localStorage.setItem('cached_profile', JSON.stringify(profileData));
-                    }
-                } else {
-                    if (mounted) setLoading(false);
-                    if (typeof window !== 'undefined') localStorage.removeItem('cached_profile');
-                }
-            } catch (err) {
-                console.error('[Auth] User verification failed:', err);
-                if (mounted) setLoading(false);
-            }
-        };
-
-        checkUser();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, currentSession) => {
-                if (!mounted) return;
-
-                if (currentSession?.user) {
-                    setUser(currentSession.user);
-                    setSession(currentSession);
-                    
-                    // Sync cookies if they are missing or stale
-                    // Note: In production, we'd use a secure server-side method, but for this frontend architecture, we sync them here.
-                    const token = currentSession.access_token;
-                    const existingToken = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                    
-                    if (token && token !== existingToken) {
-                        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-                        console.log('[Auth] Cookies synchronized with session');
-                    }
-
-                    // Optimization: Set loading false eagerly
-                    setLoading(false);
-
-                    const profile = await fetchProfile(currentSession.user.id, currentSession.user.email);
+                    // Fetch profile if missing or just to keep it fresh
+                    const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
                     if (mounted) {
-                        setEmployee(profile);
-                        // Also sync user_session cookie for middleware role-checks
-                        if (profile) {
-                            document.cookie = `user_session=${encodeURIComponent(JSON.stringify({
-                                id: profile.id,
-                                roleId: profile.roleId,
-                                firstName: profile.firstName,
-                                lastName: profile.lastName,
-                                sub: profile.id,
-                            }))}; path=/; max-age=86400; SameSite=Lax`;
-                        }
+                        setEmployee(profileData);
+                        console.log(`[AUTH DEBUG] Profile resolved for ${currentUser.id}:`, profileData ? 'SUCCESS' : 'FAILED (Missing Employee Record)');
+                        setLoading(false);
                     }
                 } else {
+                    console.log(`[AUTH DEBUG] No active session (${source})`);
                     setUser(null);
                     setSession(null);
                     setEmployee(null);
+                    setLoading(false);
                     if (typeof window !== 'undefined') {
                         localStorage.removeItem('cached_profile');
-                        // Clear cookies as well
-                        document.cookie = 'token=; Max-Age=0; path=/;';
-                        document.cookie = 'user_session=; Max-Age=0; path=/;';
                     }
-                    if (event === 'SIGNED_OUT') router.push('/login');
-                    if (mounted) setLoading(false);
+                }
+            } finally {
+                isResolving = false;
+            }
+        };
+
+        // 1. Initial manual check
+        const initialCheck = async () => {
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
+            await resolveAuth(currentUser, currentSession, 'INITIAL_CHECK');
+        };
+
+        initialCheck();
+
+        // 2. Persistent listener for all auth events
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, currentSession) => {
+                if (!mounted) return;
+                console.log(`[AUTH DEBUG] Event: ${event}`);
+
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                    await resolveAuth(currentSession?.user || null, currentSession, event);
+                } else if (event === 'SIGNED_OUT') {
+                    console.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
+                    setUser(null);
+                    setSession(null);
+                    setEmployee(null);
+                    setLoading(false);
+                    if (typeof window !== 'undefined') {
+                        localStorage.removeItem('cached_profile');
+                        // Use hard redirect for Sign Out to clear all memory/context
+                        if (window.location.pathname !== '/login') {
+                            window.location.href = '/login';
+                        }
+                    }
                 }
             }
         );
 
         return () => {
             mounted = false;
+            clearTimeout(safetyTimeout);
             subscription.unsubscribe();
         };
     }, [router]);
 
-    const signOut = useCallback(async () => {
-        console.log('[Auth] Initiating sign out...');
+    const signOut = async () => {
+        console.log('[Auth] Nuclear Sign Out initiated...');
         try {
-            // 1. Clear all possible state markers immediately
+            // 1. Clear local state immediately for instant UI feedback
+            setUser(null);
+            setSession(null);
+            setEmployee(null);
+            setLoading(false);
             if (typeof window !== 'undefined') {
-                localStorage.clear(); // Clear all to be safe (cached_profile, etc.)
-                sessionStorage.clear();
-                
-                // Clear authorization cookies
-                document.cookie = 'token=; Max-Age=0; path=/; SameSite=Lax';
-                document.cookie = 'user_session=; Max-Age=0; path=/; SameSite=Lax';
-                console.log('[Auth] Local state and cookies cleared');
+                localStorage.removeItem('cached_profile');
             }
-            
-            // 2. Call Supabase SignOut
+
+            // 2. Signal to Supabase
             await supabase.auth.signOut();
             
-            // 3. Force definitive redirect to login
-            router.replace('/login');
-            
-            // 4. Hard refresh if needed to clear stateful React contexts
-            if (typeof window !== 'undefined') {
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 100);
-            }
+            console.log('[Auth] Supabase sign out complete. Redirecting...');
         } catch (error) {
-            console.error('[Auth] Sign out error:', error);
-            // Fallback: Hard redirect
+            console.error('[Auth] Sign out error (swallowed for safety):', error);
+        } finally {
+            // 3. Always force a hard redirect to clear potential SPA hangs
             if (typeof window !== 'undefined') {
                 window.location.href = '/login';
             }
         }
-    }, [supabase.auth, router]);
+    };
 
     // Inactivity Auto-Logout (100 Seconds)
     useEffect(() => {
@@ -234,9 +202,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const resetTimer = () => {
             if (timeoutId) clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                console.log('[Auth] User inactive for 100s. Auto-logging out...');
+                console.log('[Auth] User inactive for 3600s. Auto-logging out...');
                 signOut();
-            }, 100000); // 100 seconds
+            }, 3600000); // 1 hour
         };
 
         // Events that indicate activity

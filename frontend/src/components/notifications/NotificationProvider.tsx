@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import GlassCard from '../GlassCard';
 import './Notifications.css';
 
@@ -27,18 +28,15 @@ const NotificationContext = createContext<NotificationContextProps>({
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
+    const { user, loading: authLoading } = useAuth();
     const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
     const router = useRouter();
 
     useEffect(() => {
-        async function initAuth() {
-            const { data: { user } } = await supabase.auth.getUser();
-            const activeUserId = user?.id;
-            if (!activeUserId) return;
+        if (authLoading || !user) return;
 
-            // Initialize Supabase Channel for Realtime Notifications
-            const channel = supabase.channel('system_events');
-
+        // Initialize Supabase Channel for Realtime Notifications
+        const channel = supabase.channel('system_events');
 
         channel
             .on('broadcast', { event: 'notification' }, ({ payload }: { payload: NotificationMessage }) => {
@@ -54,7 +52,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
                 // Auto-dismiss after 6 seconds
                 setTimeout(() => {
-                    removeNotification(liveMessage.id);
+                    setNotifications((prev) => prev.filter((n) => n.id !== liveMessage.id));
                 }, 6000);
             })
             .subscribe();
@@ -62,9 +60,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return () => {
             channel.unsubscribe();
         };
-        }
-        initAuth();
-    }, []);
+    }, [user, authLoading]);
 
     const removeNotification = (id: string) => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));

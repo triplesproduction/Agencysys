@@ -26,7 +26,7 @@ import {
     ChevronLeft,
     ChevronRight 
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import './Sidebar.css';
 
 // Centralized navigation configurations dictated by Role

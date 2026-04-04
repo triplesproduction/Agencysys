@@ -6,7 +6,7 @@ import GlassCard from '@/components/GlassCard';
 import DeadlineIndicator from '@/components/DeadlineIndicator';
 import Button from '@/components/Button';
 import TaskQualityRater from '@/components/tasks/TaskQualityRater';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import { TaskDTO } from '@/types/dto';
 import '../Tasks.css';

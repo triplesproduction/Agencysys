@@ -6,8 +6,7 @@ import { Search, Plus, Download, Upload, MoreVertical, Trash2, Mail, Phone, User
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { EmployeeDTO } from '@/types/dto';
-import { getUserFromToken } from '@/lib/auth';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
 import EmployeeProfileDrawer from '@/components/employees/EmployeeProfileDrawer';
 import { useNotifications } from '@/components/notifications/NotificationProvider';

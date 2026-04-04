@@ -1,45 +1,28 @@
 import { supabase } from './supabase';
 
-// No-op: Supabase manages the session automatically
+/**
+ * DEPRECATED: Cookie-based auth is removed.
+ * Use the useAuth() hook for session data.
+ */
 export function getAuthToken(): string | null {
     return null;
 }
 
-// No-op: kept for backwards compatibility — cookie is written directly in login page
-export function setAuthToken(_token: string) {}
-
 export async function clearAuthToken() {
     if (typeof window !== 'undefined') {
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut();
+        if (error) console.error('[AUTH DEBUG] signOut error:', error);
+        
+        // Final cleanup of any runaway cookies
         document.cookie = 'token=; Max-Age=0; path=/;';
         document.cookie = 'user_session=; Max-Age=0; path=/;';
+        
+        // Force redirect to login
         window.location.href = '/login';
     }
 }
 
-/**
- * Reads the user_session cookie written at login.
- * Returns id, roleId, role, firstName, lastName, sub.
- */
-export function getUserFromToken(): {
-    sub?: string;
-    role?: string;
-    employeeId?: string;
-    roleId?: string;
-    id?: string;
-    firstName?: string;
-    lastName?: string;
-} | null {
-    if (typeof window !== 'undefined') {
-        const match = document.cookie.match(/(^| )user_session=([^;]+)/);
-        if (match) {
-            try {
-                return JSON.parse(decodeURIComponent(match[2]));
-            } catch {
-                return null;
-            }
-        }
-    }
+export function getUserFromToken(): null {
     return null;
 }
 

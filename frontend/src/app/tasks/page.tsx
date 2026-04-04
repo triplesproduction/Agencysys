@@ -12,7 +12,7 @@ import { api } from '@/lib/api';
 import { TaskDTO } from '@/types/dto';
 import './Tasks.css';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import { hasPermission } from '@/lib/permissions';
 
 export default function TasksPage() {

@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react';
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { KPIMetricDTO } from '@/types/dto';
-import { getUserFromToken } from '@/lib/auth';
 import { TrendingUp, Target, Award, Calendar, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function KPIsPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();

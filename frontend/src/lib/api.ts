@@ -12,7 +12,10 @@ import {
 } from '../types/dto';
 import { supabase } from './supabase';
 
-const handleSupabaseError = (error: any, context: string) => {
+const handleSupabaseEvent = (data: any, error: any, context: string) => {
+    // Standardized high-fidelity logging for all system events
+    console.log(`[DB TRACE] ${context}:`, { data, error });
+
     if (error) {
         console.error(`Supabase Error (${context}):`, error);
         throw new Error(error.message || `An error occurred during ${context}`);
@@ -26,7 +29,7 @@ export const api = {
         const { count: total, error: totalError } = await supabase.from('employees').select('*', { count: 'exact', head: true });
         const { count: active, error: activeError } = await supabase.from('employees').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE');
         
-        handleSupabaseError(totalError || activeError, 'Fetch Stats');
+        handleSupabaseEvent({ total, active }, totalError || activeError, 'Fetch Stats');
         return {
             total: total || 0,
             active: active || 0
@@ -57,7 +60,7 @@ export const api = {
         query = query.range(from, to);
 
         const { data, error, count } = await query;
-        handleSupabaseError(error, 'Fetch Employees');
+        handleSupabaseEvent(data, error, 'Fetch Employees');
 
         // Normalize with architect defaults
         const normalizedData = (data || []).map((emp: any) => ({
@@ -77,12 +80,12 @@ export const api = {
     },
     getEmployeeById: async (id: string) => {
         const { data, error } = await supabase.from('employees').select('*').eq('id', id).single();
-        handleSupabaseError(error, 'Fetch Employee');
+        handleSupabaseEvent(data, error, 'Fetch Employee');
         return data as EmployeeDTO;
     },
     createEmployee: async (data: any) => {
         const { data: res, error } = await supabase.from('employees').insert(data).select().single();
-        handleSupabaseError(error, 'Create Employee');
+        handleSupabaseEvent(data, error, 'Create Employee');
         return res as EmployeeDTO;
     },
     createEmployeeAccount: async (data: any): Promise<{ userId: string; email: string; tempPassword: string }> => {
@@ -109,12 +112,12 @@ export const api = {
     },
     updateEmployeeStatus: async (id: string, status: string) => {
         const { data, error } = await supabase.from('employees').update({ status }).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Status');
+        handleSupabaseEvent(data, error, 'Update Status');
         return data as EmployeeDTO;
     },
     updateEmployee: async (id: string, data: any) => {
         const { data: res, error } = await supabase.from('employees').update(data).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Employee');
+        handleSupabaseEvent(data, error, 'Update Employee');
         return res as EmployeeDTO;
     },
     deleteEmployee: async (id: string) => {
@@ -145,7 +148,7 @@ export const api = {
             .order('createdAt', { ascending: false })
             .limit(limit);
 
-        handleSupabaseError(error, 'Fetch Tasks');
+        handleSupabaseEvent(data, error, 'Fetch Tasks');
         
         // Normalize with architect defaults
         return (data || []).map((task: any) => ({
@@ -158,42 +161,40 @@ export const api = {
     },
     createTask: async (data: Partial<TaskDTO>) => {
         const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
-        handleSupabaseError(error, 'Create Task');
+        handleSupabaseEvent(data, error, 'Create Task');
         return res as TaskDTO;
     },
     updateTaskStatus: async (id: string, status: string) => {
         const { data, error } = await supabase.from('tasks').update({ status }).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Task Status');
+        handleSupabaseEvent(data, error, 'Update Task Status');
         return data as TaskDTO;
     },
     updateTask: async (id: string, data: Partial<TaskDTO>) => {
         const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Task');
+        handleSupabaseEvent(data, error, 'Update Task');
         return res as TaskDTO;
     },
 
     // EOD
     submitEOD: async (data: Partial<EODSubmissionDTO>) => {
         const { data: res, error } = await supabase.from('eod_reports').insert(data).select().single();
-        handleSupabaseError(error, 'Submit EOD');
+        handleSupabaseEvent(data, error, 'Submit EOD');
         return res as EODSubmissionDTO;
     },
-    getMyEODs: async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+    getMyEODs: async (userId: string) => {
+        if (!userId) throw new Error('Not authenticated');
         
-        // Temporarily relaxed filtering due to auth mismatch (employeeId vs auth.id)
-        // const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', user.id).order('reportDate', { ascending: false });
+        // Use the actual columns found in the DB (tasksCompleted/InProgress are arrays)
         const { data, error } = await supabase.from('eod_reports').select('*').order('reportDate', { ascending: false });
         
-        handleSupabaseError(error, 'Fetch My EODs');
+        handleSupabaseEvent(data, error, 'Fetch My EODs');
         
         // Normalize with architect defaults
         return (data || []).map((report: any) => ({
             ...report,
             sentiment: report.sentiment || 'OKAY',
-            completedText: report.completedText || '[]',
-            inProgressText: report.inProgressText || '[]'
+            tasksCompleted: report.tasksCompleted || [],
+            tasksInProgress: report.tasksInProgress || []
         })) as EODSubmissionDTO[];
     },
     getAllEODs: async (limit: number = 15) => {
@@ -203,49 +204,48 @@ export const api = {
             .order('reportDate', { ascending: false })
             .limit(limit);
 
-        handleSupabaseError(error, 'Fetch All EODs');
+        handleSupabaseEvent(data, error, 'Fetch All EODs');
         
         // Normalize with architect defaults
         return (data || []).map((report: any) => ({
             ...report,
             sentiment: report.sentiment || 'OKAY',
-            completedText: report.completedText || '[]',
-            inProgressText: report.inProgressText || '[]'
+            tasksCompleted: report.tasksCompleted || [],
+            tasksInProgress: report.tasksInProgress || []
         }));
     },
     updateEODSentiment: async (id: string, sentiment: string) => {
         const { data, error } = await supabase.from('eod_reports').update({ sentiment }).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Sentiment');
+        handleSupabaseEvent(data, error, 'Update Sentiment');
         return data as any;
     },
 
     // Work Hours
     logWorkHours: async (data: Partial<WorkHourLogDTO>) => {
         const { data: res, error } = await supabase.from('work_hours').insert(data).select().single();
-        handleSupabaseError(error, 'Log Work Hours');
+        handleSupabaseEvent(data, error, 'Log Work Hours');
         return res as WorkHourLogDTO;
     },
 
     // Leaves
     applyForLeave: async (data: Partial<LeaveApplicationDTO>) => {
         const { data: res, error } = await supabase.from('leaves').insert(data).select().single();
-        handleSupabaseError(error, 'Apply for Leave');
+        handleSupabaseEvent(data, error, 'Apply for Leave');
         return res as LeaveApplicationDTO;
     },
-    getMyLeaves: async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+    getMyLeaves: async (userId: string) => {
+        if (!userId) throw new Error('Not authenticated');
         
         // Temporarily relaxed filtering due to auth mismatch
         // const { data, error } = await supabase.from('leaves').select('*').eq('employeeId', user.id).order('createdAt', { ascending: false });
         const { data, error } = await supabase.from('leaves').select('*').order('createdAt', { ascending: false });
         
-        handleSupabaseError(error, 'Fetch My Leaves');
+        handleSupabaseEvent(data, error, 'Fetch My Leaves');
         return data as LeaveApplicationDTO[];
     },
     getLeaves: async () => {
         const { data, error } = await supabase.from('leaves').select('*, employee:employees!employeeId(*)').order('createdAt', { ascending: false });
-        handleSupabaseError(error, 'Fetch Leaves');
+        handleSupabaseEvent(data, error, 'Fetch Leaves');
         
         // Normalize with architect defaults
         return (data || []).map((leave: any) => ({
@@ -255,11 +255,10 @@ export const api = {
             reason: leave.reason || 'No reason provided'
         })) as LeaveApplicationDTO[];
     },
-    approveLeave: async (id: string, status: 'APPROVED' | 'REJECTED') => {
-        const { data: { user } } = await supabase.auth.getUser();
-        const updateData = { status, approverId: user?.id };
+    approveLeave: async (id: string, status: 'APPROVED' | 'REJECTED', approverId: string) => {
+        const updateData = { status, approverId };
         const { data, error } = await supabase.from('leaves').update(updateData).eq('id', id).select().single();
-        handleSupabaseError(error, 'Approve Leave');
+        handleSupabaseEvent(data, error, 'Approve Leave');
         return data as LeaveApplicationDTO;
     },
 
@@ -273,12 +272,12 @@ export const api = {
     getKpiProfile: async (employeeId: string, monthYear?: string) => {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase.from('kpi_profiles').select('*').eq('employee_id', employeeId).eq('month_year', queryMonth).maybeSingle();
-        handleSupabaseError(error, 'Fetch KPI Profile');
+        handleSupabaseEvent(data, error, 'Fetch KPI Profile');
         return data as KpiProfileDTO | null;
     },
     getKpiAuditLogs: async (employeeId: string) => {
         const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employee_id', employeeId).order('created_at', { ascending: false });
-        handleSupabaseError(error, 'Fetch KPI Audit Logs');
+        handleSupabaseEvent(data, error, 'Fetch KPI Audit Logs');
         return data as KpiAuditLogDTO[];
     },
     assignBonusPoints: async (employeeId: string, points: number, category: string, reason: string) => {
@@ -288,7 +287,7 @@ export const api = {
             p_category: category, 
             p_reason: reason 
         });
-        handleSupabaseError(error, 'Assign Bonus');
+        handleSupabaseEvent(null, error, 'Assign Bonus');
         return { success: true };
     },
     assignLateLogin: async (employeeId: string, reason: string) => {
@@ -298,7 +297,7 @@ export const api = {
             p_date: date,
             p_reason: reason
         });
-        handleSupabaseError(error, 'Assign Late Login');
+        handleSupabaseEvent(null, error, 'Assign Late Login');
         return { success: true };
     },
     overrideKpiScore: async (employeeId: string, score: number, extra: number, reason: string) => {
@@ -308,12 +307,12 @@ export const api = {
             p_new_extra: extra,
             p_reason: reason
         });
-        handleSupabaseError(error, 'Override KPI Score');
+        handleSupabaseEvent(null, error, 'Override KPI Score');
         return { success: true };
     },
     addWorkHourLog: async (data: Partial<WorkHourLogDTO>) => {
         const { data: res, error } = await supabase.from('work_hours').insert(data).select().single();
-        handleSupabaseError(error, 'Add Work Hour Log');
+        handleSupabaseEvent(res, error, 'Add Work Hour Log');
         return res as WorkHourLogDTO;
     },
     getRecentWorkHours: async (employeeId: string, limit: number = 5) => {
@@ -323,7 +322,7 @@ export const api = {
             .eq('employeeId', employeeId)
             .order('date', { ascending: false })
             .limit(limit);
-        handleSupabaseError(error, 'Fetch Recent Work Hours');
+        handleSupabaseEvent(data, error, 'Fetch Recent Work Hours');
         return data as WorkHourLogDTO[];
     },
     getAllKpiProfiles: async (monthYear?: string, limit: number = 10) => {
@@ -335,7 +334,7 @@ export const api = {
             .order('current_score', { ascending: false })
             .limit(limit); // Optimization: Added limit
 
-        handleSupabaseError(error, 'Fetch All KPI Profiles');
+        handleSupabaseEvent(data, error, 'Fetch All KPI Profiles');
         return data as any[];
     },
     getAllKpiAuditLogs: async (limit: number = 10) => {
@@ -344,22 +343,20 @@ export const api = {
             .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
             .order('created_at', { ascending: false })
             .limit(limit);
-        handleSupabaseError(error, 'Fetch All KPI Audit Logs');
+        handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
         return data as any[];
     },
 
     // Chats
-    sendChatMessage: async (data: { receiverId: string; content: string }) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
-        const msg = { ...data, senderId: user.id };
+    sendChatMessage: async (data: { receiverId: string; content: string }, senderId: string) => {
+        if (!senderId) throw new Error('Not authenticated');
+        const msg = { ...data, senderId };
         const { data: res, error } = await supabase.from('messages').insert(msg).select().single();
-        handleSupabaseError(error, 'Send Message');
+        handleSupabaseEvent(res, error, 'Send Message');
         return res;
     },
-    getMyChats: async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+    getMyChats: async (userId: string) => {
+        if (!userId) throw new Error('Not authenticated');
 
         // Relaxed filtering for visibility due to ID mismatch
         // const { data, error } = await supabase.from('messages')
@@ -370,71 +367,70 @@ export const api = {
             .select('*')
             .order('sentAt', { ascending: true });
             
-        handleSupabaseError(error, 'Fetch My Chats');
+        handleSupabaseEvent(data, error, 'Fetch My Chats');
         return { data: data || [] };
     },
     getAdminChats: async () => {
         const { data, error } = await supabase.from('messages')
             .select('*, sender:employees!senderId(*), receiver:employees!receiverId(*)')
             .order('sentAt', { ascending: false });
-        handleSupabaseError(error, 'Fetch Admin Chats');
+        handleSupabaseEvent(data, error, 'Fetch Admin Chats');
         return { data: data || [], message: 'Admin chats' };
     },
     deleteChatMessage: async (messageId: string, forEveryone: boolean) => {
         const { error } = await supabase.from('messages').delete().eq('id', messageId);
-        handleSupabaseError(error, 'Delete Message');
+        handleSupabaseEvent(null, error, 'Delete Message');
         return { success: true };
     },
 
     // Notifications
     broadcastNotification: async (data: { title: string; message: string; type: string; metadata?: any }) => {
         const { error } = await supabase.from('notifications').insert(data);
-        handleSupabaseError(error, 'Broadcast Notification');
+        handleSupabaseEvent(data, error, 'Broadcast Notification');
         return { success: true, count: 1 };
     },
 
     // Rules
     getRules: async () => {
         const { data, error } = await supabase.from('rules').select('*, author:employees!createdBy(id, firstName, lastName)').order('createdAt', { ascending: false });
-        handleSupabaseError(error, 'Fetch Rules');
+        handleSupabaseEvent(data, error, 'Fetch Rules');
         return data as RuleDTO[];
     },
-    createRule: async (data: Partial<RuleDTO>) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        const ruleData = { ...data, createdBy: user?.id };
+    createRule: async (data: Partial<RuleDTO>, userId: string) => {
+        const ruleData = { ...data, createdBy: userId };
         const { data: res, error } = await supabase.from('rules').insert(ruleData).select().single();
-        handleSupabaseError(error, 'Create Rule');
+        handleSupabaseEvent(res, error, 'Create Rule');
         return res as RuleDTO;
     },
     updateRule: async (id: string, data: Partial<RuleDTO>) => {
         const { data: res, error } = await supabase.from('rules').update(data).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Rule');
+        handleSupabaseEvent(res, error, 'Update Rule');
         return res as RuleDTO;
     },
     deleteRule: async (id: string) => {
         const { error } = await supabase.from('rules').delete().eq('id', id);
-        handleSupabaseError(error, 'Delete Rule');
+        handleSupabaseEvent(null, error, 'Delete Rule');
     },
 
     // Announcements
     getAnnouncements: async () => {
         const { data, error } = await supabase.from('announcements').select('*').order('createdAt', { ascending: false });
-        handleSupabaseError(error, 'Fetch Announcements');
+        handleSupabaseEvent(data, error, 'Fetch Announcements');
         return data as any[];
     },
     createAnnouncement: async (data: { title: string; message: string; type?: string }) => {
         const { data: res, error } = await supabase.from('announcements').insert(data).select().single();
-        handleSupabaseError(error, 'Create Announcement');
+        handleSupabaseEvent(res, error, 'Create Announcement');
         return res as any;
     },
     updateAnnouncementStatus: async (id: string, status: 'active' | 'inactive') => {
         const { data, error } = await supabase.from('announcements').update({ status }).eq('id', id).select().single();
-        handleSupabaseError(error, 'Update Announcement Status');
+        handleSupabaseEvent(data, error, 'Update Announcement Status');
         return data as any;
     },
     deleteAnnouncement: async (id: string) => {
         const { error } = await supabase.from('announcements').delete().eq('id', id);
-        handleSupabaseError(error, 'Delete Announcement');
+        handleSupabaseEvent(null, error, 'Delete Announcement');
     },
 
     // Uploads
@@ -442,7 +438,7 @@ export const api = {
         const ext = file.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
         const { error } = await supabase.storage.from('uploads').upload(fileName, file);
-        handleSupabaseError(error, 'File Upload');
+        handleSupabaseEvent(null, error, 'File Upload');
         
         const { data: pubData } = supabase.storage.from('uploads').getPublicUrl(fileName);
         return { url: pubData.publicUrl };

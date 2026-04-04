@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, Loader2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
 interface Message {
@@ -17,18 +17,17 @@ interface Message {
 }
 
 export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: number }) {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const [threads, setThreads] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchChats() {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                const myId = user?.id; // Using UUID from auth for the check
-                setCurrentUserId(myId ? String(myId) : null);
+            if (authLoading || !authEmployee) return;
 
-                const response: any = await api.getMyChats();
+            try {
+                const myId = authEmployee.id;
+                const response: any = await api.getMyChats(myId);
                 const messages: Message[] = Array.isArray(response) ? response : (response?.data || []);
 
                 const conversationMap = new Map<string, Message>();
@@ -79,7 +78,7 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {threads.map(msg => {
-                        const isMine = String(msg.senderId) === currentUserId;
+                        const isMine = String(msg.senderId) === authEmployee?.id;
                         const partner = isMine ? msg.receiver : msg.sender;
                         const name = partner ? `${partner.firstName} ${partner.lastName}` : 'Unknown';
                         const photo = partner?.profilePhoto;

@@ -4,22 +4,22 @@ import { useState, useEffect, useCallback } from 'react';
 import GlassCard from '@/components/GlassCard';
 import Button from '@/components/Button';
 import { api } from '@/lib/api';
-import { CheckSquare, AlertTriangle, Calendar, Clock, ChevronDown, Smile, Meh, Frown } from 'lucide-react';
+import { CheckSquare, AlertTriangle, Calendar, Clock, ChevronDown, Smile, Meh, Frown, CheckCircle2 } from 'lucide-react';
 import './EOD.css';
 
 const SentimentIcon = ({ sentiment }: { sentiment: string }) => {
-    if (sentiment === 'GREAT') return <Smile size={14} style={{ color: '#10B981' }} />;
-    if (sentiment === 'GOOD') return <Smile size={14} style={{ color: '#3B82F6' }} />;
-    if (sentiment === 'OKAY') return <Meh size={14} style={{ color: '#F59E0B' }} />;
-    return <Frown size={14} style={{ color: sentiment === 'BAD' ? '#EF4444' : '#991B1B' }} />;
+    if (sentiment === 'GREAT') return <Smile size={16} style={{ color: '#34D399' }} />;
+    if (sentiment === 'GOOD') return <Smile size={16} style={{ color: '#60A5FA' }} />;
+    if (sentiment === 'OKAY') return <Meh size={16} style={{ color: '#FBBF24' }} />;
+    return <Frown size={16} style={{ color: sentiment === 'BAD' ? '#F87171' : '#B91C1C' }} />;
 };
 
 const sentimentColor: Record<string, string> = {
-    GREAT: '#10B981', GOOD: '#3B82F6', OKAY: '#F59E0B', BAD: '#EF4444', TERRIBLE: '#991B1B'
+    GREAT: '#34D399', GOOD: '#60A5FA', OKAY: '#FBBF24', BAD: '#F87171', TERRIBLE: '#B91C1C'
 };
 
 import { EODSubmissionDTO } from '@/types/dto';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function EODPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();
@@ -45,8 +45,12 @@ export default function EODPage() {
 
         try {
             setReportsLoading(true);
-            const data = await api.getMyEODs();
-            setMyReports(Array.isArray(data) ? data : []);
+            const data = await api.getMyEODs(authEmployee.id);
+            // Only show reports belonging to this employee if filtering wasn't done on server
+            const filtered = Array.isArray(data) 
+                ? data.filter(r => r.employeeId === authEmployee.id)
+                : [];
+            setMyReports(filtered);
         } catch (err) {
             console.error('Failed to load my EODs:', err);
             setMyReports([]);
@@ -56,10 +60,12 @@ export default function EODPage() {
     }, [authEmployee, authLoading]);
 
     useEffect(() => {
-        if (!authLoading) {
+        if (!authLoading && authEmployee) {
             fetchMyReports();
+        } else if (!authLoading && !authEmployee) {
+            setReportsLoading(false);
         }
-    }, [authLoading, fetchMyReports]);
+    }, [authLoading, authEmployee, fetchMyReports]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -79,294 +85,248 @@ export default function EODPage() {
         setLoading(true);
         try {
             const empId = authEmployee.id;
+            const completedList = formData.tasksCompleted.split('\n').filter(t => t && t.trim() !== '');
 
             await api.submitEOD({
                 employeeId: empId,
-                reportDate: new Date().toISOString().split('T')[0],
-                tasksCompleted: formData.tasksCompleted.split('\n').filter(t => t && t.trim() !== ''),
+                reportDate: new Date().toISOString(), // Full ISO for better backend parsing
+                tasksCompleted: completedList,
                 tasksInProgress: [],
-                blockers: formData.blockers,
+                blockers: formData.blockers || undefined,
                 sentiment: 'GOOD',
             });
 
-            // If work hours were provided, log them via the dedicated endpoint
+            // Log work hours if provided
             const hours = parseFloat(formData.workHours);
             if (!isNaN(hours) && hours > 0) {
-                await api.logWorkHours({
-                    employeeId: empId,
-                    date: new Date().toISOString().split('T')[0],
-                    hoursLogged: hours,
-                    description: 'EOD Daily Submission',
-                });
+                try {
+                    console.log('[EOD TRACE] Logging work hours...', { hours });
+                    await api.logWorkHours({
+                        employeeId: empId,
+                        date: new Date().toISOString().split('T')[0],
+                        hoursLogged: hours,
+                        description: 'EOD Daily Submission',
+                    });
+                } catch (hourError: any) {
+                    console.error('[EOD TRACE] Work hour logging failed (KPI Trigger?):', hourError);
+                    if (hourError.message?.includes('row-level security')) {
+                        setError('EOD saved, but KPI update failed (RLS Policy). Please contact Admin.');
+                    }
+                }
             }
 
             setSuccess(true);
             setFormData({ tasksCompleted: '', blockers: '', workHours: '' });
-            setTimeout(() => setSuccess(false), 4000);
+            setTimeout(() => setSuccess(false), 5000);
 
-            // Refresh submissions list immediately
+            // Refresh submissions list
             fetchMyReports();
         } catch (err: any) {
-            setError(err.message || 'Submission failed. Please try again.');
+            console.error('[EOD TRACE] Submission Error:', err);
+            const msg = err.message || 'Submission failed. Please check your data or try again.';
+            setError(msg);
+            
+            if (msg.includes('row-level security')) {
+                console.error('[CRITICAL] RLS Violation detected on submission path');
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    // Parse raw text entries from completedText / inProgressText JSON
-    const parseRawText = (raw: string | null): string[] => {
-        if (!raw) return [];
-        try { return JSON.parse(raw); } catch { return []; }
-    };
-
     const getCompletedItems = (report: EODSubmissionDTO): string[] => {
-        if ((report.tasksCompleted as any)?.length > 0 && typeof (report.tasksCompleted as any)[0] === 'object') {
-            return (report.tasksCompleted as any).map((t: any) => t.title);
-        }
-        return Array.isArray(report.tasksCompleted) ? report.tasksCompleted as string[] : parseRawText(report.completedText || null);
+        if (Array.isArray(report.tasksCompleted)) return report.tasksCompleted;
+        return [];
     };
 
     const getInProgressItems = (report: EODSubmissionDTO): string[] => {
-        if ((report.tasksInProgress as any)?.length > 0 && typeof (report.tasksInProgress as any)[0] === 'object') {
-            return (report.tasksInProgress as any).map((t: any) => t.title);
-        }
-        return Array.isArray(report.tasksInProgress) ? report.tasksInProgress as string[] : parseRawText(report.inProgressText || null);
+        if (Array.isArray(report.tasksInProgress)) return report.tasksInProgress;
+        return [];
     };
 
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="eod-page fade-in" style={{ maxWidth: '900px' }}>
+        <div className="eod-page fade-in">
             <header className="page-header">
                 <div>
-                    <h1 className="greeting">End of Day Log</h1>
-                    <p className="subtitle">Submit your daily execution summary.</p>
+                    <h1 className="greeting">Execution Summary</h1>
+                    <p className="subtitle">Account for your productivity and log daily progress.</p>
                 </div>
             </header>
 
-            {/* ─── Submission Form ─── */}
+            {/* Submission Form Section */}
             <div className="form-container">
                 <GlassCard className="eod-card">
                     <form onSubmit={handleSubmit} className="eod-form">
-
                         <div className="form-group">
-                            <label className="input-label">Tasks Completed</label>
+                            <label className="input-label">Tasks Completed Today</label>
                             <textarea
                                 className="glass-textarea"
                                 rows={4}
-                                placeholder="List what you accomplished today (one per line)..."
+                                placeholder="List your accomplishments (one per line)..."
                                 value={formData.tasksCompleted}
                                 onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label className="input-label">Any Blockers?</label>
-                            <textarea
-                                className="glass-textarea"
-                                rows={3}
-                                placeholder="List any impediments to your work..."
-                                value={formData.blockers}
-                                onChange={e => setFormData({ ...formData, blockers: e.target.value })}
-                            />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                            <div className="form-group">
+                                <label className="input-label">Work Hours</label>
+                                <input
+                                    type="number"
+                                    className="glass-textarea"
+                                    style={{ height: '3.5rem', minHeight: 'unset' }}
+                                    min="0" step="0.5" max="24"
+                                    placeholder="Eg. 8.5"
+                                    value={formData.workHours}
+                                    onChange={e => setFormData({ ...formData, workHours: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="input-label">Blockers (Optional)</label>
+                                <input
+                                    type="text"
+                                    className="glass-textarea"
+                                    style={{ height: '3.5rem', minHeight: 'unset' }}
+                                    placeholder="Any impediments?"
+                                    value={formData.blockers}
+                                    onChange={e => setFormData({ ...formData, blockers: e.target.value })}
+                                />
+                            </div>
                         </div>
 
-                        <div className="form-group">
-                            <label className="input-label">Total Work Hours Logged</label>
-                            <input
-                                type="number"
-                                className="glass-textarea"
-                                style={{ padding: '0.75rem 1rem', height: 'auto', minHeight: 'unsized' }}
-                                min="0" step="0.5" max="24"
-                                placeholder="Eg. 8.5"
-                                value={formData.workHours}
-                                onChange={e => setFormData({ ...formData, workHours: e.target.value })}
-                            />
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>These hours will be billed dynamically to your timesheet record.</p>
-                        </div>
-
-                        <div className="form-actions">
+                        <div className="form-actions" style={{ marginTop: '0.5rem' }}>
                             <Button type="submit" disabled={loading} className="submit-btn" size="lg">
-                                {loading ? 'Submitting...' : 'Submit EOD'}
+                                {loading ? 'Processing...' : 'Submit Report'}
                             </Button>
                         </div>
 
                         {error && (
-                            <div className="error-message" style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255, 69, 58, 0.1)', color: '#ff453a', borderRadius: 'var(--radius-sm)' }}>
+                            <div className="error-message p-4 rounded-xl mt-4 flex items-center gap-3">
+                                <AlertTriangle size={18} />
                                 {error}
                             </div>
                         )}
 
                         {success && (
-                            <div className="success-message">
-                                ✅ EOD Report submitted successfully!
+                            <div className="success-message p-4 rounded-xl mt-4 flex items-center gap-3">
+                                <CheckCircle2 size={18} />
+                                EOD Report logged successfully. Your activity has been saved.
                             </div>
                         )}
                     </form>
                 </GlassCard>
             </div>
 
-            {/* ─── My Past Submissions ─── */}
-            <div style={{ marginTop: '2.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <Clock size={20} style={{ color: 'var(--purple-main)' }} />
-                        My Submissions
-                        {myReports.length > 0 && (
-                            <span style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '20px', padding: '2px 10px', fontSize: '0.72rem', color: '#A78BFA', fontWeight: 600 }}>
-                                {myReports.length}
-                            </span>
-                        )}
+            {/* Submissions History Section */}
+            <div className="history-section">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <Clock size={20} className="text-purple-400" />
+                        Submission Log
                     </h2>
                 </div>
 
                 {reportsLoading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div className="flex flex-col gap-4">
                         {[1, 2].map(i => (
-                            <div key={i} className="skeleton-pulse" style={{ height: '80px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.04)' }} />
+                            <div key={i} className="animate-pulse bg-white/5 h-20 rounded-2xl" />
                         ))}
                     </div>
                 ) : myReports.length === 0 ? (
-                    <GlassCard style={{ padding: '40px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📋</div>
-                        <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
-                            No submissions yet. Submit your first EOD report above!
-                        </p>
-                    </GlassCard>
+                    <div style={{ 
+                        padding: '3rem', textAlign: 'center', borderRadius: '20px',
+                        background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)'
+                    }}>
+                        <p style={{ color: 'var(--text-secondary)' }}>No entries found for your account.</p>
+                    </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {myReports.map(report => {
                             const isExpanded = expandedId === report.id;
                             const completedItems = getCompletedItems(report);
                             const inProgressItems = getInProgressItems(report);
                             const reportDate = new Date(report.reportDate);
                             const isToday = new Date().toDateString() === reportDate.toDateString();
-                            const submittedTime = new Date(report.submittedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
                             return (
-                                <GlassCard key={report.id}
-                                    style={{
-                                        padding: 0, overflow: 'hidden', cursor: 'pointer',
-                                        border: isExpanded ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.06)',
-                                        transition: 'all 0.2s ease'
-                                    }}
+                                <div key={report.id} 
+                                    className={`report-card-container overflow-hidden rounded-2xl transition-all duration-300 ${isExpanded ? 'bg-white/[0.05] ring-1 ring-white/10' : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.04]'}`}
+                                    style={{ cursor: 'pointer' }}
                                     onClick={() => setExpandedId(isExpanded ? null : report.id)}
                                 >
-                                    {/* Summary Row */}
-                                    <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                    <div className="p-5 flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
                                             <div style={{
-                                                width: '38px', height: '38px', borderRadius: '10px',
-                                                background: isToday ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.05)',
-                                                border: isToday ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                                                width: '42px', height: '42px', borderRadius: '12px',
+                                                background: isToday ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.03)',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                                             }}>
-                                                <Calendar size={16} style={{ color: isToday ? 'var(--purple-main)' : 'var(--text-secondary)' }} />
+                                                <Calendar size={18} style={{ color: isToday ? 'var(--purple-main)' : 'rgba(255,255,255,0.4)' }} />
                                             </div>
                                             <div>
-                                                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'white' }}>
-                                                    {isToday ? 'Today' : reportDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                                                <div style={{ fontWeight: 600, fontSize: '1.05rem', color: 'rgba(255,255,255,0.95)' }}>
+                                                    {reportDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    {isToday && <span style={{ marginLeft: '10px', fontSize: '0.65rem', fontWeight: 800, background: 'var(--purple-main)', padding: '3px 8px', borderRadius: '5px', verticalAlign: 'middle', letterSpacing: '0.05em' }}>TODAY</span>}
                                                 </div>
-                                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                                    Submitted at {submittedTime}
+                                                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
+                                                    {completedItems.length} {completedItems.length === 1 ? 'task' : 'tasks'} recorded
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', color: '#10B981' }}>
-                                                <CheckSquare size={13} /> {completedItems.length} done
-                                            </div>
-                                            {report.blockers && (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', color: '#F59E0B' }}>
-                                                    <AlertTriangle size={13} /> Blockers
-                                                </div>
-                                            )}
+                                        <div className="flex items-center gap-6">
                                             {report.sentiment && (
-                                                <div style={{
-                                                    display: 'flex', alignItems: 'center', gap: '5px',
-                                                    fontSize: '0.7rem', fontWeight: 700,
-                                                    padding: '3px 10px', borderRadius: '12px',
-                                                    background: `${sentimentColor[report.sentiment] || '#6B7280'}15`,
-                                                    border: `1px solid ${sentimentColor[report.sentiment] || '#6B7280'}35`,
-                                                    color: sentimentColor[report.sentiment] || '#6B7280'
-                                                }}>
+                                                <div className="sentiment-badge rounded-lg flex items-center gap-2 border-[1.5px]" 
+                                                    style={{ 
+                                                        borderColor: `${sentimentColor[report.sentiment]}40`,
+                                                        background: `${sentimentColor[report.sentiment]}15`,
+                                                        color: sentimentColor[report.sentiment],
+                                                        fontWeight: 700
+                                                    }}>
                                                     <SentimentIcon sentiment={report.sentiment} />
                                                     {report.sentiment}
                                                 </div>
                                             )}
-                                            <ChevronDown size={16} style={{
-                                                color: 'var(--text-secondary)',
-                                                transition: 'transform 0.2s ease',
-                                                transform: isExpanded ? 'rotate(180deg)' : 'none'
-                                            }} />
+                                            <ChevronDown size={20} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'rgba(255,255,255,0.4)' }} />
                                         </div>
                                     </div>
 
-                                    {/* Expanded Detail */}
                                     {isExpanded && (
-                                        <div style={{
-                                            borderTop: '1px solid rgba(255,255,255,0.06)',
-                                            padding: '18px 20px',
-                                            background: 'rgba(0,0,0,0.15)',
-                                            display: 'flex', flexDirection: 'column', gap: '16px'
-                                        }}>
-                                            {/* Admin Rating Info */}
-                                            {report.sentiment && (
-                                                <div style={{ marginBottom: '4px' }}>
-                                                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Rating (Review)</div>
-                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: `${sentimentColor[report.sentiment]}10`, border: `1px solid ${sentimentColor[report.sentiment]}25`, borderRadius: '8px', color: sentimentColor[report.sentiment], fontSize: '0.85rem', fontWeight: 600 }}>
-                                                        <SentimentIcon sentiment={report.sentiment} />
-                                                        {report.sentiment}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {/* Completed Tasks */}
-                                            <div>
-                                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <CheckSquare size={12} style={{ color: '#10B981' }} /> Tasks Completed
-                                                </div>
-                                                {completedItems.length > 0 ? (
-                                                    <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div className="p-6 pt-0 border-t border-white/5 animate-in slide-in-from-top-2 duration-300">
+                                            <div className="grid gap-6 mt-6">
+                                                <div>
+                                                    <h4 className="text-[0.7rem] uppercase tracking-widest text-white/30 font-bold mb-3 flex items-center gap-2">
+                                                        <CheckSquare size={12} className="text-green-500" /> Major Accomplishments
+                                                    </h4>
+                                                    <ul className="space-y-2">
                                                         {completedItems.map((item, i) => (
-                                                            <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', lineHeight: '1.6' }}>{item}</li>
+                                                            <li key={i} className="text-white/80 text-sm pl-4 relative before:content-[''] before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:bg-green-500/40 before:rounded-full">
+                                                                {item}
+                                                            </li>
                                                         ))}
                                                     </ul>
-                                                ) : (
-                                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic', margin: 0 }}>None listed</p>
+                                                </div>
+
+                                                {report.blockers && (
+                                                    <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-xl">
+                                                        <h4 className="text-[0.7rem] uppercase tracking-widest text-red-400 font-bold mb-2 flex items-center gap-2">
+                                                            <AlertTriangle size={12} /> Blockers & Impediments
+                                                        </h4>
+                                                        <p className="text-white/70 text-sm">{report.blockers}</p>
+                                                    </div>
                                                 )}
                                             </div>
-
-                                            {/* In Progress */}
-                                            {inProgressItems.length > 0 && (
-                                                <div>
-                                                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <Clock size={12} style={{ color: '#F59E0B' }} /> In Progress
-                                                    </div>
-                                                    <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        {inProgressItems.map((item, i) => (
-                                                            <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem' }}>{item}</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-
-                                            {/* Blockers */}
-                                            {report.blockers && (
-                                                <div>
-                                                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <AlertTriangle size={12} style={{ color: '#EF4444' }} /> Blockers
-                                                    </div>
-                                                    <p style={{
-                                                        color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', lineHeight: '1.6', margin: 0,
-                                                        background: 'rgba(239,68,68,0.06)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-                                                        border: '1px solid rgba(239,68,68,0.12)'
-                                                    }}>
-                                                        {report.blockers}
-                                                    </p>
-                                                </div>
-                                            )}
                                         </div>
                                     )}
-                                </GlassCard>
+                                </div>
                             );
                         })}
                     </div>

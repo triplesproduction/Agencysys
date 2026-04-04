@@ -5,7 +5,7 @@ import { MessageSquare, Send, BellRing, Users, History, ShieldAlert, Trash2, Tog
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
-import { getUserFromToken } from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 
 interface Announcement {
     id: string;
@@ -20,7 +20,15 @@ interface Announcement {
 
 export default function BroadcastPage() {
     const { addNotification } = useNotifications();
-    const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+    const { employee: authEmployee, loading: authLoading } = useAuth();
+
+    // Derive admin flag from the global auth context (no cookie dependency)
+    const isAdmin = authLoading
+        ? null
+        : authEmployee
+            ? String(authEmployee.roleId || '').toUpperCase().includes('ADMIN')
+            : false;
+
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,12 +37,6 @@ export default function BroadcastPage() {
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [type, setType] = useState('ANNOUNCEMENT');
-
-    useEffect(() => {
-        const user = getUserFromToken();
-        const role = String(user?.roleId || user?.role || '').toUpperCase();
-        setIsAdmin(role.includes('ADMIN'));
-    }, []);
 
     const fetchAnnouncements = async () => {
         try {

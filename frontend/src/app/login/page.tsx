@@ -62,47 +62,22 @@ function LoginForm() {
 
             if (!employee) {
                 console.warn('[Login] No employee profile found for user UID:', authData.user.id);
-                // Fallback for Admin
-                if (email?.toLowerCase().includes('admin')) {
-                    console.log('[Login] Using Admin fallback');
-                    const adminProfile = { 
-                        id: authData.user.id, 
-                        email: email, 
-                        roleId: 'ADMIN', 
-                        firstName: 'TripleS', 
-                        lastName: 'Admin' 
-                    };
-                    // Set cookies for Admin fallback
-                    document.cookie = `token=${authData.session.access_token}; path=/; max-age=86400; SameSite=Lax`;
-                    document.cookie = `user_session=${encodeURIComponent(JSON.stringify(adminProfile))}; path=/; max-age=86400; SameSite=Lax`;
-                } else {
-                    await supabase.auth.signOut();
-                    throw new Error('No employee profile associated with this account.');
-                }
+                // System will handle missing profile in AuthGuard/useAuth
+                // We just redirect now that session is active
             } else {
                 console.log('[Login] Employee profile found:', employee);
-                // Step 3: Write middleware-compatible cookies
-                const token = authData.session.access_token;
-                document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-                document.cookie = `user_session=${encodeURIComponent(JSON.stringify({
-                    id: employee.id,
-                    roleId: employee.roleId,
-                    firstName: employee.firstName,
-                    lastName: employee.lastName,
-                    sub: employee.id,
-                }))}; path=/; max-age=86400; SameSite=Lax`;
             }
 
-            // Step 4: Redirect to dashboard
-            console.log('[Login] Redirecting to dashboard...');
-            // Using window.location.href to ensure cookies are sent with the next request definitively
-            window.location.href = '/dashboard';
+            // Step 3: Redirect to dashboard using router for SPA transition
+            console.log('[Login] Auth verified. Transitioning to dashboard...');
+            router.replace('/dashboard');
 
         } catch (err: any) {
             console.error('[Login] Error:', err);
             setError(err.message || 'Verification failed. Double check your credentials.');
         } finally {
-            setLoading(false);
+            // Keep loading true if redirecting to avoid flickering
+            // setLoading(false); 
         }
     };
 

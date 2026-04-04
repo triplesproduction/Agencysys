@@ -5,12 +5,12 @@ import GlassCard from '@/components/GlassCard';
 import { Search, Send, Phone, Video, Image as ImageIcon, X, Paperclip, Check, CheckCheck, MessageSquare, MessageCircle } from 'lucide-react';
 import './Messaging.css';
 import { api } from '@/lib/api';
-import { getUserFromToken } from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function MessagingPage() {
+    const { employee: authEmployee, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<'personal' | 'admin'>('personal');
     const [isAdminState, setIsAdminState] = useState(false);
-    const [currentUser, setCurrentUser] = useState<any>(null);
     const [selfInfo, setSelfInfo] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -33,43 +33,38 @@ export default function MessagingPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selfFileInputRef = useRef<HTMLInputElement>(null);
 
+    // Derive admin state from the global auth context
     useEffect(() => {
-        const _user = getUserFromToken();
-        if (_user) {
-            setCurrentUser(_user);
-            const role = String(_user.role || _user.roleId || '').toUpperCase();
+        if (authEmployee) {
+            const role = String(authEmployee.roleId || '').toUpperCase();
             if (role === 'ADMIN' || role === 'MANAGER') setIsAdminState(true);
         }
-    }, []);
+    }, [authEmployee]);
 
-    const currentUserId = currentUser?.id || currentUser?.sub || currentUser?.employeeId;
+    const currentUserId = authEmployee?.id;
 
     const fetchInitialData = async () => {
+        if (!authEmployee) return;
         try {
             setLoading(true);
-            const user: any = getUserFromToken();
-            if (!user) return;
+            const myId = authEmployee.id;
 
             // Fetch list of employees (Contacts)
             const employeesRes: any = await api.getEmployees({ limit: 100 });
             const employeeArray = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.data || []);
             
             const filteredContacts = employeeArray
-                .filter((emp: any) => {
-                    const myId = user.id || user.sub || user.employeeId;
-                    return emp.id !== myId;
-                })
+                .filter((emp: any) => emp.id !== myId)
                 .sort((a: any, b: any) => {
                     const weight = (role: string) => role === 'ADMIN' ? 3 : role === 'MANAGER' ? 2 : 1;
                     return weight(b.roleId) - weight(a.roleId);
                 });
             setContacts(filteredContacts);
 
-            const myId = user.id || user.sub || user.employeeId;
             const selfRes: any = await api.getEmployeeById(myId);
             setSelfInfo(selfRes);
 
-            const personalRes: any = await api.getMyChats();
+            const personalRes: any = await api.getMyChats(myId);
             const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
             setMyChats(chats);
         } catch (err) {
@@ -88,13 +83,15 @@ export default function MessagingPage() {
         }
     };
 
+    // Re-fetch whenever authEmployee resolves (avoids relying on cookie timing)
     useEffect(() => {
+        if (authLoading) return;
         fetchInitialData();
 
         const handleLiveNotification = (event: any) => {
             const notif = event.detail;
-            if (notif?.type === 'CHAT_MESSAGE') {
-                api.getMyChats().then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
+            if (notif?.type === 'CHAT_MESSAGE' && authEmployee) {
+                api.getMyChats(authEmployee.id).then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
                 if (activeTab === 'admin') fetchAdminChats();
             }
         };
@@ -104,8 +101,8 @@ export default function MessagingPage() {
         }
 
         const interval = setInterval(() => {
-            if (activeTab === 'personal') {
-                api.getMyChats().then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
+            if (activeTab === 'personal' && authEmployee) {
+                api.getMyChats(authEmployee.id).then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
             } else if (activeTab === 'admin') {
                 fetchAdminChats();
             }
@@ -157,9 +154,9 @@ export default function MessagingPage() {
             await api.sendChatMessage({
                 receiverId: String(activeContactId),
                 content: trimmedMessage
-            });
+            }, currentUserId);
 
-            const personalRes: any = await api.getMyChats();
+            const personalRes: any = await api.getMyChats(currentUserId);
             const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
             setMyChats(chats);
 
@@ -184,9 +181,9 @@ export default function MessagingPage() {
             await api.sendChatMessage({
                 receiverId: String(activeContactId),
                 content: `Sent an attachment: ${url}`
-            });
+            }, currentUserId);
 
-            const personalRes: any = await api.getMyChats();
+            const personalRes: any = await api.getMyChats(currentUserId);
             const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
             setMyChats(chats);
 
@@ -261,6 +258,10 @@ export default function MessagingPage() {
             return part;
         });
     };
+
+    if (authLoading) {
+        return <div className="page-loader"><div className="spinner"></div></div>;
+    }
 
     return (
         <div className="messaging-page fade-in">

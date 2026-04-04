@@ -4,22 +4,17 @@ import { useState, useRef, useEffect } from 'react';
 import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye } from 'lucide-react';
 import { EmployeeDTO } from '@/types/dto';
 import { api } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
 
 export default function EmployeeProfileDrawer({ employee, onClose }: { employee: EmployeeDTO, onClose: () => void }) {
+    const { user: currentUser } = useAuth();
     const [activeTab, setActiveTab] = useState('OVERVIEW');
     const [isIdCardOpen, setIsIdCardOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [profilePhoto, setProfilePhoto] = useState(employee.profilePhoto);
-    const [currentUser, setCurrentUser] = useState<any>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // Fetch user for permissions
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user));
-    }, []);
 
     const isOwnProfile = String(currentUser?.id) === String(employee.id) || String(currentUser?.id) === String((employee as any).user_id);
     const isAdmin = currentUser?.user_metadata?.role?.toUpperCase() === 'ADMIN' || (employee as any).roleId?.toUpperCase() === 'ADMIN';

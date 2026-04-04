@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { LeaveApplicationDTO } from '@/types/dto';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import './Leaves.css';
+import { useAuth } from '@/context/AuthContext';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: typeof Clock }> = {
     PENDING: { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)', icon: Clock },
@@ -17,6 +18,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string;
 };
 
 export default function LeavesPage() {
+    const { user, loading: authLoading } = useAuth();
     const [leaves, setLeaves] = useState<LeaveApplicationDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -45,19 +47,22 @@ export default function LeavesPage() {
     };
 
     const fetchLeaves = useCallback(async () => {
+        if (!user) return;
         try {
-            const data = await api.getMyLeaves();
+            const data = await api.getMyLeaves(user.id);
             setLeaves(data);
         } catch (err) {
             console.error('Failed to load leaves:', err);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
-        fetchLeaves();
-    }, [fetchLeaves]);
+        if (!authLoading) {
+            fetchLeaves();
+        }
+    }, [authLoading, fetchLeaves]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -103,6 +108,10 @@ export default function LeavesPage() {
 
     const pendingCount = leaves.filter(l => l.status === 'PENDING').length;
     const approvedCount = leaves.filter(l => l.status === 'APPROVED').length;
+
+    if (authLoading) {
+        return <div className="page-loader"><div className="spinner"></div></div>;
+    }
 
     return (
         <div className="leaves-page fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>

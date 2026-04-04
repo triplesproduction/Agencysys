@@ -5,7 +5,7 @@ import { BookOpen, Plus, Search, Filter, Trash2, Edit2, ShieldAlert, Zap, AlertT
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { RuleDTO } from '@/types/dto';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 
 export default function RuleBookPage() {
@@ -74,7 +74,8 @@ export default function RuleBookPage() {
                 await api.updateRule(editingRuleId, payload);
                 addNotification({ type: 'SYSTEM', title: 'Success', message: 'Rule updated successfully' });
             } else {
-                await api.createRule(payload);
+                if (!authEmployee) throw new Error('No auth session');
+                await api.createRule(payload, authEmployee.id);
                 addNotification({ type: 'SYSTEM', title: 'Success', message: 'Rule created successfully and broadcasted!' });
             }
 
@@ -128,6 +129,10 @@ export default function RuleBookPage() {
     };
 
 
+
+    if (authLoading) {
+        return <div className="page-loader"><div className="spinner"></div></div>;
+    }
 
     return (
         <div className="main-content fade-in" style={{ padding: '32px', maxWidth: '1400px', margin: '0 auto' }}>

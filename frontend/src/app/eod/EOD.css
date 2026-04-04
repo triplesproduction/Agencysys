@@ -1,75 +1,139 @@
 .eod-page {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
-    max-width: 800px;
-    /* narrowed for forms */
+    gap: 2.5rem;
+    max-width: 850px;
     margin: 0 auto;
+    padding: 2rem 1rem 5rem;
 }
 
-.form-container {
-    margin-top: 1rem;
+.page-header {
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 1.5rem;
 }
 
+.greeting {
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(to right, #fff, rgba(255,255,255,0.6));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+}
+
+/* Redesigned Form Card - Less Glass, More Structure */
 .eod-card {
-    padding: 2.5rem !important;
-}
-
-.eod-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    background: rgba(15, 15, 20, 0.7) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    padding: 3rem !important;
+    border-radius: 20px !important;
 }
 
 .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.input-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.75rem;
 }
 
 .glass-textarea {
-    background: var(--bg-dark);
-    border: 1px solid var(--panel-border);
-    border-radius: var(--radius-md);
-    padding: 0.75rem 1rem;
-    color: var(--text-primary);
-    font-size: 0.9375rem;
-    font-family: inherit;
-    resize: vertical;
-    min-height: 100px;
-    transition: var(--transition-smooth);
-}
-
-.glass-textarea::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    color: #fff;
+    font-size: 1rem;
+    line-height: 1.6;
+    width: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-textarea:focus {
-    border-color: var(--purple-main);
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+    background: rgba(0, 0, 0, 0.5) !important;
+    border-color: var(--purple-main) !important;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15) !important;
     outline: none;
-    background: var(--bg-darker);
-}
-
-.form-actions {
-    margin-top: 1rem;
-    display: flex;
-    justify-content: flex-end;
 }
 
 .submit-btn {
-    width: 100%;
+    background: linear-gradient(135deg, var(--purple-main), #6d28d9) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em;
+    height: 3.5rem !important;
+    font-size: 1.1rem !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 20px rgba(124, 58, 237, 0.2);
+    transition: all 0.3s ease !important;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(124, 58, 237, 0.3);
+}
+
+/* Error/Success Polish */
+.error-message {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    color: #f87171 !important;
+    font-weight: 500;
+    font-size: 0.95rem;
 }
 
 .success-message {
-    margin-top: 1rem;
-    padding: 1rem;
-    background: rgba(163, 230, 53, 0.1);
-    color: #a3e635;
-    border: 1px solid rgba(163, 230, 53, 0.2);
-    border-radius: var(--radius-md);
-    text-align: center;
-    font-weight: 500;
-    animation: fadeIn 0.3s ease-out;
+    background: rgba(16, 185, 129, 0.1) !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+    color: #34d399 !important;
+    padding: 1.25rem !important;
+    font-size: 1rem !important;
+}
+
+/* List Component Polish */
+.report-card-header {
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.report-card-header:hover {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.report-card-expanded {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sentiment-badge {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.report-card-container {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.report-card-container:hover {
+    border-color: rgba(255, 255, 255, 0.15);
 }

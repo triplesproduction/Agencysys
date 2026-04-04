@@ -11,7 +11,7 @@ import AdminAssignTaskModal from '@/components/tasks/AdminAssignTaskModal';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import AnnouncementsWidget from '@/components/dashboard/AnnouncementsWidget';
 import RulesWidget from '@/components/dashboard/RulesWidget';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 import KpiAuditLedger from '@/components/kpi/KpiAuditLedger';
 import RecentMessagesWidget from '@/components/dashboard/RecentMessagesWidget';
 import WorkClock from '@/components/dashboard/WorkClock';

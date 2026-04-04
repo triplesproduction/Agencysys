@@ -264,46 +264,58 @@ export default function EODReviewsPage() {
                                                             <CheckSquare size={13} style={{ color: '#10B981' }} /> Tasks Completed
                                                         </div>
                                                         {(() => {
-                                                            // Show matched task records first
-                                                            if (report.tasksCompleted.length > 0) {
-                                                                return (
-                                                                    <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                                        {report.tasksCompleted.map(t => (
-                                                                            <li key={t.id} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5' }}>{t.title}</li>
-                                                                        ))}
-                                                                    </ul>
-                                                                );
+                                                            const tasks = report.tasksCompleted || [];
+                                                            if (tasks.length === 0) {
+                                                                // Fallback: show raw text entries from completedText
+                                                                let rawItems: string[] = [];
+                                                                try { rawItems = report.completedText ? JSON.parse(report.completedText) : []; } catch { /* ignore */ }
+                                                                if (rawItems.length > 0) {
+                                                                    return (
+                                                                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                            {rawItems.map((item, i) => (
+                                                                                <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5' }}>{item}</li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    );
+                                                                }
+                                                                return <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>None listed</p>;
                                                             }
-                                                            // Fallback: show raw text entries
-                                                            let rawItems: string[] = [];
-                                                            try { rawItems = report.completedText ? JSON.parse(report.completedText) : []; } catch { /* ignore */ }
-                                                            if (rawItems.length > 0) {
-                                                                return (
-                                                                    <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                                        {rawItems.map((item, i) => (
-                                                                            <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5' }}>{item}</li>
-                                                                        ))}
-                                                                    </ul>
-                                                                );
-                                                            }
-                                                            return <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>None listed</p>;
+
+                                                            return (
+                                                                <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                    {tasks.map((t, i) => {
+                                                                        // Handle both string array and object array [{title: "..."}]
+                                                                        const title = typeof t === 'string' ? t : (t as any).title;
+                                                                        return (
+                                                                            <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5' }}>
+                                                                                {title}
+                                                                            </li>
+                                                                        );
+                                                                    })}
+                                                                </ul>
+                                                            );
                                                         })()}
                                                     </div>
                                                     <div>
                                                         {(() => {
                                                             let rawInProgress: string[] = [];
                                                             try { rawInProgress = report.inProgressText ? JSON.parse(report.inProgressText) : []; } catch { /* ignore */ }
-                                                            const items = report.tasksInProgress.length > 0 ? report.tasksInProgress : rawInProgress.map((text, i) => ({ id: String(i), title: text }));
-                                                            if (items.length === 0) return null;
+                                                            const tasks = report.tasksInProgress.length > 0 ? report.tasksInProgress : rawInProgress;
+                                                            
+                                                            if (tasks.length === 0) return null;
+
                                                             return (
                                                                 <>
                                                                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <Clock size={13} style={{ color: '#F59E0B' }} /> In Progress
                                                                     </div>
-                                                                    <ul style={{ margin: '0 0 16px 0', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                                        {items.map(t => (
-                                                                            <li key={t.id} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>{t.title}</li>
-                                                                        ))}
+                                                                    <ul style={{ margin: '0 0 16px 0', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                        {tasks.map((t, i) => {
+                                                                            const title = typeof t === 'string' ? t : (t as any).title;
+                                                                            return (
+                                                                                <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>{title}</li>
+                                                                            );
+                                                                        })}
                                                                     </ul>
                                                                 </>
                                                             );
