@@ -204,31 +204,37 @@ textarea {
 }
 
 /* ====================================================
-   PREMIUM DATE PICKER SYSTEM (Global)
+   PREMIUM NATIVE UI OVERRIDES (ERP Dark Context)
 ==================================================== */
+
+input[type="date"], 
+select {
+  color-scheme: dark; /* Force native calendar and dropdowns to be dark themed */
+}
 
 input[type="date"] {
   appearance: none;
   -webkit-appearance: none;
-  background-color: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.4) !important;
   border: 1px solid var(--glass-border) !important;
   color: white !important;
-  padding: 10px 16px !important;
-  border-radius: var(--radius-md) !important;
+  padding: 12px 16px !important;
+  border-radius: var(--radius-sm) !important;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   transition: var(--transition-smooth);
 }
 
 input[type="date"]:hover {
-  border-color: rgba(124, 58, 237, 0.3) !important;
+  border-color: rgba(124, 58, 237, 0.4) !important;
   background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 input[type="date"]:focus {
-  border-color: var(--purple-main) !important;
-  box-shadow: 0 0 15px var(--purple-glow) !important;
-  background-color: rgba(0, 0, 0, 0.4) !important;
+  border-color: var(--purple-accent) !important;
+  box-shadow: 0 0 12px var(--purple-glow) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  outline: none;
 }
 
 /* Custom Calendar Icon for Chrome/Safari */
