@@ -184,42 +184,42 @@ export default function EmployeesPage() {
             </div>
 
             <GlassCard className="datagrid-container" style={{ padding: 0, overflow: 'visible' }}>
-                {/* Advanced Filter Bar */}
-                <div className="datagrid-toolbar" style={{ padding: '24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
-                    <div style={{ flex: '1 1 300px', display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '10px 16px', borderRadius: 'var(--radius-sm)' }}>
-                        <Search size={18} style={{ color: 'var(--text-secondary)', marginRight: '12px' }} />
+                <div className="datagrid-toolbar">
+                    <div className="search-filter-input">
+                        <Search size={18} className="search-icon" />
                         <input
                             type="text"
                             placeholder="Search by Name, ID, or Email..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            style={{ background: 'transparent', border: 'none', color: 'white', width: '100%', outline: 'none' }}
                         />
                     </div>
 
-                    <select className="filter-select" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
-                        <option value="">All Roles</option>
-                        <option value="ADMIN">Administrator</option>
-                        <option value="MANAGER">Manager</option>
-                        <option value="WEBSITE_DEVELOPER">Web Developer</option>
-                        <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
-                        <option value="VIDEO_EDITOR">Video Editor</option>
-                    </select>
+                    <div className="filter-group">
+                        <select className="filter-select" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
+                            <option value="">All Roles</option>
+                            <option value="ADMIN">Administrator</option>
+                            <option value="MANAGER">Manager</option>
+                            <option value="WEBSITE_DEVELOPER">Web Developer</option>
+                            <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
+                            <option value="VIDEO_EDITOR">Video Editor</option>
+                        </select>
 
-                    <select className="filter-select" value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}>
-                        <option value="">All Departments</option>
-                        <option value="Development">Development</option>
-                        <option value="Creative">Creative</option>
-                        <option value="Operations">Operations</option>
-                    </select>
+                        <select className="filter-select" value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}>
+                            <option value="">All Departments</option>
+                            <option value="Development">Development</option>
+                            <option value="Creative">Creative</option>
+                            <option value="Operations">Operations</option>
+                        </select>
 
-                    <select className="filter-select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-                        <option value="">All Statuses</option>
-                        <option value="ACTIVE">Active</option>
-                        <option value="SUSPENDED">Suspended</option>
-                        <option value="ON_LEAVE">On Leave</option>
-                        <option value="TERMINATED">Terminated</option>
-                    </select>
+                        <select className="filter-select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+                            <option value="">All Statuses</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="SUSPENDED">Suspended</option>
+                            <option value="ON_LEAVE">On Leave</option>
+                            <option value="TERMINATED">Terminated</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style={{ padding: '24px' }}>
