@@ -222,7 +222,17 @@ function AdminDashboard({
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                    <span style={{ fontSize: '0.75rem', background: isSub ? '#3B82F622' : '#A78BFA22', color: isSub ? '#60A5FA' : '#A78BFA', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{task.status}</span>
+                                                                                                        <span style={{ 
+                                                        fontSize: '0.65rem', 
+                                                        background: isSub ? 'rgba(59, 130, 246, 0.1)' : 'rgba(167, 139, 250, 0.1)', 
+                                                        color: isSub ? '#60A5FA' : '#A78BFA', 
+                                                        border: `1px solid ${isSub ? 'rgba(59, 130, 246, 0.2)' : 'rgba(167, 139, 250, 0.2)'}`,
+                                                        padding: '3px 10px', 
+                                                        borderRadius: '12px', 
+                                                        fontWeight: 700,
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.04em'
+                                                    }}>{task.status}</span>
                                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Assignee: {(task.assigneeId || 'System').slice(0, 6)}</span>
                                                 </div>
                                             </div>

@@ -76,7 +76,9 @@ export default function Sidebar() {
         setIsMounted(true);
     }, []);
 
-    const handleLogout = () => {
+    const handleLogout = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         signOut();
     };
 

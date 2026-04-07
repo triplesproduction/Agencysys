@@ -9,5 +9,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storageKey: 'triples_auth_session',
+        // Workaround for "AbortError: Lock was stolen by another request"
+        // This bypasses the browser's Lock API which can be flaky in dev or multi-tab usage.
+        lock: async (name, acquireTimeout, fn) => {
+            return await fn();
+        }
     }
 });

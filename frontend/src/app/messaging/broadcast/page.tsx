@@ -211,10 +211,11 @@ export default function BroadcastPage() {
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Type</label>
-                                    <select
+                                                                        <select
                                         value={type}
                                         onChange={e => setType(e.target.value)}
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none' }}
+                                        className="filter-select"
+                                        style={{ width: '100%' }}
                                         disabled={isSubmitting}
                                     >
                                         <option value="ANNOUNCEMENT" style={{ background: 'var(--bg-dark)' }}>Announcement</option>

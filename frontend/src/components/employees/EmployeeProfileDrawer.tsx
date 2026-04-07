@@ -1,30 +1,92 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye } from 'lucide-react';
+import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye, Plus, ShieldCheck, RefreshCw, Printer } from 'lucide-react';
 import { EmployeeDTO } from '@/types/dto';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/components/notifications/NotificationProvider';
 import Link from 'next/link';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
 
-export default function EmployeeProfileDrawer({ employee, onClose }: { employee: EmployeeDTO, onClose: () => void }) {
-    const { user: currentUser } = useAuth();
+export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: { employee: EmployeeDTO, onClose: () => void, onRefresh?: () => void }) {
+    const { user: currentUser, employee: authProfile } = useAuth();
+    const { addNotification } = useNotifications();
+    
+    // Auth & Permissions (Rename to avoid shadow prop)
+    const isAdminUser = authProfile?.roleId?.toUpperCase() === 'ADMIN';
+    const isEditingOwnProfile = String(authProfile?.id) === String(employee.id);
+    
     const [activeTab, setActiveTab] = useState('OVERVIEW');
     const [isIdCardOpen, setIsIdCardOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isResetingPassword, setIsResetingPassword] = useState(false);
+    const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+    
     const [profilePhoto, setProfilePhoto] = useState(employee.profilePhoto);
+    const [editData, setEditData] = useState({
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        email: employee.email,
+        phone: employee.phone || '',
+        designation: employee.designation || '',
+        address: employee.address || '',
+        roleId: employee.roleId || 'STAFF',
+        status: (employee.status || 'ACTIVE') as "ACTIVE" | "INACTIVE" | "ON_LEAVE" | "TERMINATED" | "SUSPENDED",
+        department: employee.department || 'General'
+    });
+    
+    // Dynamic Data State
+    const [activityLogs, setActivityLogs] = useState<any[]>([]);
+    const [leaves, setLeaves] = useState<any[]>([]);
+    const [isLoadingTabData, setIsLoadingTabData] = useState(false);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const docInputRef = useRef<HTMLInputElement>(null);
 
-    const isOwnProfile = String(currentUser?.id) === String(employee.id) || String(currentUser?.id) === String((employee as any).user_id);
-    const isAdmin = currentUser?.user_metadata?.role?.toUpperCase() === 'ADMIN' || (employee as any).roleId?.toUpperCase() === 'ADMIN';
+    useEffect(() => {
+        setProfilePhoto(employee.profilePhoto);
+    }, [employee.profilePhoto]);
 
-    const handlePhotoClick = () => {
-        if (isOwnProfile || isAdmin) {
-            fileInputRef.current?.click();
+    useEffect(() => {
+        if (activeTab === 'ATTENDANCE') {
+            loadActivityLogs();
+        } else if (activeTab === 'LEAVES') {
+            loadLeaves();
+        }
+    }, [activeTab, employee.id]);
+
+    const loadActivityLogs = async () => {
+        setIsLoadingTabData(true);
+        try {
+            const logs = await api.getKpiAuditLogs(employee.id);
+            setActivityLogs(logs || []);
+        } catch (err) {
+            console.error('Failed to load activity logs:', err);
+        } finally {
+            setIsLoadingTabData(false);
         }
     };
 
+    const loadLeaves = async () => {
+        setIsLoadingTabData(true);
+        try {
+            const data = await api.getEmployeeLeaves(employee.id);
+            setLeaves(data || []);
+        } catch (err) {
+            console.error('Failed to load leaves:', err);
+        } finally {
+            setIsLoadingTabData(false);
+        }
+    };
+
+    const handlePhotoClick = () => {
+        if (isEditingOwnProfile || isAdminUser) {
+            fileInputRef.current?.click();
+        }
+    };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -43,26 +105,153 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
             return;
         }
 
+        setIsUploading(true);
         try {
-            setIsUploading(true);
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                try {
-                    const base64String = reader.result as string;
-                    await api.updateEmployee(employee.id, { profilePhoto: base64String });
-                    setProfilePhoto(base64String);
-                    // Proactive notification for UI refresh if needed
-                    window.dispatchEvent(new CustomEvent('app:profile-updated', { detail: { employeeId: employee.id, profilePhoto: base64String } }));
-                } catch (err: any) {
-                    alert(`Failed to save photo: ${err.message}`);
-                } finally {
-                    setIsUploading(false);
-                }
-            };
-            reader.readAsDataURL(file);
-        } catch (err) {
-            console.error('Photo upload failed:', err);
+            const { url } = await api.uploadFile(file);
+            await api.updateEmployee(employee.id, { profilePhoto: url });
+            setProfilePhoto(url);
+            addNotification({
+                title: 'Photo Updated',
+                message: 'Your profile photo has been synchronized.',
+                type: 'SYSTEM'
+            });
+            // Proactive notification for UI refresh if needed
+            window.dispatchEvent(new CustomEvent('app:profile-updated', { detail: { employeeId: employee.id, profilePhoto: url } }));
+        } catch (err: any) {
+            alert(`Failed to save photo: ${err.message}`);
+        } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleExportDossier = () => {
+        const dossier = {
+            metadata: {
+                exportedAt: new Date().toISOString(),
+                system: "TripleS OS",
+                version: "1.0-Phase1"
+            },
+            employee: {
+                id: employee.id,
+                name: `${employee.firstName} ${employee.lastName}`,
+                email: employee.email,
+                role: employee.roleId,
+                status: employee.status,
+                joinedAt: employee.joinedAt,
+                designation: employee.designation,
+                phone: employee.phone,
+                address: employee.address
+            },
+            kpis: employee.kpis || [],
+            tasksCount: employee.tasksAssigned?.length || 0,
+            recentTasks: employee.tasksAssigned?.slice(0, 5) || []
+        };
+
+        const blob = new Blob([JSON.stringify(dossier, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Dossier_${employee.firstName}_${employee.lastName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleResetPassword = async () => {
+        if (!isAdminUser) {
+            alert('Only administrators can trigger password resets for other employees.');
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to trigger a password reset for ${employee.email}?`)) return;
+        
+        setIsResetingPassword(true);
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(employee.email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
+            if (error) throw error;
+            addNotification({
+                title: 'Security Sync',
+                message: `Password reset link has been dispatched to ${employee.email}.`,
+                type: 'SYSTEM'
+            });
+        } catch (err: any) {
+            alert('Failed to send reset link: ' + err.message);
+        } finally {
+            setIsResetingPassword(false);
+        }
+    };
+
+    const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validation: Size (2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            addNotification({
+                title: 'Security Alert',
+                message: 'Document exceeds the 2MB transmission limit. Please optimize the file.',
+                type: 'SYSTEM'
+            });
+            return;
+        }
+
+        setIsUploadingDoc(true);
+        try {
+            const { url } = await api.uploadFile(file);
+            const { error } = await supabase.from('employee_documents').insert({
+                employeeId: employee.id,
+                name: file.name,
+                fileType: file.type,
+                content: url,
+                uploadedAt: new Date().toISOString()
+            });
+
+            if (error) throw error;
+            addNotification({
+                title: 'Document Vault',
+                message: `${file.name} successfully encrypted and stored.`,
+                type: 'SYSTEM'
+            });
+            
+            // Trigger refresh to update the UI
+            onRefresh?.();
+        } catch (err: any) {
+            alert('Upload failed: ' + err.message);
+        } finally {
+            setIsUploadingDoc(false);
+        }
+    };
+
+    const handleSaveChanges = async () => {
+        try {
+            const updatePayload = {
+                firstName: editData.firstName,
+                lastName: editData.lastName,
+                email: editData.email,
+                phone: editData.phone,
+                designation: editData.designation,
+                address: editData.address,
+                roleId: editData.roleId,
+                status: editData.status as any,
+                department: editData.department
+            };
+            
+            await api.updateEmployee(employee.id, updatePayload);
+            setIsEditing(false);
+            
+            addNotification({
+                title: 'Record Synchronized',
+                message: 'All changes have been successfully persisted to the cloud.',
+                type: 'SYSTEM'
+            });
+            
+            window.dispatchEvent(new CustomEvent('app:employee-updated', { detail: { id: employee.id } }));
+        } catch (err: any) {
+            console.error('Update failed:', err);
+            alert('Failed to save changes: ' + err.message);
         }
     };
 
@@ -76,10 +265,11 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
         { id: 'CHAT', icon: MessageSquare, label: 'Chat Logs' }
     ];
 
-    // Mock calculations due to missing aggregation endpoints
+    // Accurate calculations using real data from the employee object
     const kpiScore = employee.kpis?.[0]?.currentValue || 0;
-    const activeTasks = employee.tasksAssigned?.filter(t => t.status !== 'DONE').length || 0;
-    const leaveBal = employee.leaves ? 12 - employee.leaves.length : 12;
+    const activeTasksCount = employee.tasksAssigned?.filter(t => t.status !== 'DONE' && t.status !== 'APPROVED').length || 0;
+    const leaveRecords = employee.leaves || [];
+    const leaveBal = 12 - leaveRecords.filter(l => l.status === 'APPROVED' && l.leaveType !== 'UNPAID').length;
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -87,45 +277,163 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                 return (
                     <div className="fade-in">
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>
-                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
                                 <div style={{ fontSize: '2rem', fontWeight: 700, color: '#10B981' }}>{kpiScore}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '8px' }}>Current KPI</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '6px', letterSpacing: '0.05em' }}>Current KPI</div>
                             </div>
-                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
-                                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--purple-main)' }}>{activeTasks}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '8px' }}>Active Tasks</div>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--purple-main)' }}>{activeTasksCount}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '6px', letterSpacing: '0.05em' }}>Active Tasks</div>
                             </div>
-                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
                                 <div style={{ fontSize: '2rem', fontWeight: 700, color: '#F59E0B' }}>{leaveBal}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '8px' }}>Leave Balance</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '6px', letterSpacing: '0.05em' }}>Leave Balance</div>
                             </div>
                         </div>
 
-                        <h3 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>Personal Identity</h3>
-                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '24px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                                <div>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Full Name</div>
-                                    <div>{employee.firstName} {employee.lastName}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Personal Identity</h3>
+                            {isEditing && (
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="secondary-button"
+                                    style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                >
+                                    <ImageIcon size={16} /> {isUploading ? 'Syncing...' : 'Update Photo'}
+                                </button>
+                            )}
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '24px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Full Name</div>
+                                    {isEditing ? (
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <input 
+                                                value={editData.firstName} 
+                                                placeholder="First Name"
+                                                onChange={e => setEditData({ ...editData, firstName: e.target.value })}
+                                                style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                                            />
+                                            <input 
+                                                value={editData.lastName} 
+                                                placeholder="Last Name"
+                                                onChange={e => setEditData({ ...editData, lastName: e.target.value })}
+                                                style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: '1.05rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.firstName} {employee.lastName}</div>
+                                    )}
                                 </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}><Mail size={14} /> Work Email</div>
-                                    <div>{employee.email}</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8 }}><Mail size={12} /> Work Email</div>
+                                    {isEditing ? (
+                                        <input 
+                                            value={editData.email} 
+                                            onChange={e => setEditData({ ...editData, email: e.target.value })}
+                                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', width: '100%' }}
+                                        />
+                                    ) : (
+                                        <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.email}</div>
+                                    )}
                                 </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}><Phone size={14} /> Phone Number</div>
-                                    <div>{employee.phone || 'N/A'}</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8 }}><Phone size={12} /> Phone Number</div>
+                                    {isEditing ? (
+                                        <input 
+                                            value={editData.phone} 
+                                            onChange={e => setEditData({ ...editData, phone: e.target.value })}
+                                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', width: '100%' }}
+                                        />
+                                    ) : (
+                                        <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.phone || 'N/A'}</div>
+                                    )}
                                 </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Designation</div>
-                                    <div>{employee.designation || 'General Staff'}</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Designation</div>
+                                    {isEditing ? (
+                                        <input 
+                                            value={editData.designation} 
+                                            onChange={e => setEditData({ ...editData, designation: e.target.value })}
+                                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', width: '100%' }}
+                                        />
+                                    ) : (
+                                        <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.designation || 'General Staff'}</div>
+                                    )}
                                 </div>
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={14} /> Address</div>
-                                    <div>{employee.address || 'N/A'}</div>
+                                <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8 }}><MapPin size={12} /> Address</div>
+                                    {isEditing ? (
+                                        <input 
+                                            value={editData.address} 
+                                            onChange={e => setEditData({ ...editData, address: e.target.value })}
+                                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', width: '100%' }}
+                                        />
+                                    ) : (
+                                        <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.address || 'N/A'}</div>
+                                    )}
                                 </div>
                             </div>
                         </div>
+
+                        {isEditing && (
+                            <div style={{ marginTop: '24px' }}>
+                                <h3 style={{ fontSize: '1.25rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}><ShieldCheck size={20} color="var(--purple-main)" /> Security & System</h3>
+                                <div style={{ background: 'rgba(139, 92, 246, 0.05)', padding: '24px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Account Role</div>
+                                            <select 
+                                                className="filter-select"
+                                                value={editData.roleId}
+                                                onChange={e => setEditData({ ...editData, roleId: e.target.value })}
+                                                style={{ width: '100%', minWidth: 'unset' }}
+                                            >
+                                                <option value="EMPLOYEE">Employee</option>
+                                                <option value="MANAGER">Manager</option>
+                                                <option value="ADMIN">Admin</option>
+                                                <option value="WEBSITE_DEVELOPER">Web Developer</option>
+                                                <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
+                                                <option value="VIDEO_EDITOR">Video Editor</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>System Status</div>
+                                            <select 
+                                                className="filter-select"
+                                                value={editData.status}
+                                                onChange={e => setEditData({ ...editData, status: e.target.value as any })}
+                                                style={{ width: '100%', minWidth: 'unset' }}
+                                            >
+                                                <option value="ACTIVE">Active (Online)</option>
+                                                <option value="INACTIVE">Inactive (Offline)</option>
+                                                <option value="ON_LEAVE">On Leave</option>
+                                                <option value="SUSPENDED">Suspended</option>
+                                                <option value="TERMINATED">Terminated</option>
+                                            </select>
+                                        </div>
+
+                                        <div style={{ gridColumn: '1 / -1', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, fontSize: '1rem' }}>Credential Access</div>
+                                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Send a secure link for the employee to change their password.</div>
+                                                </div>
+                                                <button 
+                                                    onClick={handleResetPassword}
+                                                    disabled={isResetingPassword}
+                                                    className="secondary-button" 
+                                                    style={{ background: 'rgba(255,255,255,0.05)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
+                                                >
+                                                    {isResetingPassword ? 'Sending...' : 'Reset Password'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'TASKS':
@@ -133,7 +441,7 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                     <div className="fade-in">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                             <h3 style={{ margin: 0 }}>Task Monitoring Hub</h3>
-                            <button className="secondary-button" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>Download Report</button>
+                            <button className="secondary-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>Download Report</button>
                         </div>
                         {employee.tasksAssigned && employee.tasksAssigned.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -141,16 +449,16 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                                     <div key={task.id} style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div>
                                             <div style={{ fontWeight: 600 }}>{task.title}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Due: {new Date(task.dueDate).toLocaleDateString()}</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Due: {new Date(task.dueDate).toLocaleDateString()}</div>
                                         </div>
-                                        <div style={{ padding: '4px 12px', background: task.status === 'DONE' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)', color: task.status === 'DONE' ? '#10B981' : '#F59E0B', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                        <div style={{ padding: '4px 12px', background: task.status === 'DONE' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)', color: task.status === 'DONE' ? '#10B981' : '#F59E0B', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 'bold' }}>
                                             {task.status.replace('_', ' ')}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)' }}>
+                            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', fontSize: '1rem' }}>
                                 No active task assignments found.
                             </div>
                         )}
@@ -159,7 +467,22 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
             case 'DOCUMENTS':
                 return (
                     <div className="fade-in">
-                        <h3 style={{ marginBottom: '24px' }}>Employee Documents</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <h3 style={{ margin: 0 }}>Employee Documents</h3>
+                            {isAdminUser && (
+                                <>
+                                    <button 
+                                        onClick={() => docInputRef.current?.click()} 
+                                        disabled={isUploadingDoc}
+                                        className="primary-button" 
+                                        style={{ padding: '8px 16px', fontSize: '0.95rem' }}
+                                    >
+                                        <Plus size={18} /> {isUploadingDoc ? 'Uploading...' : 'Add Document'}
+                                    </button>
+                                    <input type="file" ref={docInputRef} style={{ display: 'none' }} onChange={handleDocUpload} />
+                                </>
+                            )}
+                        </div>
                         {employee.documents && employee.documents.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {employee.documents.map((doc: any) => (
@@ -168,8 +491,8 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                                             <FileText size={20} color="var(--purple-main)" />
                                             <div>
                                                 <div style={{ fontWeight: 600 }}>{doc.name}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                                    {doc.fileType.split('/')[1].toUpperCase()} • Uploaded on {new Date(doc.uploadedAt).toLocaleDateString()}
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                    {doc.fileType?.split('/')[1]?.toUpperCase() || 'FILE'} • Uploaded on {new Date(doc.uploadedAt || doc.createdAt).toLocaleDateString()}
                                                 </div>
                                             </div>
                                         </div>
@@ -190,8 +513,10 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                                 ))}
                             </div>
                         ) : (
-                            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)' }}>
-                                No documents associated with this profile.
+                            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--glass-border)' }}>
+                                <FileText size={32} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+                                <div>No documents associated with this profile.</div>
+                                {isAdminUser && <p style={{ fontSize: '0.9rem', marginTop: '8px' }}>Click "Add Document" to upload ID proofs or contracts.</p>}
                             </div>
                         )}
                     </div>
@@ -199,21 +524,152 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
             case 'ATTENDANCE':
                 return (
                     <div className="fade-in">
-                        <h3 style={{ marginBottom: '24px' }}>System Activity Audit</h3>
-                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--glass-border)' }}>
-                            <Clock size={32} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                            Live Activity Logs integration pending.
+                        <div>
+                            {isLoadingTabData ? (
+                                <div style={{ padding: '64px', textAlign: 'center' }}>
+                                    <div className="spinner-mini" style={{ margin: '0 auto 16px' }}></div>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Synchronizing audit trails...</div>
+                                </div>
+                            ) : activityLogs.length > 0 ? (
+                                <div className="activity-timeline" style={{ padding: '8px' }}>
+                                    {activityLogs.map((log, index) => (
+                                        <div key={log.id} className="timeline-item" style={{ display: 'flex', gap: '20px', marginBottom: '0', position: 'relative', paddingBottom: '32px' }}>
+                                            {/* Timeline Line */}
+                                            {index !== activityLogs.length - 1 && (
+                                                <div style={{
+                                                    position: 'absolute', left: '11px', top: '24px', bottom: '0',
+                                                    width: '2px', background: 'linear-gradient(to bottom, rgba(139,92,246,0.3) 0%, rgba(139,92,246,0) 100%)',
+                                                    zIndex: 0
+                                                }}></div>
+                                            )}
+
+                                            <div style={{
+                                                width: '24px', height: '24px', borderRadius: '50%',
+                                                background: log.points_change >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                                                border: `2px solid ${log.points_change >= 0 ? '#10B981' : '#EF4444'}`,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                flexShrink: 0, zIndex: 1, position: 'relative',
+                                                boxShadow: log.points_change >= 0 ? '0 0 10px rgba(16,185,129,0.3)' : '0 0 10px rgba(239,68,68,0.3)'
+                                            }}>
+                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: log.points_change >= 0 ? '#10B981' : '#EF4444' }}></div>
+                                            </div>
+
+                                            <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                    <div style={{ fontWeight: 600, color: 'rgba(255,255,255,0.95)', fontSize: '0.95rem' }}>{log.description}</div>
+                                                    <div style={{
+                                                        fontSize: '0.7rem', color: log.points_change >= 0 ? '#10B981' : '#EF4444',
+                                                        fontWeight: 800, padding: '4px 10px', background: log.points_change >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                                                        borderRadius: '6px', border: `1px solid ${log.points_change >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                                                        fontFamily: 'monospace'
+                                                    }}>
+                                                        {log.points_change >= 0 ? '+' : ''}{log.points_change} PTS
+                                                    </div>
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ color: 'var(--purple-light)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{log.event_source}</span>
+                                                    <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }}></span>
+                                                    <span>{new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.7rem' }}>
+                                                    <div style={{ color: 'rgba(255,255,255,0.3)' }}>Performance Shift:</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>{log.visible_score_before.toFixed(1)}</span>
+                                                        <span style={{ color: 'rgba(255,255,255,0.2)' }}>→</span>
+                                                        <span style={{ color: 'white', fontWeight: 600 }}>{log.visible_score_after.toFixed(1)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ padding: '64px 32px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                    <Clock size={40} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+                                    <h4 style={{ margin: '0 0 8px 0', color: 'rgba(255,255,255,0.7)' }}>No Activity Recorded</h4>
+                                    <p style={{ fontSize: '0.85rem', maxWidth: '300px', margin: '0 auto' }}>This employee has no registered system events or KPI adjustments yet.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
             case 'LEAVES':
                 return (
                     <div className="fade-in">
-                        <h3 style={{ marginBottom: '24px' }}>Leave Management Records</h3>
-                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--glass-border)' }}>
-                            <Calendar size={32} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                            Historical Leave Records integration pending.
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <h3 style={{ margin: 0 }}>Leave Management Records</h3>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button onClick={loadLeaves} className="secondary-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>Refresh List</button>
+                            </div>
                         </div>
+
+                        {isLoadingTabData ? (
+                            <div style={{ padding: '64px', textAlign: 'center' }}>
+                                <div className="spinner-mini" style={{ margin: '0 auto 16px' }}></div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Accessing HR records...</div>
+                            </div>
+                        ) : leaves.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+                                {leaves.map((leave) => (
+                                    <div key={leave.id} style={{
+                                        padding: '24px', background: 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+                                        border: '1px solid var(--glass-border)', borderRadius: '16px',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                                    }}>
+                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                            <div style={{
+                                                width: '56px', height: '56px', borderRadius: '14px',
+                                                background: 'rgba(139, 92, 246, 0.1)', display: 'flex',
+                                                alignItems: 'center', justifyContent: 'center', color: 'var(--purple-main)',
+                                                border: '1px solid rgba(139,92,246,0.2)'
+                                            }}>
+                                                <Calendar size={28} />
+                                            </div>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'white' }}>{leave.leaveType}</span>
+                                                    <span style={{
+                                                        fontSize: '0.65rem', fontWeight: 800, padding: '2px 8px',
+                                                        background: 'rgba(255,255,255,0.05)', borderRadius: '4px',
+                                                        textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)',
+                                                        border: '1px solid rgba(255,255,255,0.1)'
+                                                    }}>LEAVE APPLICATION</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', marginTop: '6px', fontWeight: 500 }}>
+                                                    {new Date(leave.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    <span style={{ margin: '0 8px', color: 'rgba(255,255,255,0.2)' }}>→</span>
+                                                    {new Date(leave.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </div>
+                                                <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', marginTop: '8px', lineHeight: '1.4' }}>
+                                                    &ldquo;{leave.reason}&rdquo;
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+                                            <div style={{
+                                                padding: '8px 16px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 800,
+                                                background: leave.status === 'APPROVED' ? 'rgba(16,185,129,0.1)' : leave.status === 'REJECTED' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                                                color: leave.status === 'APPROVED' ? '#10B981' : leave.status === 'REJECTED' ? '#EF4444' : '#F59E0B',
+                                                border: `1px solid ${leave.status === 'APPROVED' ? 'rgba(16,185,129,0.3)' : leave.status === 'REJECTED' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                                                letterSpacing: '0.05em'
+                                            }}>
+                                                {leave.status}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
+                                                Applied {new Date(leave.appliedAt || leave.createdAt || Date.now()).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ padding: '64px 32px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                <Calendar size={40} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+                                <h4 style={{ margin: '0 0 8px 0', color: 'rgba(255,255,255,0.7)' }}>No Leaves Recorded</h4>
+                                <p style={{ fontSize: '0.85rem', maxWidth: '300px', margin: '0 auto' }}>There are no historical or pending leave applications for this employee.</p>
+                            </div>
+                        )}
                     </div>
                 );
             case 'PERFORMANCE':
@@ -242,9 +698,21 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
     };
 
     return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '24px' }} className="fade-in">
 
-            <div className="drawer slide-left" style={{ background: 'var(--bg-dark)', width: '100%', maxWidth: '800px', height: '100vh', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--glass-border)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
+            <div className="modal-content scale-in" style={{ 
+                background: 'var(--bg-darker)', 
+                width: '100%', 
+                maxWidth: '1020px', 
+                maxHeight: '88vh', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                borderRadius: 'var(--radius-lg)', 
+                border: '1px solid var(--glass-border)', 
+                boxShadow: '0 40px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)', 
+                overflow: 'hidden', 
+                position: 'relative' 
+            }}>
 
                 {/* Header Profile Section */}
                 <div style={{ padding: '32px', borderBottom: '1px solid var(--glass-border)', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(0,0,0,0) 100%)', position: 'relative' }}>
@@ -262,19 +730,19 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                                 justifyContent: 'center', fontSize: '2.5rem', fontWeight: 700,
                                 overflow: 'hidden', border: '4px solid rgba(255,255,255,0.1)',
                                 boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)',
-                                cursor: (isOwnProfile || isAdmin) ? 'pointer' : 'default',
+                                cursor: (isEditingOwnProfile || isAdminUser) ? 'pointer' : 'default',
                                 position: 'relative'
                             }}
                         >
                             {profilePhoto ? <img src={profilePhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Profile" /> : employee.firstName.charAt(0)}
 
-                            {(isOwnProfile || isAdmin) && (
+                            {(isEditingOwnProfile || isAdminUser) && (
 
                                 <div className="avatar-hover-overlay" style={{
                                     position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center',
                                     justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s',
-                                    fontSize: '0.75rem', color: 'white'
+                                    fontSize: '0.85rem', color: 'white'
                                 }}>
                                     <ImageIcon size={20} style={{ marginBottom: '4px' }} />
                                     <span>Change Photo</span>
@@ -296,47 +764,76 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                         />
 
                         <div>
-                            <h2 style={{ fontSize: '2rem', margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <h2 style={{ fontSize: '1.75rem', margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 {employee.firstName} {employee.lastName}
-                                {employee.status === 'ACTIVE' && <span style={{ padding: '4px 12px', background: 'rgba(16,185,129,0.2)', color: '#10B981', fontSize: '0.75rem', borderRadius: '12px', verticalAlign: 'middle', border: '1px solid rgba(16,185,129,0.5)' }}>Online</span>}
+                                                                <span className={`status-badge ${
+                                    employee.status === 'ACTIVE' ? 'approved' : 
+                                    employee.status === 'ON_LEAVE' ? 'pending' : 
+                                    employee.status === 'SUSPENDED' ? 'rejected' : 
+                                    employee.status === 'TERMINATED' ? 'rejected' : 'todo'
+                                }`} style={{ fontSize: '0.7rem', padding: '4px 14px' }}>
+                                    {employee.status.replace(/_/g, ' ')}
+                                </span>
                             </h2>
-                            <div style={{ color: 'var(--purple-light)', fontSize: '1rem', marginTop: '4px', fontWeight: 500 }}>{employee.roleId.replace(/_/g, ' ')} • {employee.department || 'General'}</div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>{employee.id}</span>
-                                <span>Joined {new Date(employee.joinedAt).toLocaleDateString()}</span>
+
+                            <div style={{ color: 'var(--purple-light)', fontSize: '0.9rem', marginTop: '2px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{employee.roleId.replace(/_/g, ' ')} • {employee.department || 'General'}</div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>{employee.id}</span>
+                                <span style={{ opacity: 0.6 }}>Joined {new Date(employee.joinedAt).toLocaleDateString()}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', padding: '0 32px', overflowX: 'auto' }}>
-                    {tabs.map(tab => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 24px',
-                                    background: 'transparent', border: 'none', cursor: 'pointer',
-                                    color: isActive ? 'white' : 'var(--text-secondary)',
-                                    borderBottom: `2px solid ${isActive ? 'var(--purple-main)' : 'transparent'}`,
-                                    fontWeight: isActive ? 600 : 500,
-                                    whiteSpace: 'nowrap',
-                                    transition: 'color 0.2s, border-color 0.2s'
-                                }}
-                            >
-                                <Icon size={16} color={isActive ? 'var(--purple-main)' : 'currentColor'} /> {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
+                {/* Main Modal Body (Sidebar + Content) */}
+                <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                    
+                    {/* Sidebar Navigation */}
+                    <div style={{ 
+                        width: '280px', 
+                        borderRight: '1px solid var(--glass-border)', 
+                        background: 'rgba(0,0,0,0.2)',
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        padding: '24px 16px',
+                        gap: '6px',
+                        overflowY: 'auto'
+                    }}>
+                        {tabs.map(tab => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '14px', 
+                                        padding: '12px 18px',
+                                        background: isActive ? 'var(--purple-glow)' : 'transparent', 
+                                        border: '1px solid',
+                                        borderColor: isActive ? 'var(--glass-border-purple)' : 'transparent',
+                                        borderRadius: '12px',
+                                        cursor: 'pointer',
+                                        color: isActive ? 'white' : 'var(--text-secondary)',
+                                        fontWeight: isActive ? 700 : 500,
+                                        fontSize: '0.9rem',
+                                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        textAlign: 'left',
+                                        width: '100%'
+                                    }}
+                                    className="hoverable"
+                                >
+                                    <Icon size={18} color={isActive ? 'var(--purple-main)' : 'currentColor'} /> 
+                                    <span style={{ opacity: isActive ? 1 : 0.8 }}>{tab.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                {/* Tab Content Area */}
-                <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
-                    {renderTabContent()}
+                    {/* Tab Content Area */}
+                    <div style={{ flex: 1, padding: '40px', overflowY: 'auto', background: 'rgba(255,255,255,0.01)' }}>
+                        {renderTabContent()}
+                    </div>
                 </div>
 
                 {/* Action Footer */}
@@ -344,12 +841,36 @@ export default function EmployeeProfileDrawer({ employee, onClose }: { employee:
                     <button className="secondary-button hoverable" onClick={() => setIsIdCardOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: 'auto' }}>
                         <QrCode size={16} /> View Digital ID Card
                     </button>
-                    <button className="secondary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button 
+                        className="secondary-button hoverable" 
+                        onClick={handleExportDossier}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
                         <Download size={16} /> Export Dossier
                     </button>
-                    <button className="primary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <User size={16} /> Edit Capabilities
+                    <button 
+                        className="primary-button hoverable" 
+                        onClick={isEditing ? handleSaveChanges : () => {
+                            setIsEditing(true);
+                            setActiveTab('OVERVIEW');
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        {isEditing ? (
+                            <>Save Profile</>
+                        ) : (
+                            <><User size={16} /> Edit Capabilities</>
+                        )}
                     </button>
+                    {isEditing && (
+                        <button 
+                            className="secondary-button hoverable" 
+                            onClick={() => setIsEditing(false)}
+                            style={{ opacity: 0.7 }}
+                        >
+                            Cancel
+                        </button>
+                    )}
                 </div>
 
             </div>

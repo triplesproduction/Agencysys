@@ -1,15 +1,101 @@
+:root {
+    --id-purple: #7c3aed;
+    --id-purple-light: #a78bfa;
+    --id-zinc: #09090b;
+    --id-glass: rgba(255, 255, 255, 0.03);
+    --id-border: rgba(255, 255, 255, 0.1);
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;700;800&family=Outfit:wght@800&display=swap');
+
+.id-card-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.id-card-modal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 520px;
+}
+
+.id-card-modal-header {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 32px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.header-badge {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    color: var(--id-purple-light);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    padding: 4px 12px;
+    border-radius: 100px;
+    margin-bottom: 12px;
+    background: rgba(124, 58, 237, 0.05);
+}
+
+.modal-title {
+    color: white;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.close-button {
+    position: absolute;
+    right: -40px;
+    top: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #666;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.close-button:hover {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+    transform: rotate(90deg);
+}
+
+/* 💠 Card Surface Design */
 .id-card-container {
     width: 480px;
-    height: 320px;
-    perspective: 1000px;
-    cursor: pointer;
+    height: 300px;
+    perspective: 2000px;
+    filter: drop-shadow(0 40px 80px rgba(0, 0, 0, 0.8));
 }
 
 .id-card-inner {
     width: 100%;
     height: 100%;
     position: relative;
-    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform-style: preserve-3d;
 }
 
@@ -23,46 +109,72 @@
     width: 100%;
     height: 100%;
     backface-visibility: hidden;
-    border-radius: 12px;
+    -webkit-backface-visibility: hidden;
+    border-radius: 28px;
     overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    background: #000;
+    border: 1px solid var(--id-border);
 }
 
-/* Front Styling */
+/* 🎨 Front of Card */
 .id-card-front {
-    background: linear-gradient(135deg, #111 0%, #2a1b4d 100%);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: linear-gradient(135deg, #09090b 0%, #17171a 100%);
     display: flex;
     flex-direction: column;
+    z-index: 2;
+}
+
+.id-card-back {
+    background: #09090b;
+    transform: rotateY(180deg);
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+}
+
+.id-card-front::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+    pointer-events: none;
 }
 
 .id-header {
-    background: var(--purple-main);
-    padding: 12px 24px;
+    height: 60px;
+    background: linear-gradient(to right, #7c3aed, #5b21b6);
+    padding: 0 28px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: white;
+    position: relative;
+    z-index: 10;
 }
 
 .agency-logo {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 800;
-    letter-spacing: 1px;
+    font-size: 18px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -0.5px;
 }
 
 .agency-brand {
-    font-size: 0.65rem;
-    letter-spacing: 2px;
-    opacity: 0.9;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: rgba(255, 255, 255, 0.9);
+    text-transform: uppercase;
 }
 
 .id-body {
-    display: flex;
     flex: 1;
-    padding: 20px 24px;
-    gap: 24px;
+    padding: 24px 28px;
+    display: flex;
+    gap: 28px;
+    position: relative;
 }
 
 .photo-section {
@@ -70,29 +182,32 @@
 }
 
 .photo-frame {
-    width: 100px;
-    height: 130px;
-    border: 3px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
+    width: 90px;
+    height: 110px;
+    background: #000;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.5);
+    position: relative;
 }
 
-.photo-frame img,
-.photo-placeholder {
+.photo-frame img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
 .photo-placeholder {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 3rem;
-    color: white;
-    font-weight: bold;
-    background: var(--purple-light);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--id-purple-light);
+    background: rgba(124, 58, 237, 0.1);
 }
 
 .details-section {
@@ -102,79 +217,432 @@
 }
 
 .emp-name {
+    font-size: 22px;
+    font-weight: 800;
     color: white;
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    line-height: 1.2;
+    letter-spacing: -0.02em;
 }
 
 .emp-role {
-    color: #10B981;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 900;
+    color: #10b981;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 12px;
+    letter-spacing: 0.15em;
+    margin: 4px 0 16px;
 }
 
 .emp-meta-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px 8px;
-    margin-top: auto;
+    gap: 12px 16px;
 }
 
 .meta-label {
     display: block;
-    font-size: 0.55rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 8px;
+    font-weight: 800;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
     margin-bottom: 2px;
 }
 
 .meta-value {
     display: block;
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.9);
-    font-family: monospace;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
+    color: #eee;
+    font-family: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .id-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px 20px;
-    background: rgba(0, 0, 0, 0.3);
+    height: auto;
+    min-height: 85px;
+    padding: 12px 28px;
+    background: rgba(255, 255, 255, 0.02);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .qr-code {
-    color: white;
-    opacity: 0.8;
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .validity-auth {
-    text-align: right;
-    color: white;
-    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
 }
 
-.auth-sig {
-    font-family: 'Brush Script MT', cursive;
-    font-size: 1.25rem;
-    margin-top: 4px;
-    color: rgba(255, 255, 255, 0.8);
+.expiration-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Back Styling */
-.id-card-back {
-    background: #1a1a1a;
-    transform: rotateY(180deg);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+.signature-container {
+    background: #fff;
+    padding: 6px 16px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    min-width: 130px;
+    border: 1px solid #000;
+    margin-bottom: 4px; /* Stop it from sticking to the absolute edge */
 }
 
+.auth-signature {
+    font-family: 'Dancing Script', cursive;
+    font-size: 16px;
+    color: #1a1a1a;
+    font-weight: 700;
+}
+
+.auth-sig-label {
+    font-size: 8px;
+    color: #666;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: -2px;
+}
+
+/* 🎨 Back of Card Implementation */
 .back-content {
-    padding: 24px;
+    padding: 20px 28px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.digital-sig-strip {
+    background: white;
+    height: 36px;
+    width: 100%;
+    margin: 12px 0 16px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-radius: 4px;
+}
+
+.sig-label {
+    color: #333;
+    font-size: 10px;
+    font-weight: 600;
+    font-style: italic;
+    opacity: 0.7;
+}
+
+.disclaimer-text {
+    font-size: 9px;
+    line-height: 1.5;
+    color: #8a8f98;
+    text-align: justify;
+    margin-bottom: auto;
+}
+
+.back-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.auth-code {
+    font-size: 9px;
+    color: #444;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+}
+
+/* 🔘 Action Buttons */
+.id-card-actions {
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px;
+    border-radius: 20px;
+    gap: 8px;
+}
+
+.id-action-btn {
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #888;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.id-action-btn:hover {
     color: white;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.id-action-btn.flip {
+    background: var(--id-purple);
+    color: white;
+    box-shadow: 0 10px 20px rgba(124, 58, 237, 0.3);
+}
+
+.id-action-btn.flip:hover {
+    background: #6d28d9;
+    transform: translateY(-1px);
+}
+
+.action-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 0 4px;
+}
+
+/* 🖨️ Advanced Print Engineering */
+@media print {
+    /* Hide the background dashboard, sidebar, and nav */
+    .sidebar, .top-nav, main > *:not(.drawer), h1, .header-container {
+        display: none !important;
+    }
+
+    /* Hide the specific parts of the drawer that are NOT the ID card */
+    .drawer > div:not(.id-card-overlay) {
+        display: none !important;
+    }
+
+    /* Ensure the drawer container itself is transparent/invisible but active for child rendering */
+    .drawer {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        position: static !important;
+        display: block !important;
+        width: 100% !important;
+    }
+
+    /* Force the ID card to be visible */
+    .id-card-overlay {
+        position: static !important;
+        background: white !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 60px !important;
+        min-height: auto !important;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    @page {
+        margin: 1cm;
+        size: auto;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    .id-card-overlay {
+        position: relative !important;
+        background: white !important;
+        padding: 0 !important;
+        backdrop-filter: none !important;
+        display: block !important;
+        overflow: visible !important;
+    }
+
+    .id-card-modal {
+        max-width: none !important;
+        width: 100% !important;
+        gap: 40px !important;
+    }
+
+    .id-card-modal-header, .id-card-actions, .close-button {
+        display: none !important;
+    }
+
+    /* Force Front and Back to show sequentially */
+    .id-card-container {
+        width: 480px !important;
+        height: auto !important; /* Allow both sides to stack */
+        filter: none !important;
+        perspective: none !important;
+        margin: 0 auto 40px !important;
+        display: block !important;
+    }
+
+    .id-card-inner {
+        transform: none !important;
+        transition: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 50px !important;
+        height: auto !important;
+    }
+
+    .id-card-front, .id-card-back {
+        position: relative !important;
+        display: flex !important;
+        flex-direction: column !important;
+        transform: none !important;
+        backface-visibility: visible !important;
+        -webkit-backface-visibility: visible !important;
+        margin: 0 auto !important;
+        break-inside: avoid !important;
+        height: 300px !important;
+        width: 480px !important;
+        box-shadow: none !important;
+        border: 1px solid #333 !important;
+        overflow: hidden !important;
+        border-radius: 28px !important;
+        background-color: #09090b !important; /* Force black background */
+    }
+
+    .id-card-front {
+        background: linear-gradient(135deg, #09090b 0%, #17171a 100%) !important;
+        margin-bottom: 50px !important;
+    }
+
+    .id-card-back {
+        background: #09090b !important;
+        margin-top: 50px !important;
+    }
+
+    .id-header {
+        background: linear-gradient(to right, #7c3aed, #5b21b6) !important;
+    }
+
+    .photo-frame {
+        background: black !important;
+        border: 1px solid #333 !important;
+    }
+
+    .signature-container {
+        border: 2px solid #000 !important;
+        background: white !important;
+    }
+}
+
+/* Responsive adjustment for small screens */
+@media (max-width: 520px) {
+    .id-card-container { width: 340px; height: 212px; }
+    .close-button { right: 0; top: -50px; }
+    .modal-title { font-size: 20px; }
+}
+
+/* 🖨️ Professional Print Protocol */
+@media print {
+    /* Hide everything on the page */
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Isolate the ID card for printing */
+    .id-card-overlay, 
+    .id-card-overlay .id-card-modal,
+    .id-card-overlay .id-card-container,
+    .id-card-overlay .id-card-inner,
+    .id-card-overlay .id-card-front,
+    .id-card-overlay .id-card-back,
+    .id-card-overlay .id-card-front *,
+    .id-card-overlay .id-card-back * {
+        visibility: visible !important;
+    }
+
+    .id-card-overlay {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        backdrop-filter: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+        z-index: 9999 !important;
+    }
+
+    .id-card-modal {
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 40px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    /* Force both sides to show stacked in print */
+    .id-card-inner {
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 40px !important;
+        height: auto !important;
+        perspective: none !important;
+    }
+
+    .id-card-container {
+        width: 480px !important;
+        height: auto !important;
+        filter: none !important;
+        perspective: none !important;
+    }
+
+    .id-card-front, 
+    .id-card-back {
+        position: relative !important;
+        display: block !important;
+        transform: none !important;
+        break-inside: avoid !important;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+    }
+
+    /* Hide UI elements that shouldn't be printed */
+    .id-card-modal-header,
+    .id-card-actions,
+    .close-button,
+    .header-badge,
+    .action-divider {
+        display: none !important;
+    }
+
+    /* Fix background colors for Chrome/Safari print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
 }

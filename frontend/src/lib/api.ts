@@ -26,8 +26,10 @@ export const api = {
     // Employees
     getEmployeeStats: async () => {
         // Optimization: Use count query instead of fetching all rows to get counts
-        const { count: total, error: totalError } = await supabase.from('employees').select('*', { count: 'exact', head: true });
-        const { count: active, error: activeError } = await supabase.from('employees').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE');
+        const { count: total, error: totalError } = await supabase.from('employees').select('*', { count: 'exact', head: true })
+            .neq('roleId', 'ADMIN').neq('roleId', 'admin');
+        const { count: active, error: activeError } = await supabase.from('employees').select('*', { count: 'exact', head: true })
+            .eq('status', 'ACTIVE').neq('roleId', 'ADMIN').neq('roleId', 'admin');
         
         handleSupabaseEvent({ total, active }, totalError || activeError, 'Fetch Stats');
         return {
@@ -35,13 +37,18 @@ export const api = {
             active: active || 0
         };
     },
-    getEmployees: async (options?: { page?: number, limit?: number, search?: string, roleId?: string, status?: string, department?: string, sortBy?: string }) => {
+    getEmployees: async (options?: { page?: number, limit?: number, search?: string, roleId?: string, status?: string, department?: string, sortBy?: string, excludeAdmin?: boolean }) => {
         let query = supabase.from('employees').select('*', { count: 'exact' });
         
         if (options?.search) {
             query = query.or(`firstName.ilike.%${options.search}%,lastName.ilike.%${options.search}%,email.ilike.%${options.search}%`);
         }
-        if (options?.roleId) query = query.eq('roleId', options.roleId);
+        if (options?.roleId) {
+            query = query.eq('roleId', options.roleId);
+        } else if (options?.excludeAdmin) {
+            query = query.neq('roleId', 'ADMIN').neq('roleId', 'admin');
+        }
+        
         if (options?.status) query = query.eq('status', options.status);
         if (options?.department) query = query.eq('department', options.department);
         
@@ -79,8 +86,18 @@ export const api = {
         };
     },
     getEmployeeById: async (id: string) => {
-        const { data, error } = await supabase.from('employees').select('*').eq('id', id).single();
-        handleSupabaseEvent(data, error, 'Fetch Employee');
+        const { data, error } = await supabase
+            .from('employees')
+            .select(`
+                *,
+                tasksAssigned:tasks(*),
+                kpis:kpi_metrics(*),
+                documents:employee_documents(*)
+            `)
+            .eq('id', id)
+            .single();
+        
+        handleSupabaseEvent(data, error, 'Fetch Employee Full Profile');
         return data as EmployeeDTO;
     },
     createEmployee: async (data: any) => {
@@ -241,6 +258,11 @@ export const api = {
         const { data, error } = await supabase.from('leaves').select('*').order('createdAt', { ascending: false });
         
         handleSupabaseEvent(data, error, 'Fetch My Leaves');
+        return data as LeaveApplicationDTO[];
+    },
+    getEmployeeLeaves: async (employeeId: string) => {
+        const { data, error } = await supabase.from('leaves').select('*').eq('employeeId', employeeId).order('startDate', { ascending: false });
+        handleSupabaseEvent(data, error, 'Fetch Employee Leaves');
         return data as LeaveApplicationDTO[];
     },
     getLeaves: async () => {

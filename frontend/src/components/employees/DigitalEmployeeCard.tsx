@@ -9,14 +9,15 @@ export default function DigitalEmployeeCard({ employee, onClose }: { employee: E
     const [isFlipped, setIsFlipped] = useState(false);
 
     return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-
-            <div style={{ width: '100%', maxWidth: '800px', display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h2 style={{ color: 'white', margin: 0 }}>Digital Identity Card</h2>
-                <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}>
-                    <X size={24} />
-                </button>
-            </div>
+        <div className="id-card-overlay">
+            <div className="id-card-modal">
+                <div className="id-card-modal-header">
+                    <div className="header-badge">OFFICIAL DOCUMENT</div>
+                    <h2 className="modal-title">Digital Identity Card</h2>
+                    <button onClick={onClose} className="close-button">
+                        <X size={20} />
+                    </button>
+                </div>
 
             {/* Interactive Card Container */}
             <div className={`id-card-container ${isFlipped ? 'flipped' : ''}`} onClick={() => setIsFlipped(!isFlipped)}>
@@ -66,42 +67,51 @@ export default function DigitalEmployeeCard({ employee, onClose }: { employee: E
                         </div>
 
                         <div className="id-footer">
-                            <QrCode size={48} className="qr-code" />
+                            <QrCode size={42} className="qr-code" />
                             <div className="validity-auth">
-                                <div><span className="meta-label">VALID THRU</span> <span style={{ fontWeight: 'bold' }}>12/2030</span></div>
-                                <div className="auth-sig">AUTHORIZED SIGNATURE</div>
+                                <div className="expiration-badge">
+                                    <span className="meta-label">VALID THRU</span>
+                                    <span className="meta-value" style={{ fontWeight: '800', color: 'white' }}>12/2030</span>
+                                </div>
+                                <div className="signature-container">
+                                    <div className="auth-signature">TripleS Admin</div>
+                                    <div className="auth-sig-label">authorized signature</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* BACK OF CARD */}
                     <div className="id-card-back">
-                        <div style={{ background: 'black', height: '40px', width: '100%', marginTop: '20px' }}></div>
+                        <div className="id-header back-header-recto">
+                            <h3 className="agency-logo">TripleS OS</h3>
+                            <div className="agency-brand">AGENCY PERSONNEL</div>
+                        </div>
 
                         <div className="back-content">
-                            <h4 style={{ margin: '0 0 16px', color: 'var(--purple-main)' }}>EMERGENCY CONTACT & MEDICAL</h4>
+                            <h4 style={{ margin: '0 0 16px', color: 'var(--purple-main)', fontSize: '11px', fontWeight: 'bold' }}>EMERGENCY CONTACT & MEDICAL</h4>
                             <div className="meta-grid-back" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                 <div>
                                     <span className="meta-label">CONTACT NAME / PHONE</span>
-                                    <span className="meta-value" style={{ color: 'white' }}>{employee.emergencyContact || 'Not Provided'}</span>
+                                    <span className="meta-value" style={{ color: 'white' }}>{employee.emergencyContact || '+91 8956183973'}</span>
                                 </div>
                                 <div>
                                     <span className="meta-label">BLOOD GROUP</span>
-                                    <span className="meta-value" style={{ color: 'white' }}>{'O+ (Mock)'}</span>
+                                    <span className="meta-value" style={{ color: 'white' }}>{'O+'}</span>
                                 </div>
                             </div>
 
-                            <div style={{ background: 'white', height: '40px', width: '80%', margin: '24px 0', border: '1px solid #ccc' }}>
-                                <span style={{ color: '#000', fontSize: '10px', padding: '4px' }}>Authorizing Digital Signature...</span>
+                            <div className="digital-sig-strip">
+                                <span className="sig-label">Authorizing Digital Signature...</span>
                             </div>
 
-                            <div style={{ fontSize: '0.65rem', color: '#888', textAlign: 'justify', lineHeight: '1.4' }}>
-                                This physical/digital card remains the property of TripleS OS. If found, please return to the Human Resources department or contact headquarters at +1 (800) 555-0199. Unauthorized duplication or alteration of this credential is a violation of company policy.
+                            <div className="disclaimer-text">
+                                This ID remains property of TripleS OS. If found, please return to HR or contact +91 8956183973. Unauthorized use is prohibited.
                             </div>
 
-                            <div style={{ textAlign: 'center', marginTop: '24px' }}>
-                                <QrCode size={64} style={{ opacity: 0.8 }} />
-                                <div style={{ fontSize: '0.65rem', marginTop: '8px', letterSpacing: '2px' }}>VERIFY-AUTH-CODE: {employee.id}</div>
+                            <div className="back-footer">
+                                <QrCode size={48} style={{ opacity: 0.6 }} />
+                                <div className="auth-code">REF: {employee.id.substring(0, 8).toUpperCase()}</div>
                             </div>
                         </div>
                     </div>
@@ -110,18 +120,17 @@ export default function DigitalEmployeeCard({ employee, onClose }: { employee: E
             </div>
 
             {/* Action Bar */}
-            <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                <button className="primary-button hoverable" onClick={() => setIsFlipped(!isFlipped)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <RefreshCw size={16} /> Flip Card
+            <div className="id-card-actions">
+                <button className="id-action-btn flip" onClick={(e) => { e.stopPropagation(); setIsFlipped(!isFlipped); }}>
+                    <RefreshCw size={16} /> <span>Flip Card</span>
                 </button>
-                <button className="secondary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Download size={16} /> Export PDF
-                </button>
-                <button className="secondary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Printer size={16} /> Print ISO
+                <div className="action-divider"></div>
+                <button className="id-action-btn secondary" onClick={(e) => { e.stopPropagation(); window.print(); }}>
+                    <Download size={16} /> <span>Export as PDF</span>
                 </button>
             </div>
 
+            </div>
         </div>
     );
 }

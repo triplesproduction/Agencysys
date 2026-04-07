@@ -192,7 +192,8 @@ export default function RuleBookPage() {
                     <select
                         value={filterCategory}
                         onChange={e => setFilterCategory(e.target.value)}
-                        style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none' }}
+                        className="filter-select"
+                        style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', padding: '0 4px' }}
                     >
                         <option value="ALL" style={{ background: 'var(--bg-dark)' }}>All Categories</option>
                         <option value="HR" style={{ background: 'var(--bg-dark)' }}>HR</option>
@@ -284,7 +285,7 @@ export default function RuleBookPage() {
                                 <div style={{ display: 'flex', gap: '16px' }}>
                                     <div style={{ flex: 1 }}>
                                         <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Category *</label>
-                                        <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none' }}>
+                                                                                <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="filter-select" style={{ width: '100%' }}>
                                             <option value="HR" style={{ background: 'var(--bg-dark)' }}>HR</option>
                                             <option value="Attendance" style={{ background: 'var(--bg-dark)' }}>Attendance</option>
                                             <option value="Work Policy" style={{ background: 'var(--bg-dark)' }}>Work Policy</option>
@@ -294,7 +295,7 @@ export default function RuleBookPage() {
                                     </div>
                                     <div style={{ flex: 1 }}>
                                         <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Priority Level *</label>
-                                        <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none' }}>
+                                                                                <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })} className="filter-select" style={{ width: '100%' }}>
                                             <option value="Normal" style={{ background: 'var(--bg-dark)' }}>Normal</option>
                                             <option value="Important" style={{ background: 'var(--bg-dark)' }}>Important</option>
                                             <option value="Critical" style={{ background: 'var(--bg-dark)' }}>Critical</option>

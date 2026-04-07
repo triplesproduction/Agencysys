@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Dancing+Script:wght@400;700&display=swap');
 
 :root {
   /* Core Colors - Founder Finance Dark Theme */
@@ -82,6 +82,51 @@ textarea {
   font-family: inherit;
   outline: none;
 }
+
+/* Forms & Standardized Components */
+.filter-select {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+.filter-select:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.filter-select:focus {
+    border-color: var(--purple-main);
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.15);
+}
+
+.status-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid transparent;
+}
+
+.status-badge.pending { background: rgba(245, 158, 11, 0.1); color: #F59E0B; border-color: rgba(245, 158, 11, 0.2); }
+.status-badge.approved { background: rgba(16, 185, 129, 0.1); color: #10B981; border-color: rgba(16, 185, 129, 0.2); }
+.status-badge.done { background: rgba(16, 185, 129, 0.1); color: #10B981; border-color: rgba(16, 185, 129, 0.2); }
+.status-badge.rejected { background: rgba(239, 68, 68, 0.1); color: #EF4444; border-color: rgba(239, 68, 68, 0.2); }
+.status-badge.in-progress { background: rgba(59, 130, 246, 0.1); color: #60A5FA; border-color: rgba(59, 130, 246, 0.2); }
+.status-badge.submitted { background: rgba(167, 139, 250, 0.1); color: #A78BFA; border-color: rgba(167, 139, 250, 0.2); }
+.status-badge.todo { background: rgba(255, 255, 255, 0.05); color: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.1); }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
@@ -263,4 +308,52 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .spin-icon {
   animation: spin-infinite 1s linear infinite;
+}
+
+/* ====================================================
+   SHARED FORM ELEMENTS (Themed Selects & Inputs)
+==================================================== */
+
+.filter-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-select {
+    background: rgba(0, 0, 0, 0.22);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238A8F98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 14px;
+    border: 1px solid var(--glass-border);
+    padding: 10px 42px 10px 16px;
+    border-radius: var(--radius-sm);
+    color: white;
+    outline: none;
+    font-size: 0.875rem;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    min-width: 170px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(8px);
+}
+
+.filter-select:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.filter-select:focus {
+    border-color: var(--purple-accent);
+    background-color: rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 16px var(--purple-glow);
+}
+
+.filter-select option {
+    background: #0F0F14;
+    color: white;
+    padding: 12px;
 }

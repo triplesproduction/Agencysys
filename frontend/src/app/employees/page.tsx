@@ -84,6 +84,7 @@ export default function EmployeesPage() {
                     roleId: roleFilter || undefined,
                     department: deptFilter || undefined,
                     status: statusFilter || undefined,
+                    excludeAdmin: true,
                 });
                 if (cancelled) return;
                 const employeeData = res?.data || (Array.isArray(res) ? res : []);
@@ -156,6 +157,35 @@ export default function EmployeesPage() {
         }
     };
 
+    const handleExportCSV = () => {
+        if (employees.length === 0) return;
+        
+        const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Department', 'Status', 'Joined Date'];
+        const csvContent = [
+            headers.join(','),
+            ...employees.map(emp => [
+                emp.firstName,
+                emp.lastName || '',
+                emp.email,
+                emp.phone || '',
+                emp.roleId,
+                emp.department || 'General',
+                emp.status,
+                emp.joinedAt ? new Date(emp.joinedAt).toLocaleDateString() : ''
+            ].map(v => `"${v}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `TripleS_Employees_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        addNotification({ title: 'Export Complete', message: 'Employee directory exported to CSV format.', type: 'SUCCESS' });
+    };
+
     return (
         <div className="main-content fade-in" style={{ padding: '0 24px 40px 24px' }}>
             <div className="emp-page-header-alt">
@@ -170,7 +200,11 @@ export default function EmployeesPage() {
                     <button className="secondary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Upload size={16} /> Import
                     </button>
-                    <button className="secondary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button 
+                        className="secondary-button hoverable" 
+                        onClick={handleExportCSV}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
                         <Download size={16} /> Export
                     </button>
                     <button
@@ -198,7 +232,6 @@ export default function EmployeesPage() {
                     <div className="filter-group">
                         <select className="filter-select" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
                             <option value="">All Roles</option>
-                            <option value="ADMIN">Administrator</option>
                             <option value="MANAGER">Manager</option>
                             <option value="WEBSITE_DEVELOPER">Web Developer</option>
                             <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
@@ -250,6 +283,14 @@ export default function EmployeesPage() {
                                             <div className="emp-card-avatar">
                                                 {emp.profilePhoto ? <img src={emp.profilePhoto} alt="pic" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : emp.firstName.charAt(0)}
                                                 <div className={`emp-card-status ${emp.status === 'ACTIVE' ? 'active' : emp.status === 'ON_LEAVE' ? 'leave' : 'inactive'}`}></div>
+                                                <span className={`status-badge ${
+                                                    emp.status === 'ACTIVE' ? 'approved' : 
+                                                    emp.status === 'ON_LEAVE' ? 'pending' : 
+                                                    emp.status === 'SUSPENDED' ? 'rejected' : 
+                                                    emp.status === 'TERMINATED' ? 'rejected' : 'todo'
+                                                }`} style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '0.6rem', padding: '2px 8px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
+                                                    {emp.status}
+                                                </span>
                                             </div>
                                             <div>
                                                 <h3 className="emp-card-name">{emp.firstName} {emp.lastName}</h3>
@@ -338,7 +379,7 @@ export default function EmployeesPage() {
 
             {/* Modals */}
             {isCreateModalOpen && <CreateEmployeeModal onClose={() => { setIsCreateModalOpen(false); setRefreshKey(k => k + 1); }} />}
-            {isDrawerOpen && selectedEmployee && <EmployeeProfileDrawer employee={selectedEmployee} onClose={() => setIsDrawerOpen(false)} />}
+            {isDrawerOpen && selectedEmployee && <EmployeeProfileDrawer employee={selectedEmployee} onClose={() => setIsDrawerOpen(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}
         </div>
     );
 }

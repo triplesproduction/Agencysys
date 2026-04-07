@@ -203,17 +203,21 @@ export default function EODReviewsPage() {
                                                             <div 
                                                                 style={{ 
                                                                     position: 'absolute', 
-                                                                    top: '110%', 
+                                                                    top: 'calc(100% + 8px)', 
                                                                     right: 0, 
-                                                                    zIndex: 50, 
-                                                                    width: '140px', 
-                                                                    background: 'rgba(23, 23, 23, 0.95)', 
-                                                                    backdropFilter: 'blur(16px)', 
-                                                                    borderRadius: '12px', 
-                                                                    border: '1px solid var(--glass-border)', 
-                                                                    boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
-                                                                    overflow: 'hidden',
-                                                                    animation: 'slideUp 0.2s ease-out'
+                                                                    zIndex: 1000, 
+                                                                    width: '180px', 
+                                                                    background: 'rgba(15, 15, 20, 0.9)', 
+                                                                    backdropFilter: 'blur(25px)', 
+                                                                    borderRadius: '16px', 
+                                                                    border: '1px solid rgba(255, 255, 255, 0.12)', 
+                                                                    boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(124, 58, 237, 0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
+                                                                    padding: '8px',
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    gap: '4px',
+                                                                    animation: 'slideUp 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                                                                    transformOrigin: 'top right'
                                                                 }}
                                                                 onClick={(e) => e.stopPropagation()}
                                                             >
@@ -230,22 +234,32 @@ export default function EODReviewsPage() {
                                                                                 .catch(err => addNotification({ type: 'ERROR', title: 'Update Failed', message: err.message }));
                                                                         }}
                                                                         style={{ 
-                                                                            padding: '10px 16px', 
-                                                                            fontSize: '0.8rem', 
+                                                                            padding: '10px 14px', 
+                                                                            fontSize: '0.8125rem', 
                                                                             fontWeight: 600, 
-                                                                            color: report.sentiment === s ? sentimentColor[s] : 'rgba(255,255,255,0.7)',
-                                                                            background: report.sentiment === s ? 'rgba(255,255,255,0.05)' : 'transparent',
+                                                                            color: report.sentiment === s ? 'white' : 'rgba(255,255,255,0.6)',
+                                                                            background: report.sentiment === s ? 'rgba(124, 58, 237, 0.2)' : 'transparent',
+                                                                            borderRadius: '10px',
                                                                             cursor: 'pointer',
                                                                             display: 'flex',
                                                                             alignItems: 'center',
-                                                                            gap: '10px',
-                                                                            transition: 'all 0.15s'
+                                                                            gap: '12px',
+                                                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
                                                                         }}
-                                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                                                                        onMouseLeave={(e) => e.currentTarget.style.background = report.sentiment === s ? 'rgba(255,255,255,0.05)' : 'transparent'}
+                                                                        className="rating-item-hover"
+                                                                        onMouseEnter={(e) => {
+                                                                            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                                                                            e.currentTarget.style.color = 'white';
+                                                                            e.currentTarget.style.transform = 'translateX(4px)';
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.currentTarget.style.background = report.sentiment === s ? 'rgba(124, 58, 237, 0.2)' : 'transparent';
+                                                                            e.currentTarget.style.color = report.sentiment === s ? 'white' : 'rgba(255,255,255,0.6)';
+                                                                            e.currentTarget.style.transform = 'none';
+                                                                        }}
                                                                     >
                                                                         <SentimentIcon sentiment={s} />
-                                                                        {s}
+                                                                        <span style={{ color: report.sentiment === s ? 'white' : sentimentColor[s], opacity: report.sentiment === s ? 1 : 0.9 }}>{s}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -265,33 +279,24 @@ export default function EODReviewsPage() {
                                                         </div>
                                                         {(() => {
                                                             const tasks = report.tasksCompleted || [];
-                                                            if (tasks.length === 0) {
-                                                                // Fallback: show raw text entries from completedText
-                                                                let rawItems: string[] = [];
-                                                                try { rawItems = report.completedText ? JSON.parse(report.completedText) : []; } catch { /* ignore */ }
-                                                                if (rawItems.length > 0) {
-                                                                    return (
-                                                                        <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                                            {rawItems.map((item, i) => (
-                                                                                <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5' }}>{item}</li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    );
-                                                                }
-                                                                return <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>None listed</p>;
+                                                            let displayTasks: string[] = [];
+                                                            if (Array.isArray(tasks)) {
+                                                                displayTasks = tasks.map(t => typeof t === 'string' ? t : (t as any).title || '');
                                                             }
-
+                                                            if (displayTasks.length === 0) {
+                                                                try { 
+                                                                    const parsed = report.completedText ? JSON.parse(report.completedText) : [];
+                                                                    if (Array.isArray(parsed)) displayTasks = parsed;
+                                                                } catch { 
+                                                                    if (report.completedText) displayTasks = [report.completedText];
+                                                                }
+                                                            }
+                                                            if (displayTasks.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>None listed</p>;
                                                             return (
                                                                 <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                                    {tasks.map((t, i) => {
-                                                                        // Handle both string array and object array [{title: "..."}]
-                                                                        const title = typeof t === 'string' ? t : (t as any).title;
-                                                                        return (
-                                                                            <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5' }}>
-                                                                                {title}
-                                                                            </li>
-                                                                        );
-                                                                    })}
+                                                                    {displayTasks.filter(t => t).map((text, i) => (
+                                                                        <li key={i} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', lineHeight: '1.5', wordBreak: 'break-word' }}>{text}</li>
+                                                                    ))}
                                                                 </ul>
                                                             );
                                                         })()}

@@ -143,13 +143,15 @@ export default function LeaveApprovalsPage() {
                         />
                     </div>
                     <select
-                        value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '9px 14px', color: 'white', outline: 'none', fontSize: '0.85rem' }}
+                        className="filter-select"
+                        value={filterStatus} 
+                        onChange={e => setFilterStatus(e.target.value)}
+                        style={{ minWidth: '150px' }}
                     >
-                        <option value="" style={{ color: 'black' }}>All Status</option>
-                        <option value="PENDING" style={{ color: 'black' }}>Pending</option>
-                        <option value="APPROVED" style={{ color: 'black' }}>Approved</option>
-                        <option value="REJECTED" style={{ color: 'black' }}>Rejected</option>
+                        <option value="">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
                     </select>
                     <button onClick={fetchLeaves} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '9px 14px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 500 }}>
                         <RefreshCw size={14} /> Refresh

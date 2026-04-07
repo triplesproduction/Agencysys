@@ -19,6 +19,7 @@
     letter-spacing: -0.02em;
     background: linear-gradient(to right, #fff, rgba(255,255,255,0.6));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 0.5rem;
 }
@@ -132,6 +133,14 @@
 
 .report-card-container {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.report-card-container li {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
 }
 
 .report-card-container:hover {

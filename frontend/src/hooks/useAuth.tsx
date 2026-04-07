@@ -51,12 +51,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (!data) {
                 console.warn('[Auth DEBUG] No profile record found in database');
-                // Admin fallback even if record is missing but token is valid
-                if (email?.toLowerCase().includes('admin')) {
-                    console.log('[Auth DEBUG] Using Admin fallback profile (no record)');
-                    return { id: userId, email: email, roleId: 'ADMIN', firstName: 'TripleS', lastName: 'Admin' };
-                }
-                return null;
+                // Brand-wide fallback: try to extract something even if DB is missing
+                const emailPrefix = email?.split('@')[0] || 'User';
+                return { 
+                    id: userId, 
+                    email: email || '', 
+                    roleId: 'EMPLOYEE', 
+                    firstName: emailPrefix, 
+                    lastName: 'Member' 
+                };
             }
             
             console.log('[Auth DEBUG] Profile successfully retrieved:', data.roleId);
@@ -126,22 +129,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        // 1. Initial manual check
-        const initialCheck = async () => {
-            const { data: { user: currentUser } } = await supabase.auth.getUser();
-            const { data: { session: currentSession } } = await supabase.auth.getSession();
-            await resolveAuth(currentUser, currentSession, 'INITIAL_CHECK');
-        };
-
-        initialCheck();
+        // 1. Single source of truth for session resolution
+        // onAuthStateChange fires immediately on initialization with the current session.
+        // We no longer need a manual initialCheck() as it causes race conditions with lockers.
 
         // 2. Persistent listener for all auth events
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
                 if (!mounted) return;
-                console.log(`[AUTH DEBUG] Event: ${event}`);
+                
+                // IGNORE neutral events or events that shouldn't trigger local state changes yet
+                console.log(`[AUTH DEBUG] Supabase Auth Event: ${event}`);
 
-                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+                    // Force resolve for initializing or active sessions
                     await resolveAuth(currentSession?.user || null, currentSession, event);
                 } else if (event === 'SIGNED_OUT') {
                     console.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
@@ -151,10 +152,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setLoading(false);
                     if (typeof window !== 'undefined') {
                         localStorage.removeItem('cached_profile');
-                        // Use hard redirect for Sign Out to clear all memory/context
-                        if (window.location.pathname !== '/login') {
-                            window.location.href = '/login';
-                        }
+                        // REMOVED: Aggressive window.location.href here. 
+                        // THE AuthGuard will handle the redirect if loading is false and user is null.
+                        // This prevents race conditions during page refreshes.
                     }
                 }
             }
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [router]);
 
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
         console.log('[Auth] Nuclear Sign Out initiated...');
         try {
             // 1. Clear local state immediately for instant UI feedback
@@ -191,39 +191,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 window.location.href = '/login';
             }
         }
-    };
+    }, [supabase.auth]);
 
-    // Inactivity Auto-Logout (100 Seconds)
+    // Inactivity Auto-Logout (120 Seconds)
     useEffect(() => {
-        if (!user) return; // Only track activity when a user is logged in
+        if (!user || !session) {
+            console.log('[Auth Inactivity] No active session. Timer suspended.');
+            return;
+        }
 
         let timeoutId: NodeJS.Timeout;
+        const INACTIVITY_LIMIT = 120000; // 120 seconds
+
+        const triggerLogout = () => {
+            console.log(`[Auth Inactivity] User inactive for ${INACTIVITY_LIMIT/1000}s. Triggering logout protocol...`);
+            signOut();
+        };
 
         const resetTimer = () => {
             if (timeoutId) clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                console.log('[Auth] User inactive for 3600s. Auto-logging out...');
-                signOut();
-            }, 3600000); // 1 hour
+            timeoutId = setTimeout(triggerLogout, INACTIVITY_LIMIT);
         };
 
-        // Events that indicate activity
+        // Events that indicate activity - optimized set
         const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
         
+        const handler = () => {
+            resetTimer();
+        };
+
+        console.log(`[Auth Inactivity] Timer initialized. Limit: ${INACTIVITY_LIMIT/1000}s.`);
+        
         events.forEach(event => {
-            window.addEventListener(event, resetTimer);
+            window.addEventListener(event, handler, { passive: true });
         });
 
-        // Initialize the timer
+        // Initialize the first timer
         resetTimer();
 
         return () => {
             if (timeoutId) clearTimeout(timeoutId);
             events.forEach(event => {
-                window.removeEventListener(event, resetTimer);
+                window.removeEventListener(event, handler);
             });
+            console.log('[Auth Inactivity] Timer dismantled.');
         };
-    }, [user, signOut]);
+    }, [user, session, signOut]);
 
     return (
         <AuthContext.Provider value={{ user, session, employee, loading, signOut }}>

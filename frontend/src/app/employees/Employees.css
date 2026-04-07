@@ -57,49 +57,7 @@
     opacity: 0.7;
 }
 
-.filter-group {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
 
-.filter-select {
-    background: rgba(0, 0, 0, 0.22);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238A8F98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    background-size: 14px;
-    border: 1px solid var(--glass-border);
-    padding: 10px 42px 10px 16px;
-    border-radius: var(--radius-sm);
-    color: white;
-    outline: none;
-    font-size: 0.875rem;
-    appearance: none;
-    -webkit-appearance: none;
-    cursor: pointer;
-    min-width: 170px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(8px);
-}
-
-.filter-select:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.15);
-    transform: translateY(-1px);
-}
-
-.filter-select:focus {
-    border-color: var(--purple-accent);
-    background-color: rgba(0, 0, 0, 0.45);
-    box-shadow: 0 0 16px var(--purple-glow);
-}
-
-.filter-select option {
-    background: #0F0F14;
-    color: white;
-    padding: 12px;
-}
 
 .th-cell {
     padding: 16px 24px;
@@ -214,9 +172,11 @@
 }
 
 .emp-count-block h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 8px 0;
+    font-size: 1.875rem;
+    font-weight: 800;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.03em;
+    color: white;
 }
 
 .emp-count-stats {
@@ -404,14 +364,18 @@
 }
 
 .emp-card-meta-label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
 }
 
 .emp-card-meta-value {
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: white;
 }
 
 /* Footer (Contact) */

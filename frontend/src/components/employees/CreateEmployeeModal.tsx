@@ -292,7 +292,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                 <div><label className="input-label">Date of Birth</label><input type="date" name="dob" value={formData.dob} onChange={handleChange} className="input-field" /></div>
                                 <div>
                                     <label className="input-label">Gender</label>
-                                    <select name="gender" value={formData.gender} onChange={handleChange} className="input-field">
+                                                                        <select name="gender" value={formData.gender} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="MALE">Male</option>
                                         <option value="FEMALE">Female</option>
                                         <option value="OTHER">Other</option>
@@ -315,7 +315,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                 <div>
                                     <label className="input-label">Department *</label>
-                                    <select required name="department" value={formData.department} onChange={handleChange} className="input-field">
+                                                                        <select required name="department" value={formData.department} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="">Select Department</option>
                                         <option value="Operations">Operations</option>
                                         <option value="Engineering">Engineering</option>
@@ -327,7 +327,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                 <div><label className="input-label">Joining Date *</label><input required type="date" name="joinedAt" value={formData.joinedAt} onChange={handleChange} className="input-field" /></div>
                                 <div>
                                     <label className="input-label">Location</label>
-                                    <select name="workLocation" value={formData.workLocation} onChange={handleChange} className="input-field">
+                                                                        <select name="workLocation" value={formData.workLocation} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="OFFICE">Office</option>
                                         <option value="REMOTE">Remote</option>
                                         <option value="HYBRID">Hybrid</option>
@@ -346,7 +346,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                 <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Work Email *</label><input required type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="user@triples.os" /></div>
                                 <div>
                                     <label className="input-label">Role *</label>
-                                    <select required name="roleId" value={formData.roleId} onChange={handleChange} className="input-field">
+                                                                        <select required name="roleId" value={formData.roleId} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="EMPLOYEE">Employee</option>
                                         <option value="MANAGER">Manager</option>
                                         <option value="ADMIN">Admin</option>
@@ -354,7 +354,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                 </div>
                                 <div>
                                     <label className="input-label">Status *</label>
-                                    <select required name="status" value={formData.status} onChange={handleChange} className="input-field">
+                                                                        <select required name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="ACTIVE">Active</option>
                                         <option value="INACTIVE">Inactive</option>
                                     </select>

@@ -126,12 +126,15 @@ export default function TasksPage() {
                                     hoverable
                                     onClick={() => router.push(`/tasks/${task.id}`)}
                                 >
-                                    <div className="card-top">
-                                        <div className={`priority-tag ${task.priority.toLowerCase()}`}>
-                                            {task.priority}
+                                        <div className="card-top">
+                                            <span className={`status-badge ${
+                                                task.priority === 'HIGH' ? 'rejected' : 
+                                                task.priority === 'MEDIUM' ? 'pending' : 'approved'
+                                            }`} style={{ fontSize: '0.6rem', padding: '2px 8px' }}>
+                                                {task.priority}
+                                            </span>
+                                            <button className="card-more"><Plus size={14} style={{ transform: 'rotate(45deg)', opacity: 0.5 }} /></button>
                                         </div>
-                                        <button className="card-more"><Plus size={14} style={{ transform: 'rotate(45deg)', opacity: 0.5 }} /></button>
-                                    </div>
                                     
                                     <h3 className="card-title">{task.title}</h3>
                                     
