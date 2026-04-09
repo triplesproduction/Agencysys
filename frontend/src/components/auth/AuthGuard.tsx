@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 import { canAccessPath } from '@/lib/permissions';
@@ -11,6 +11,20 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const { user, employee, loading, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+
+    // Grace period: don't show Profile Sync Error immediately.
+    // When user logs in, employee profile arrives ~1 render after user state.
+    // Show spinner for up to 3s before concluding the profile is truly missing.
+    const [profileErrorReady, setProfileErrorReady] = useState(false);
+
+    useEffect(() => {
+        // Reset the timer whenever user or employee changes
+        setProfileErrorReady(false);
+        if (user && !employee && !loading) {
+            const t = setTimeout(() => setProfileErrorReady(true), 3000);
+            return () => clearTimeout(t);
+        }
+    }, [user, employee, loading]);
 
     useEffect(() => {
         if (!loading) {
@@ -109,21 +123,38 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // Role check only AFTER we are sure loading and profile resolution are done
     const hasRoleAccess = employee ? canAccessPath(employee.roleId, pathname) : true;
 
-    // 2. Critical Access Denied: We HAVE a user but NO employee record was found in DB
-    // This happens for unlinked accounts (rare case)
+    // 2. user is set but employee hasn't loaded yet.
+    // Show spinner during grace period, error only if TRULY missing after 3s.
     if (user && !employee && pathname !== '/login') {
+        if (!profileErrorReady) {
+            // Still within grace period — show spinner (profile is on its way)
+            return (
+                <div style={{
+                    display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw',
+                    alignItems: 'center', justifyContent: 'center', background: '#020203',
+                    color: 'white', zIndex: 9999, position: 'fixed', inset: 0,
+                }}>
+                    <div style={{ position: 'relative', width: '100px', height: '100px', marginBottom: '32px' }}>
+                        <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(139, 92, 246, 0.1)', borderRadius: '50%' }}></div>
+                        <div style={{ position: 'absolute', inset: '-4px', border: '3px solid transparent', borderTop: '3px solid #7C3AED', borderRadius: '50%', animation: 'spin-infinite 1s ease-in-out infinite' }}></div>
+                    </div>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.1em', opacity: 0.8 }}>
+                        TripleS OS <span style={{ opacity: 0.5, fontWeight: 400 }}>|</span> LOADING PROFILE
+                    </h2>
+                    <div style={{ marginTop: '12px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>
+                        Syncing your organizational data...
+                    </div>
+                    <style dangerouslySetInnerHTML={{ __html: `@keyframes spin-infinite { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }` }} />
+                </div>
+            );
+        }
+
+        // Profile genuinely missing after grace period — show the actual error
         return (
             <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100vh',
-                width: '100vw',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#020203',
-                color: 'white',
-                padding: '24px',
-                textAlign: 'center'
+                display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw',
+                alignItems: 'center', justifyContent: 'center', background: '#020203',
+                color: 'white', padding: '24px', textAlign: 'center'
             }}>
                 <ShieldAlert size={48} style={{ marginBottom: '16px', color: '#F59E0B' }} />
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Profile Sync Error</h2>
