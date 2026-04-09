@@ -6,7 +6,7 @@ import GlassCard from '@/components/GlassCard';
 import DeadlineIndicator from '@/components/DeadlineIndicator';
 import { api } from '@/lib/api';
 import { EmployeeDTO, TaskDTO, WorkHourLogDTO } from '@/types/dto';
-import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap } from 'lucide-react';
+import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock } from 'lucide-react';
 import AdminAssignTaskModal from '@/components/tasks/AdminAssignTaskModal';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import AnnouncementsWidget from '@/components/dashboard/AnnouncementsWidget';
@@ -311,140 +311,170 @@ function AdminDashboard({
 // ---------------------------------------------------------------------------
 function ManagerDashboard({
     employee,
-    tasks,
-    teamKpis,
-    recentKpiLogs
+    tasks = [],
+    teamKpis = [],
+    recentKpiLogs = [],
+    recentEods = []
 }: {
     employee: any,
     tasks: TaskDTO[],
     kpis: any,
     teamKpis: any[],
-    recentKpiLogs: any[]
+    recentKpiLogs: any[],
+    recentEods?: any[]
 }) {
     const taskList = tasks || [];
-    const teamSize = 6;
-    const pendingCount = taskList.filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED').length;
-    const completedCount = taskList.filter((t: any) => t && (t.status === 'DONE' || t.status === 'APPROVED')).length;
+    const eodList = recentEods || [];
+    const kpiLogList = recentKpiLogs || [];
 
-    const priorityColor: Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#10B981', CRITICAL: '#8B5CF6' };
-    const statusStyle: Record<string, { bg: string; color: string }> = {
-        APPROVED: { bg: 'rgba(16,185,129,0.15)', color: '#10B981' },
-        DONE: { bg: 'rgba(16,185,129,0.15)', color: '#10B981' },
-        IN_PROGRESS: { bg: 'rgba(139,92,246,0.15)', color: '#A78BFA' },
-        SUBMITTED: { bg: 'rgba(59,130,246,0.15)', color: '#60A5FA' },
-        REJECTED: { bg: 'rgba(239,68,68,0.15)', color: '#EF4444' },
-        TODO: { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.45)' },
-    };
+    const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED').length;
+    const completedTasksCount = taskList.filter((t: any) => t && (t.status === 'DONE' || t.status === 'APPROVED')).length;
+    
+    const managerName = employee?.firstName || 'Manager';
+    const managerRole = employee?.roleId || 'Team Manager';
 
     return (
-        <div className="role-dashboard">
-            <div className="quick-stats">
+        <div className="admin-dash-v2 fade-in">
+            {/* Custom Manager Header */}
+            <header className="ad2-header">
+                <div className="ad2-header-left">
+                    <div className="ad2-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</div>
+                </div>
+                <div className="ad2-header-center">
+                    <div className="ad2-search-bar">
+                        <Search size={16} />
+                        <input type="text" placeholder="Search team tasks..." />
+                    </div>
+                </div>
+                <div className="ad2-header-right">
+                    <div className="ad2-icon-btn" onClick={() => window.location.href = '/messaging'}><MessageCircle size={18} /></div>
+                    <div className="ad2-icon-btn"><Bell size={18} /></div>
+                    <div className="ad2-user-profile">
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'white' }}>
+                            {managerName.charAt(0)}
+                        </div>
+                        <div className="ad2-user-info">
+                            <span className="ad2-user-name">{managerName}</span>
+                            <span className="ad2-user-role">{managerRole}</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* Quick Stats */}
+            <div className="quick-stats" style={{ marginTop: '16px' }}>
                 <GlassCard className="stat-card">
-                    <div className="stat-label">Team Members</div>
-                    <div className="stat-value">{teamSize}</div>
+                    <div className="stat-label">Team Tasks</div>
+                    <div className="stat-value">{taskList.length}</div>
                 </GlassCard>
                 <GlassCard className="stat-card">
-                    <div className="stat-label">Tasks Pending</div>
-                    <div className="stat-value">{pendingCount}</div>
+                    <div className="stat-label">Pending Action</div>
+                    <div className="stat-value">{activeTasksCount}</div>
                 </GlassCard>
                 <GlassCard className="stat-card">
-                    <div className="stat-label">Tasks Completed</div>
-                    <div className="stat-value">{completedCount}</div>
+                    <div className="stat-label">Completed</div>
+                    <div className="stat-value">{completedTasksCount}</div>
                 </GlassCard>
                 <Link href="/kpis" style={{ textDecoration: 'none' }}>
                     <GlassCard className="stat-card gradient-card hoverable">
-                        <div className="stat-label">Team Perf. Snapshot</div>
-                        <div className="stat-value">92.0</div>
+                        <div className="stat-label">Team Performance</div>
+                        <div className="stat-value purple-glow">94.2</div>
                     </GlassCard>
                 </Link>
             </div>
 
-            <section className="dashboard-grid">
-                <GlassCard className="main-panel" style={{ padding: '28px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            Team Tasks
-                            <span style={{ background: 'rgba(139,92,246,0.18)', border: '1px solid rgba(139,92,246,0.35)', borderRadius: '20px', padding: '2px 10px', fontSize: '0.72rem', color: '#A78BFA', fontWeight: 600 }}>{tasks.length}</span>
-                        </h2>
-                        <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none', fontWeight: 600 }}>View all →</Link>
+            {/* Main Bento Grid */}
+            <div className="ad2-bento-grid" style={{ marginTop: '32px' }}>
+
+                {/* Column 1: Manager Quick Actions & Team EOD Updates */}
+                <div className="ad2-col ad2-col-1" style={{ gridArea: 'col1' }}>
+                    <div className="ad2-card" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), transparent)' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Zap size={18} color="var(--purple-main)" /> Manager Toolkit
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <button className="ad2-btn-add" onClick={() => window.location.href = '/tasks'} style={{ width: '100%', justifyContent: 'center', background: 'var(--purple-main)', border: 'none' }}>
+                                <CheckSquare size={16} /> Oversee Tasks
+                            </button>
+                            <button className="ad2-btn-add" onClick={() => window.location.href = '/leaves'} style={{ width: '100%', justifyContent: 'center' }}>
+                                <CalendarDays size={16} /> Apply for Leave
+                            </button>
+                            <button className="ad2-btn-add" onClick={() => window.location.href = '/rulebook'} style={{ width: '100%', justifyContent: 'center' }}>
+                                <BookOpen size={16} /> View Rulebook
+                            </button>
+                        </div>
                     </div>
 
-                    {tasks.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--text-secondary)' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>✅</div>
-                            <p style={{ margin: 0 }}>All clear — no pending tasks for now!</p>
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <div className="ad2-card-header">
+                            <h3>Team EOD Reports</h3>
+                            <span className="ad2-badge">{eodList.length}</span>
                         </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {tasks.map(task => {
-                                const sc = statusStyle[task.status] || statusStyle.TODO;
-                                const pc = priorityColor[task.priority] || '#6B7280';
-                                const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'DONE' && task.status !== 'APPROVED';
-                                return (
-                                    <div key={task.id} style={{ background: 'rgba(255,255,255,0.025)', borderRadius: '12px', border: `1px solid ${isOverdue ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.07)'}`, borderLeft: `3px solid ${isOverdue ? '#EF4444' : pc}`, padding: '14px 18px', transition: 'all 0.2s ease' }}
-                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'white', marginBottom: '8px', lineHeight: 1.4 }}>{task.title}</div>
-                                                {task.description && (
-                                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>{task.description}</div>
-                                                )}
-                                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <span style={{ background: sc.bg, color: sc.color, padding: '2px 8px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{task.status.replace('_', ' ')}</span>
-                                                    <span style={{ background: `${pc}1A`, color: pc, padding: '2px 8px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600 }}>{task.priority}</span>
-                                                    {isOverdue && <span style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', padding: '2px 8px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700 }}>⚠ Overdue</span>}
-                                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginLeft: '4px' }}>Assignee: {(task.assigneeId || 'System').slice(0, 8)}...</span>
-                                                </div>
-                                            </div>
-                                            {task.dueDate && (
-                                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Due</div>
-                                                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.55)' }}>
-                                                        {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                                    </div>
-                                                </div>
-                                            )}
+                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
+                            {eodList.length === 0 ? (
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>No reports to show.</p>
+                            ) : (
+                                eodList.map((eod: any) => (
+                                    <div key={eod.id} className="ad2-task-list-item">
+                                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', flexShrink: 0 }}>
+                                            {eod.employee?.firstName?.charAt(0) || 'E'}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div className="ad2-tli-title">{eod.employee?.firstName} {eod.employee?.lastName}</div>
+                                            <div className="ad2-tli-time">{new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                        </div>
+                                        <Link href={`/eod/reviews`} className="ad2-circle-btn">
+                                            <ChevronRight size={14} />
+                                        </Link>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Column 2: Recent Team Activity (KPIs) */}
+                <div className="ad2-col ad2-col-23" style={{ gridArea: 'col23' }}>
+                    <div className="ad2-card" style={{ height: '100%' }}>
+                        <div className="ad2-card-header">
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Activity size={18} color="#10B981" /> Team Performance Feed
+                            </h3>
+                            <span className="ad2-badge">{kpiLogList.length} updates</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {kpiLogList.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>No recent performance logs.</div>
+                            ) : (
+                                kpiLogList.map((log: any) => (
+                                    <div key={log.id} style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{log.employee?.firstName} {log.employee?.lastName}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.reason}</div>
+                                        </div>
+                                        <div style={{ fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444' }}>
+                                            {log.points_change > 0 ? '+' : ''}{log.points_change}
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </GlassCard>
-
-                <GlassCard className="side-panel">
-                    <h2 className="panel-title">Project Blockers</h2>
-                    <div className="log-list">
-                        <div className="log-item" style={{ gridTemplateColumns: 'auto 1fr' }}>
-                            <AlertTriangle size={16} color="#ef4444" />
-                            <div className="log-desc" style={{ color: '#ef4444' }}>API Integration stalled waiting on client keys.</div>
-                        </div>
-                        <div className="log-item" style={{ gridTemplateColumns: 'auto 1fr' }}>
-                            <AlertTriangle size={16} color="#f59e0b" />
-                            <div className="log-desc">2 team members on leave today; capacity reduced.</div>
+                                ))
+                            )}
                         </div>
                     </div>
+                </div>
 
-                    <h2 className="panel-title" style={{ marginTop: '2rem' }}>Latest Communication</h2>
+                {/* Column 3: Communication & Rules */}
+                <div className="ad2-col ad2-col-4" style={{ gridArea: 'col4' }}>
                     <RecentMessagesWidget maxItems={3} />
-
-                    <h2 className="panel-title" style={{ marginTop: '2.5rem' }}>Team EOD Status</h2>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        5/6 submitted yesterday.
-                    </p>
-
-                    {/* Live Feed: Announcements & Rules from DB */}
-                    <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '28px', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                        <AnnouncementsWidget maxItems={3} />
-                        <RulesWidget maxItems={3} />
+                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <AnnouncementsWidget maxItems={2} />
+                        <RulesWidget maxItems={2} />
                     </div>
-                </GlassCard>
-            </section>
+                </div>
+            </div>
         </div>
     );
 }
+
 
 // ---------------------------------------------------------------------------
 // EMPLOYEE DASHBOARD (Redesigned)
@@ -707,10 +737,11 @@ export default function DashboardPage() {
 
                     if (activeRole === 'ADMIN') {
                         baseFetches.push(api.getEmployeeStats());
-                        baseFetches.push(api.getAllEODs(10));
-                        baseFetches.push(api.getAllKpiProfiles(undefined, 5));
-                        baseFetches.push(api.getAllKpiAuditLogs(8));
+                        baseFetches.push(api.getAllEODs(12));
+                        baseFetches.push(api.getAllKpiProfiles(undefined, 6));
+                        baseFetches.push(api.getAllKpiAuditLogs(10));
                     } else if (activeRole === 'MANAGER') {
+                        baseFetches.push(api.getAllEODs(10));
                         baseFetches.push(api.getAllKpiProfiles(undefined, 5));
                         baseFetches.push(api.getAllKpiAuditLogs(8));
                     } else {
@@ -730,6 +761,10 @@ export default function DashboardPage() {
                                 if (i === 3) setRecentEods(val || []);
                                 if (i === 4) setAllKpis(val || []);
                                 if (i === 5) setRecentKpiLogs(val || []);
+                            } else if (activeRole === 'MANAGER') {
+                                if (i === 2) setRecentEods(val || []);
+                                if (i === 3) setAllKpis(val || []);
+                                if (i === 4) setRecentKpiLogs(val || []);
                             }
                         } else {
                             console.error(`FETCH ERROR [${i}]:`, res.reason);
@@ -802,6 +837,7 @@ export default function DashboardPage() {
                     kpis={kpis} 
                     teamKpis={allKpis} 
                     recentKpiLogs={recentKpiLogs} 
+                    recentEods={recentEods}
                 />
             )}
             {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (

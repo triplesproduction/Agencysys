@@ -6,6 +6,7 @@ import Button from '../Button';
 import Input from '../Input';
 import { X, ChevronDown, User, Calendar, Tag, FileText, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
+import DatePicker from '../common/DatePicker';
 import './TasksModal.css';
 
 interface AllocateTaskModalProps {
@@ -257,12 +258,11 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                             </div>
 
                             <div>
-                                <div className="trello-section-label"><Calendar size={14} /> Due Date</div>
-                                <Input 
-                                    type="date" 
+                                <DatePicker 
+                                    label="Due Date"
                                     value={dueDate}
-                                    onChange={(e) => setDueDate(e.target.value)}
-                                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}
+                                    onChange={(dt) => setDueDate(dt)}
+                                    placeholder="Set a deadline"
                                 />
                             </div>
 

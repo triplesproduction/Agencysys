@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy } from 'lucide-react';
 import { api } from '../../lib/api';
+import DatePicker from '../common/DatePicker';
 
 interface UploadedDocument {
     id: string;
@@ -8,6 +9,15 @@ interface UploadedDocument {
     fileType: string;
     content: string; // Base64
 }
+
+const DEPARTMENT_ROLES: Record<string, string[]> = {
+    'Admin': ['Admin'],
+    'Operations': ['Manager', 'Project Manager', 'Sales Executive'],
+    'Marketing': ['Digital Marketer', 'SEO Specialist', 'Social Media Manager'],
+    'Development': ['Website Developer', 'AI Journalist', 'UI Designer', 'App Developer', 'Software Developer', 'QA Tester'],
+    'Content Creation': ['Model', 'Influencer', 'Cameraman', 'Cinematographer'],
+    'Creative': ['Graphics Designer', 'Video Editor', 'Content Writer']
+};
 
 const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     const [step, setStep] = useState(1);
@@ -31,11 +41,16 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         address: '',
         emergencyContact: '',
         department: '',
-        designation: '',
         joinedAt: '',
         workLocation: 'OFFICE',
-        roleId: 'EMPLOYEE',
-        status: 'ACTIVE'
+        roleId: 'EMPLOYEE', // System Role
+        designation: '', // Professional Role
+        status: 'ACTIVE',
+        employmentType: 'FULL_TIME',
+        internshipStatus: 'UNPAID',
+        internshipStipend: 0,
+        baseSalary: 0,
+        experience: 0
     });
 
     const [phoneError, setPhoneError] = useState('');
@@ -60,8 +75,8 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            alert('File size must be less than 5MB');
+        if (file.size > 4 * 1024 * 1024) {
+            alert('Document exceeds the 4MB security threshold. Please optimize.');
             return;
         }
 
@@ -117,7 +132,11 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             return;
         }
         if (step === 3 && (!formData.email)) {
-            setError('Please provide a work email address.');
+            setError('Please provide a valid work email address for credential provisioning.');
+            return;
+        }
+        if (step === 2 && !formData.designation) {
+            setError('Please select a designation/role.');
             return;
         }
         setError('');
@@ -181,6 +200,11 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                 designation: formData.designation,
                 workLocation: formData.workLocation,
                 joinedAt: formData.joinedAt ? new Date(formData.joinedAt).toISOString() : undefined,
+                employmentType: formData.employmentType,
+                internshipStatus: formData.internshipStatus,
+                internshipStipend: formData.internshipStipend,
+                baseSalary: formData.baseSalary,
+                experience: formData.experience,
                 documents: uploadedDocsMetadata
             };
 
@@ -287,9 +311,13 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                         <div style={{ display: step === 1 ? 'block' : 'none' }}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '16px' }}><User size={18} color="var(--purple-main)" /> Personal Details</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <div><label className="input-label">First Name *</label><input required name="firstName" value={formData.firstName} onChange={handleChange} className="input-field" placeholder="John" /></div>
-                                <div><label className="input-label">Last Name *</label><input required name="lastName" value={formData.lastName} onChange={handleChange} className="input-field" placeholder="Doe" /></div>
-                                <div><label className="input-label">Date of Birth</label><input type="date" name="dob" value={formData.dob} onChange={handleChange} className="input-field" /></div>
+                                <div><label className="input-label">First Name *</label><input name="firstName" value={formData.firstName} onChange={handleChange} className="input-field" placeholder="John" /></div>
+                                <div><label className="input-label">Last Name *</label><input name="lastName" value={formData.lastName} onChange={handleChange} className="input-field" placeholder="Doe" /></div>
+                                <DatePicker 
+                                    label="Date of Birth"
+                                    value={formData.dob}
+                                    onChange={(dt) => setFormData(prev => ({ ...prev, dob: dt }))}
+                                />
                                 <div>
                                     <label className="input-label">Gender</label>
                                                                         <select name="gender" value={formData.gender} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
@@ -309,25 +337,147 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                             </div>
                         </div>
 
-                        {/* STEP 2: PROFESSIONAL DETAILS */}
+                        {/* STEP 2: PROFESSIONAL DETAILS & PAYROLL */}
                         <div style={{ display: step === 2 ? 'block' : 'none' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '16px' }}><Briefcase size={18} color="var(--purple-main)" /> Professional Details</h3>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '16px' }}>
+                                <Briefcase size={18} color="var(--purple-main)" /> Professional Profile
+                            </h3>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                 <div>
                                     <label className="input-label">Department *</label>
-                                                                        <select required name="department" value={formData.department} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
+                                    <select 
+                                        name="department" 
+                                        value={formData.department} 
+                                        onChange={(e) => {
+                                            const dept = e.target.value;
+                                            setFormData(prev => ({ 
+                                                ...prev, 
+                                                department: dept,
+                                                designation: DEPARTMENT_ROLES[dept]?.[0] || ''
+                                            }));
+                                        }} 
+                                        className="filter-select" 
+                                        style={{ width: '100%' }}
+                                    >
                                         <option value="">Select Department</option>
-                                        <option value="Operations">Operations</option>
-                                        <option value="Engineering">Engineering</option>
-                                        <option value="Creative">Creative</option>
-                                        <option value="Human Resources">Human Resources</option>
+                                        {Object.keys(DEPARTMENT_ROLES).map(dept => (
+                                            <option key={dept} value={dept}>{dept}</option>
+                                        ))}
                                     </select>
                                 </div>
-                                <div><label className="input-label">Designation</label><input name="designation" value={formData.designation} onChange={handleChange} className="input-field" placeholder="Senior Developer" /></div>
-                                <div><label className="input-label">Joining Date *</label><input required type="date" name="joinedAt" value={formData.joinedAt} onChange={handleChange} className="input-field" /></div>
+                                <div>
+                                    <label className="input-label">Designation / Role *</label>
+                                    <select 
+                                        name="designation" 
+                                        value={formData.designation} 
+                                        onChange={handleChange} 
+                                        className="filter-select" 
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="">— Select Role —</option>
+                                        {formData.department
+                                            ? DEPARTMENT_ROLES[formData.department]?.map(role => (
+                                                <option key={role} value={role}>{role}</option>
+                                            ))
+                                            : Object.entries(DEPARTMENT_ROLES).map(([dept, roles]) => (
+                                                <optgroup key={dept} label={dept}>
+                                                    {roles.map(role => (
+                                                        <option key={role} value={role}>{role}</option>
+                                                    ))}
+                                                </optgroup>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="input-label">Employment Type *</label>
+                                    <select 
+                                        name="employmentType" 
+                                        value={formData.employmentType} 
+                                        onChange={(e) => {
+                                            const type = e.target.value;
+                                            setFormData(prev => ({ 
+                                                ...prev, 
+                                                employmentType: type as any,
+                                                internshipStatus: type === 'INTERNSHIP' ? 'PAID' : '',
+                                                internshipStipend: 0
+                                            }));
+                                        }} 
+                                        className="filter-select" 
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="FULL_TIME">Full Time</option>
+                                        <option value="PART_TIME">Part Time</option>
+                                        <option value="INTERNSHIP">Internship</option>
+                                    </select>
+                                </div>
+
+                                {formData.employmentType === 'INTERNSHIP' && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div>
+                                            <label className="input-label">Type</label>
+                                            <select 
+                                                name="internshipStatus" 
+                                                value={formData.internshipStatus} 
+                                                onChange={handleChange} 
+                                                className="filter-select" 
+                                                style={{ width: '100%' }}
+                                            >
+                                                <option value="PAID">Paid</option>
+                                                <option value="UNPAID">Unpaid</option>
+                                            </select>
+                                        </div>
+                                        {formData.internshipStatus === 'PAID' && (
+                                            <div>
+                                                <label className="input-label">Stipend</label>
+                                                <input 
+                                                    type="number" 
+                                                    name="internshipStipend" 
+                                                    value={formData.internshipStipend} 
+                                                    onChange={handleChange} 
+                                                    className="input-field" 
+                                                    placeholder="Stipend" 
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="input-label">Monthly Salary (Base)</label>
+                                    <input 
+                                        type="number" 
+                                        name="baseSalary" 
+                                        value={formData.baseSalary} 
+                                        onChange={handleChange} 
+                                        className="input-field" 
+                                        placeholder="Enter CTC" 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="input-label">Experience (Years)</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.1"
+                                        name="experience" 
+                                        value={formData.experience} 
+                                        onChange={handleChange} 
+                                        className="input-field" 
+                                        placeholder="e.g. 2.5" 
+                                    />
+                                </div>
+
+                                <DatePicker 
+                                    label="Joining Date"
+                                    required
+                                    value={formData.joinedAt}
+                                    onChange={(dt) => setFormData(prev => ({ ...prev, joinedAt: dt }))}
+                                />
                                 <div>
                                     <label className="input-label">Location</label>
-                                                                        <select name="workLocation" value={formData.workLocation} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
+                                    <select name="workLocation" value={formData.workLocation} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="OFFICE">Office</option>
                                         <option value="REMOTE">Remote</option>
                                         <option value="HYBRID">Hybrid</option>
@@ -343,18 +493,18 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                 🔒 Password will be auto-generated.
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Work Email *</label><input required type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="user@triples.os" /></div>
+                                <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Work Email *</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="user@triples.os" /></div>
                                 <div>
-                                    <label className="input-label">Role *</label>
-                                                                        <select required name="roleId" value={formData.roleId} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
-                                        <option value="EMPLOYEE">Employee</option>
-                                        <option value="MANAGER">Manager</option>
-                                        <option value="ADMIN">Admin</option>
+                                    <label className="input-label">System Access *</label>
+                                    <select name="roleId" value={formData.roleId} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
+                                        <option value="EMPLOYEE">Employee Access</option>
+                                        <option value="MANAGER">Manager Access</option>
+                                        <option value="ADMIN">Administrator Access</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="input-label">Status *</label>
-                                                                        <select required name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
+                                                                        <select name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="ACTIVE">Active</option>
                                         <option value="INACTIVE">Inactive</option>
                                     </select>

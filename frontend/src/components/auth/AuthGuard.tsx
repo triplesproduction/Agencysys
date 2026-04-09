@@ -25,11 +25,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         }
     }, [user, loading, pathname, router]);
 
-    // 1. Core Synchronization: Show loader while initializing OR while about to redirect guests
-    if ((loading || !user) && pathname !== '/login') {
-        const isGuest = !loading && !user;
-        console.log(`[AUTH DEBUG] AuthGuard: ${isGuest ? 'Redirecting Guest' : 'Initializing Session'}...`);
-        
+    // While auth is initializing, show a branded loader — on ALL routes including /login
+    // This prevents the white-flash caused by rendering before the session is known
+    if (loading) {
         return (
             <div style={{
                 display: 'flex',
@@ -44,7 +42,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                 position: 'fixed',
                 inset: 0,
             }}>
-                {/* Advanced Orbital Spinner */}
                 <div style={{ position: 'relative', width: '100px', height: '100px', marginBottom: '32px' }}>
                      <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(139, 92, 246, 0.1)', borderRadius: '50%' }}></div>
                      <div style={{ 
@@ -57,10 +54,50 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                     }}></div>
                 </div>
                 <h2 style={{ fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.1em', opacity: 0.8 }}>
-                    TripleS OS <span style={{ opacity: 0.5, fontWeight: 400 }}>|</span> {isGuest ? 'REDIRECTING' : 'SYNCHRONIZING'}
+                    TripleS OS <span style={{ opacity: 0.5, fontWeight: 400 }}>|</span> INITIALIZING
                 </h2>
                 <div style={{ marginTop: '12px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>
-                    {isGuest ? 'Navigating to Secure Access...' : 'Establishing Secure Session...'}
+                    Establishing Secure Session...
+                </div>
+                <style dangerouslySetInnerHTML={{ __html: `
+                    @keyframes spin-infinite { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                `}} />
+            </div>
+        );
+    }
+
+    // Auth resolved — redirect unauthenticated users away from protected routes
+    if (!user && pathname !== '/login') {
+        return (
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100vh',
+                width: '100vw',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#020203',
+                color: 'white',
+                zIndex: 9999,
+                position: 'fixed',
+                inset: 0,
+            }}>
+                <div style={{ position: 'relative', width: '100px', height: '100px', marginBottom: '32px' }}>
+                     <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(139, 92, 246, 0.1)', borderRadius: '50%' }}></div>
+                     <div style={{ 
+                        position: 'absolute', 
+                        inset: '-4px', 
+                        border: '3px solid transparent', 
+                        borderTop: '3px solid #7C3AED', 
+                        borderRadius: '50%', 
+                        animation: 'spin-infinite 1s ease-in-out infinite' 
+                    }}></div>
+                </div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 600, letterSpacing: '0.1em', opacity: 0.8 }}>
+                    TripleS OS <span style={{ opacity: 0.5, fontWeight: 400 }}>|</span> REDIRECTING
+                </h2>
+                <div style={{ marginTop: '12px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>
+                    Navigating to Secure Access...
                 </div>
                 <style dangerouslySetInnerHTML={{ __html: `
                     @keyframes spin-infinite { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

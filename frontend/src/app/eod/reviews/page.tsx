@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, User, Calendar, CheckSquare, Clock, AlertTriangle, Smile, Meh, Frown, Search, RefreshCw } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
+import DatePicker from '@/components/common/DatePicker';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 
@@ -35,6 +36,8 @@ export default function EODReviewsPage() {
     const [reports, setReports] = useState<EODReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [ratingMenuOpen, setRatingMenuOpen] = useState<string | null>(null);
 
@@ -63,7 +66,13 @@ export default function EODReviewsPage() {
         const name = r.employee ? `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase() : '';
         const dept = r.employee?.department?.toLowerCase() || '';
         const q = search.toLowerCase();
-        return name.includes(q) || dept.includes(q);
+        const matchSearch = name.includes(q) || dept.includes(q);
+        
+        const reportDate = new Date(r.reportDate);
+        const matchDate = (!startDate || reportDate >= new Date(startDate)) && 
+                          (!endDate || reportDate <= new Date(endDate));
+                          
+        return matchSearch && matchDate;
     });
 
     // Group by date
@@ -98,6 +107,18 @@ export default function EODReviewsPage() {
                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '9px 14px 9px 36px', color: 'white', outline: 'none', width: '240px', fontSize: '0.875rem' }}
                         />
                     </div>
+                    
+                    <DatePicker 
+                        label="From"
+                        value={startDate}
+                        onChange={setStartDate}
+                    />
+                    <DatePicker 
+                        label="To"
+                        value={endDate}
+                        onChange={setEndDate}
+                    />
+
                     <button onClick={fetchReports} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', fontWeight: 500 }}>
                         <RefreshCw size={14} /> Refresh
                     </button>

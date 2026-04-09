@@ -25,17 +25,15 @@ function LoginForm() {
             return;
         }
 
-        try {
-            setLoading(true);
+        setLoading(true);
 
-            // Step 1: Supabase Auth login
+        try {
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
 
             if (authError || !authData.session) {
-                console.error('[Login] Auth error:', authError);
                 if (authError?.message?.includes('Invalid login credentials')) {
                     throw new Error('Invalid email or password. Please try again.');
                 }
@@ -45,39 +43,13 @@ function LoginForm() {
                 throw new Error(authError?.message || 'Login failed. Check your credentials.');
             }
 
-            console.log('[Login] Auth success:', authData.user?.id);
-
-            // Step 2: Fetch employee profile to get role info
-            const { data: employee, error: empError } = await supabase
-                .from('employees')
-                .select('id, email, roleId, firstName, lastName')
-                .eq('id', authData.user.id)
-                .maybeSingle();
-
-            if (empError) {
-                console.error('[Login] Employee fetch error:', empError);
-                await supabase.auth.signOut();
-                throw new Error('Unable to retrieve your employee profile. Please contact support.');
-            }
-
-            if (!employee) {
-                console.warn('[Login] No employee profile found for user UID:', authData.user.id);
-                // System will handle missing profile in AuthGuard/useAuth
-                // We just redirect now that session is active
-            } else {
-                console.log('[Login] Employee profile found:', employee);
-            }
-
-            // Step 3: Redirect to dashboard using router for SPA transition
-            console.log('[Login] Auth verified. Transitioning to dashboard...');
+            // Success — AuthGuard will handle the redirect to /dashboard
+            // Keep loading=true so there's no flicker
             router.replace('/dashboard');
 
         } catch (err: any) {
-            console.error('[Login] Error:', err);
             setError(err.message || 'Verification failed. Double check your credentials.');
-        } finally {
-            // Keep loading true if redirecting to avoid flickering
-            // setLoading(false); 
+            setLoading(false);
         }
     };
 
@@ -105,6 +77,7 @@ function LoginForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         disabled={loading}
                         required
+                        autoComplete="email"
                     />
                 </div>
 
@@ -113,19 +86,20 @@ function LoginForm() {
                     <div className="password-input-wrapper">
                         <input
                             id="password"
-                            type={showPassword ? "text" : "password"}
+                            type={showPassword ? 'text' : 'password'}
                             className="flat-input with-toggle"
                             placeholder="*************"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={loading}
                             required
+                            autoComplete="current-password"
                         />
                         <button
                             type="button"
                             className="password-toggle"
                             onClick={() => setShowPassword(!showPassword)}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
@@ -149,9 +123,7 @@ function LoginForm() {
                 </div>
 
                 {error && (
-                    <div className="error-message">
-                        {error}
-                    </div>
+                    <div className="error-message">{error}</div>
                 )}
             </form>
         </div>
@@ -161,7 +133,19 @@ function LoginForm() {
 export default function LoginPage() {
     return (
         <div className="login-page-wrapper">
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={
+                <div className="login-card" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '300px',
+                }}>
+                    <Loader2 size={32} style={{
+                        color: 'var(--purple-main)',
+                        animation: 'spin 1s linear infinite',
+                    }} />
+                </div>
+            }>
                 <LoginForm />
             </Suspense>
         </div>

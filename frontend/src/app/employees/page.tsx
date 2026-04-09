@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, Download, Upload, MoreVertical, Trash2, Mail, Phone, UserX, UserCheck, Eye } from 'lucide-react';
-import GlassCard from '@/components/GlassCard';
+import { Search, Plus, Download, Upload, MoreVertical, Trash2, Mail, Phone, UserX, UserCheck, Eye, CreditCard, Users, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { EmployeeDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
 import EmployeeProfileDrawer from '@/components/employees/EmployeeProfileDrawer';
+import PayrollHub from '@/components/employees/PayrollHub';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import './Employees.css';
 
@@ -17,29 +17,26 @@ export default function EmployeesPage() {
     const { addNotification } = useNotifications();
     const { employee: authEmployee, loading: authLoading } = useAuth();
 
-    // Data State
     const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // ... (Filter & Pagination State) ...
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
     const [deptFilter, setDeptFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [page, setPage] = useState(1);
     const [refreshKey, setRefreshKey] = useState(0);
-    const limit = 50; // Optimized limit for faster rendering
+    const limit = 50;
 
-    // Modals & Panels State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<EmployeeDTO | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [activeView, setActiveView] = useState<'DIRECTORY' | 'PAYROLL'>('DIRECTORY');
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -51,22 +48,14 @@ export default function EmployeesPage() {
     }, []);
 
     const [debouncedSearch, setDebouncedSearch] = useState('');
-
-    // Debounce search only
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 300);
         return () => clearTimeout(t);
     }, [search]);
 
-    // Single clean fetch effect
     useEffect(() => {
-        if (authLoading) return; // Wait for auth initialization
-        
-        if (!authEmployee) {
-            setLoading(false);
-            return;
-        }
-
+        if (authLoading) return;
+        if (!authEmployee) { setLoading(false); return; }
         if (!authEmployee.roleId?.toUpperCase().includes('ADMIN')) {
             router.push('/dashboard');
             setLoading(false);
@@ -78,8 +67,7 @@ export default function EmployeesPage() {
             setLoading(true);
             try {
                 const res = await api.getEmployees({
-                    page,
-                    limit,
+                    page, limit,
                     search: debouncedSearch || undefined,
                     roleId: roleFilter || undefined,
                     department: deptFilter || undefined,
@@ -111,13 +99,11 @@ export default function EmployeesPage() {
     }, []);
 
     const handleViewProfile = async (emp: EmployeeDTO) => {
-        // Fetch full employee details including documents, tasks, etc.
         try {
             const fullEmp = await api.getEmployeeById(emp.id);
             setSelectedEmployee(fullEmp);
-        } catch (err) {
-            console.error('Failed to fetch full employee profile:', err);
-            setSelectedEmployee(emp); // Fallback to partial data from the list
+        } catch {
+            setSelectedEmployee(emp);
         }
         setIsDrawerOpen(true);
     };
@@ -126,14 +112,11 @@ export default function EmployeesPage() {
         e.stopPropagation();
         setOpenMenuId(null);
         const newStatus = emp.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-        const label = newStatus === 'ACTIVE' ? 'Activated' : 'Suspended';
         try {
-            // Optimistic update
             setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, status: newStatus } : e));
             await api.updateEmployeeStatus(emp.id, newStatus);
             addNotification({ title: 'Status Updated', message: `${emp.firstName} is now ${newStatus.toLowerCase()}.`, type: 'SUCCESS', metadata: null });
         } catch (err: any) {
-            // Revert on failure
             setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, status: emp.status } : e));
             addNotification({ title: 'Update Failed', message: err.message || 'Could not update status.', type: 'ERROR', metadata: null });
         }
@@ -142,39 +125,30 @@ export default function EmployeesPage() {
     const handleDeleteEmployee = async (emp: EmployeeDTO, e: React.MouseEvent) => {
         e.stopPropagation();
         setOpenMenuId(null);
-        if (!confirm(`Permanently delete ${emp.firstName} ${emp.lastName}? This will remove their login account and all associated data (Tasks, EODs, etc.) across the entire system. This cannot be undone.`)) return;
+        if (!confirm(`Permanently delete ${emp.firstName} ${emp.lastName}? This cannot be undone.`)) return;
         try {
-            // Optimistic update
             setEmployees(prev => prev.filter(e => e.id !== emp.id));
             setTotal(prev => prev - 1);
             await api.deleteEmployee(emp.id);
-            addNotification({ title: 'Account Deleted', message: `All records and the login account for ${emp.firstName} ${emp.lastName} have been permanently removed.`, type: 'SUCCESS', metadata: null });
+            addNotification({ title: 'Account Deleted', message: `${emp.firstName} ${emp.lastName} removed.`, type: 'SUCCESS', metadata: null });
         } catch (err: any) {
-            // Revert: restore employee back into list
             setEmployees(prev => [emp, ...prev]);
             setTotal(prev => prev + 1);
-            addNotification({ title: 'Deletion Blocked', message: err.message || 'System was unable to remove this record.', type: 'ERROR', metadata: null });
+            addNotification({ title: 'Deletion Blocked', message: err.message || 'Could not remove this record.', type: 'ERROR', metadata: null });
         }
     };
 
     const handleExportCSV = () => {
         if (employees.length === 0) return;
-        
         const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Role', 'Department', 'Status', 'Joined Date'];
         const csvContent = [
             headers.join(','),
             ...employees.map(emp => [
-                emp.firstName,
-                emp.lastName || '',
-                emp.email,
-                emp.phone || '',
-                emp.roleId,
-                emp.department || 'General',
-                emp.status,
+                emp.firstName, emp.lastName || '', emp.email, emp.phone || '',
+                emp.roleId, emp.department || 'General', emp.status,
                 emp.joinedAt ? new Date(emp.joinedAt).toLocaleDateString() : ''
             ].map(v => `"${v}"`).join(','))
         ].join('\n');
-
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -183,203 +157,224 @@ export default function EmployeesPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        addNotification({ title: 'Export Complete', message: 'Employee directory exported to CSV format.', type: 'SUCCESS' });
+        addNotification({ title: 'Export Complete', message: 'Employee directory exported to CSV.', type: 'SUCCESS' });
+    };
+
+    const activeCount = employees.filter(e => e.status === 'ACTIVE').length;
+
+    const statusClass = (status: string) => {
+        if (status === 'ACTIVE') return 'approved';
+        if (status === 'ON_LEAVE') return 'pending';
+        return 'rejected';
     };
 
     return (
-        <div className="main-content fade-in" style={{ padding: '0 24px 40px 24px' }}>
-            <div className="emp-page-header-alt">
-                <div className="emp-count-block">
-                    <h1>{(total || 0)} Employees</h1>
-                    <div className="emp-count-stats">
-                        <span><div className="dot active"></div> Active {(employees || []).filter(e => e && e.status === 'ACTIVE').length}</span>
-                        <span><div className="dot inactive"></div> Inactive {(employees || []).filter(e => e && e.status !== 'ACTIVE').length}</span>
+        <div className="emp-page-root fade-in">
+
+            {/* ── PAGE HEADER ── */}
+            <div className="emp-header">
+                <div>
+                    <h1 className="emp-title">Enterprise Personnel</h1>
+                    <div className="emp-stats-inline">
+                        <span><Users size={13} /> {total} Total</span>
+                        <span className="active"><CheckCircle size={13} /> {activeCount} Active</span>
                     </div>
                 </div>
-                <div className="emp-actions-group">
-                    <button className="secondary-button hoverable" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Upload size={16} /> Import
-                    </button>
-                    <button 
-                        className="secondary-button hoverable" 
-                        onClick={handleExportCSV}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                    >
+                <div className="emp-header-actions">
+                    <button className="emp-action-btn" onClick={handleExportCSV}>
                         <Download size={16} /> Export
                     </button>
-                    <button
-                        className="primary-button hoverable"
-                        onClick={() => setIsCreateModalOpen(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--purple-main)' }}
-                    >
+                    <button className="emp-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
                         <Plus size={16} /> Add Employee
                     </button>
                 </div>
             </div>
 
-            <GlassCard className="datagrid-container" style={{ padding: 0, overflow: 'visible' }}>
-                <div className="datagrid-toolbar">
-                    <div className="search-filter-input">
-                        <Search size={18} className="search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Search by Name, ID, or Email..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
+            {/* ── TOP TABS ── */}
+            <div className="emp-tabs">
+                <button
+                    className={`emp-tab ${activeView === 'DIRECTORY' ? 'active' : ''}`}
+                    onClick={() => setActiveView('DIRECTORY')}
+                >
+                    <Users size={16} /> Personnel Directory
+                </button>
+                <button
+                    className={`emp-tab ${activeView === 'PAYROLL' ? 'active' : ''}`}
+                    onClick={() => setActiveView('PAYROLL')}
+                >
+                    <CreditCard size={16} /> Integrated Payroll
+                </button>
+            </div>
 
-                    <div className="filter-group">
-                        <select className="filter-select" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
-                            <option value="">All Roles</option>
-                            <option value="MANAGER">Manager</option>
-                            <option value="WEBSITE_DEVELOPER">Web Developer</option>
-                            <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
-                            <option value="VIDEO_EDITOR">Video Editor</option>
-                        </select>
-
-                        <select className="filter-select" value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}>
-                            <option value="">All Departments</option>
-                            <option value="Development">Development</option>
-                            <option value="Creative">Creative</option>
-                            <option value="Operations">Operations</option>
-                        </select>
-
-                        <select className="filter-select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-                            <option value="">All Statuses</option>
-                            <option value="ACTIVE">Active</option>
-                            <option value="SUSPENDED">Suspended</option>
-                            <option value="ON_LEAVE">On Leave</option>
-                            <option value="TERMINATED">Terminated</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style={{ padding: '24px' }}>
-                    {/* Data Grid */}
-                    {loading && (!employees || employees.length === 0) ? (
-                        <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                            <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                            Loading Enterprise Directory...
+            {/* ── CONTENT ── */}
+            {activeView === 'DIRECTORY' ? (
+                <div className="emp-directory fade-in">
+                    {/* Search & Filters row */}
+                    <div className="emp-toolbar">
+                        <div className="emp-search">
+                            <Search size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search by name, email..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
                         </div>
-                    ) : error ? (
-                        <div style={{ padding: '48px', textAlign: 'center', color: '#EF4444' }}>{error}</div>
-                    ) : !employees || employees.length === 0 ? (
-                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>No personnel matching query vectors found.</div>
-                    ) : (
-                        <div className="emp-card-grid">
-                            {(employees || []).map((emp) => (
-                                <div
-                                    key={emp.id}
-                                    className="emp-card"
-                                    onClick={() => handleViewProfile(emp)}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleViewProfile(emp)}
-                                    aria-label={`View profile: ${emp.firstName} ${emp.lastName}`}
-                                >
-                                    <div className="emp-card-header">
-                                        <div className="emp-card-profile">
-                                            <div className="emp-card-avatar">
-                                                {emp.profilePhoto ? <img src={emp.profilePhoto} alt="pic" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : emp.firstName.charAt(0)}
-                                                <div className={`emp-card-status ${emp.status === 'ACTIVE' ? 'active' : emp.status === 'ON_LEAVE' ? 'leave' : 'inactive'}`}></div>
-                                                <span className={`status-badge ${
-                                                    emp.status === 'ACTIVE' ? 'approved' : 
-                                                    emp.status === 'ON_LEAVE' ? 'pending' : 
-                                                    emp.status === 'SUSPENDED' ? 'rejected' : 
-                                                    emp.status === 'TERMINATED' ? 'rejected' : 'todo'
-                                                }`} style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '0.6rem', padding: '2px 8px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>
-                                                    {emp.status}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <h3 className="emp-card-name">{emp.firstName} {emp.lastName}</h3>
-                                                <p className="emp-card-role">{emp.roleId.replace(/_/g, ' ')}</p>
-                                            </div>
-                                        </div>
-                                        {/* ⋮ Action Menu */}
-                                        <div ref={openMenuId === emp.id ? menuRef : undefined} style={{ position: 'relative', zIndex: 10 }}>
-                                            <button
-                                                className="emp-card-menu-btn"
-                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === emp.id ? null : emp.id); }}
-                                                title="Actions"
-                                                aria-label="Employee actions menu"
-                                            >
-                                                <MoreVertical size={20} />
-                                            </button>
+                        <div className="emp-filters">
+                            <select className="filter-select" value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}>
+                                <option value="">All Roles</option>
+                                <option value="MANAGER">Manager</option>
+                                <option value="WEBSITE_DEVELOPER">Web Developer</option>
+                                <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
+                                <option value="VIDEO_EDITOR">Video Editor</option>
+                            </select>
+                            <select className="filter-select" value={deptFilter} onChange={e => { setDeptFilter(e.target.value); setPage(1); }}>
+                                <option value="">All Departments</option>
+                                <option value="Development">Development</option>
+                                <option value="Creative">Creative</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Human Resources">Human Resources</option>
+                            </select>
+                            <select className="filter-select" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
+                                <option value="">All Statuses</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="SUSPENDED">Suspended</option>
+                                <option value="ON_LEAVE">On Leave</option>
+                                <option value="TERMINATED">Terminated</option>
+                            </select>
+                        </div>
+                    </div>
 
-                                            {openMenuId === emp.id && (
-                                                <div style={{
-                                                    position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                                                    background: 'rgba(18, 18, 22, 0.97)', border: '1px solid rgba(255,255,255,0.12)',
-                                                    borderRadius: '12px', padding: '6px', minWidth: '180px',
-                                                    boxShadow: '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.15)',
-                                                    backdropFilter: 'blur(20px)', zIndex: 999,
-                                                    animation: 'fadeIn 0.12s ease'
-                                                }}>
-                                                    {/* View Profile */}
-                                                    <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleViewProfile(emp); }} style={{ width: '100%', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', fontWeight: 500, transition: 'background 0.15s' }}
-                                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
-                                                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                                                        <Eye size={15} style={{ color: '#3B82F6' }} /> View Profile
-                                                    </button>
-
-                                                    {/* Toggle Active/Inactive */}
-                                                    <button onClick={(e) => handleToggleStatus(emp, e)} style={{ width: '100%', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', fontWeight: 500, transition: 'background 0.15s' }}
-                                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
-                                                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                                                        {emp.status === 'ACTIVE'
-                                                            ? <><UserX size={15} style={{ color: '#F59E0B' }} /> Set Inactive</>
-                                                            : <><UserCheck size={15} style={{ color: '#10B981' }} /> Set Active</>}
-                                                    </button>
-
-                                                    {/* Divider */}
-                                                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '4px 8px' }} />
-
-                                                    {/* Delete */}
-                                                    <button onClick={(e) => handleDeleteEmployee(emp, e)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#EF4444', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', fontWeight: 500, transition: 'background 0.15s' }}
-                                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.1)')}
-                                                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                                                        <Trash2 size={15} /> Delete Employee
-                                                    </button>
+                    {/* Employee List */}
+                    <div className="emp-list-container custom-scrollbar">
+                        {loading && employees.length === 0 ? (
+                            <div className="emp-state-msg">
+                                <div className="spinner" />
+                                <span>Loading personnel...</span>
+                            </div>
+                        ) : error ? (
+                            <div className="emp-state-msg error">{error}</div>
+                        ) : employees.length === 0 ? (
+                            <div className="emp-state-msg">No employees match your search.</div>
+                        ) : (
+                            <table className="emp-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Contact</th>
+                                        <th>Joined</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {employees.map(emp => (
+                                        <tr
+                                            key={emp.id}
+                                            className="emp-row"
+                                            onClick={() => handleViewProfile(emp)}
+                                        >
+                                            {/* Avatar + Name */}
+                                            <td>
+                                                <div className="emp-row-identity">
+                                                    <div className="emp-row-avatar">
+                                                        {emp.profilePhoto
+                                                            ? <img src={emp.profilePhoto} alt="" />
+                                                            : emp.firstName.charAt(0)
+                                                        }
+                                                        <span className={`emp-dot ${emp.status === 'ACTIVE' ? 'active' : emp.status === 'ON_LEAVE' ? 'leave' : 'inactive'}`} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="emp-row-name">{emp.firstName} {emp.lastName}</div>
+                                                        <div className="emp-row-id">#{emp.id?.slice(0, 8)}</div>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                            </td>
 
-                                    <div className="emp-card-body">
-                                        <div>
-                                            <div className="emp-card-meta-label">Department</div>
-                                            <div className="emp-card-meta-value">{emp.department || 'General'}</div>
-                                        </div>
-                                        <div>
-                                            <div className="emp-card-meta-label">Hired Date</div>
-                                            <div className="emp-card-meta-value">{emp.joinedAt ? new Date(emp.joinedAt).toLocaleDateString() : 'N/A'}</div>
-                                        </div>
-                                    </div>
+                                            {/* Role */}
+                                            <td>
+                                                <span className="emp-role-chip">{emp.roleId.replace(/_/g, ' ')}</span>
+                                            </td>
 
-                                    <div className="emp-card-footer">
-                                        <div className="emp-card-contact">
-                                            <Mail size={16} />
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.email}</span>
-                                        </div>
-                                        <div className="emp-card-contact">
-                                            <Phone size={16} />
-                                            <span>{emp.phone || 'N/A'}</span>
-                                        </div>
+                                            {/* Department */}
+                                            <td className="emp-dept">{emp.department || 'General'}</td>
 
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                            {/* Contact */}
+                                            <td>
+                                                <div className="emp-contact-col">
+                                                    <span><Mail size={12} /> {emp.email}</span>
+                                                    {emp.phone && <span><Phone size={12} /> {emp.phone}</span>}
+                                                </div>
+                                            </td>
+
+                                            {/* Joined */}
+                                            <td className="emp-joined">
+                                                {emp.joinedAt ? new Date(emp.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                            </td>
+
+                                            {/* Status */}
+                                            <td>
+                                                <span className={`status-badge ${statusClass(emp.status)}`}>
+                                                    {emp.status.replace('_', ' ')}
+                                                </span>
+                                            </td>
+
+                                            {/* Actions */}
+                                            <td onClick={e => e.stopPropagation()}>
+                                                <div ref={openMenuId === emp.id ? menuRef : undefined} className="emp-menu-wrap">
+                                                    <button
+                                                        className="emp-menu-btn"
+                                                        onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === emp.id ? null : emp.id); }}
+                                                    >
+                                                        <MoreVertical size={16} />
+                                                    </button>
+                                                    {openMenuId === emp.id && (
+                                                        <div className="emp-dropdown">
+                                                            <button onClick={e => { e.stopPropagation(); setOpenMenuId(null); handleViewProfile(emp); }}>
+                                                                <Eye size={14} /> View Profile
+                                                            </button>
+                                                            <button onClick={e => handleToggleStatus(emp, e)}>
+                                                                {emp.status === 'ACTIVE'
+                                                                    ? <><UserX size={14} /> Set Inactive</>
+                                                                    : <><UserCheck size={14} /> Set Active</>}
+                                                            </button>
+                                                            <div className="emp-dropdown-divider" />
+                                                            <button className="danger" onClick={e => handleDeleteEmployee(emp, e)}>
+                                                                <Trash2 size={14} /> Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
                 </div>
+            ) : (
+                <div className="fade-in" style={{ marginTop: '8px' }}>
+                    <PayrollHub employees={employees} />
+                </div>
+            )}
 
-            </GlassCard>
-
-            {/* Modals */}
-            {isCreateModalOpen && <CreateEmployeeModal onClose={() => { setIsCreateModalOpen(false); setRefreshKey(k => k + 1); }} />}
-            {isDrawerOpen && selectedEmployee && <EmployeeProfileDrawer employee={selectedEmployee} onClose={() => setIsDrawerOpen(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}
+            {isCreateModalOpen && (
+                <CreateEmployeeModal
+                    isOpen={true}
+                    addNotification={addNotification}
+                    onClose={() => { setIsCreateModalOpen(false); setRefreshKey(k => k + 1); }}
+                />
+            )}
+            {isDrawerOpen && selectedEmployee && (
+                <EmployeeProfileDrawer
+                    employee={selectedEmployee}
+                    onClose={() => setIsDrawerOpen(false)}
+                    onRefresh={() => setRefreshKey(k => k + 1)}
+                />
+            )}
         </div>
     );
 }

@@ -175,8 +175,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(null);
             setEmployee(null);
             setLoading(false);
+
             if (typeof window !== 'undefined') {
+                // Clear all possible session artifacts
                 localStorage.removeItem('cached_profile');
+                localStorage.removeItem('triples_auth_session'); // Target actual Supabase storage key
+                localStorage.clear(); // Nuclear option
+                sessionStorage.clear();
+                
+                // Clear all cookies (to be absolutely sure)
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i];
+                    const eqPos = cookie.indexOf('=');
+                    const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+                    document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+                }
             }
 
             // 2. Signal to Supabase

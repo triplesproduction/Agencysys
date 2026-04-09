@@ -48,7 +48,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
     MANAGER: [
         { name: 'Team Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Team Tasks', href: '/tasks', icon: CheckSquare },
-        { name: 'Leave Review', href: '/leaves', icon: ShieldAlert },
+        { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Project Notes', href: '/notes', icon: FileText },

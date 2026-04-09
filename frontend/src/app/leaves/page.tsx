@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import GlassCard from '@/components/GlassCard';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
+import DatePicker from '@/components/common/DatePicker';
 import { api } from '@/lib/api';
 import { LeaveApplicationDTO } from '@/types/dto';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
@@ -32,19 +33,6 @@ export default function LeavesPage() {
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
 
-    const startDateRef = useRef<HTMLInputElement>(null);
-    const endDateRef = useRef<HTMLInputElement>(null);
-
-    const openDatePicker = (ref: React.RefObject<HTMLInputElement>) => {
-        if (ref.current) {
-            // @ts-ignore - showPicker is a newer standard, fallback to click()
-            if (typeof ref.current.showPicker === 'function') {
-                ref.current.showPicker();
-            } else {
-                ref.current.click();
-            }
-        }
-    };
 
     const fetchLeaves = useCallback(async () => {
         if (!user) return;
@@ -179,28 +167,20 @@ export default function LeavesPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '14px', marginBottom: '16px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>Start Date</label>
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                disabled={submitting}
-                                ref={startDateRef}
-                            />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>End Date</label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                disabled={submitting}
-                                ref={endDateRef}
-                            />
-                        </div>
-                    </div>
+                        <DatePicker 
+                            label="Start Date"
+                            value={startDate}
+                            onChange={(dt) => setStartDate(dt)}
+                            disabled={submitting}
+                            className="flex-1"
+                        />
+                        <DatePicker 
+                            label="End Date"
+                            value={endDate}
+                            onChange={(dt) => setEndDate(dt)}
+                            disabled={submitting}
+                            className="flex-1"
+                        />
 
                     <div style={{ marginBottom: '16px' }}>
                         <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>Reason</label>
@@ -294,11 +274,7 @@ export default function LeavesPage() {
                                         </div>
 
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <span style={{
-                                                fontSize: '0.72rem', fontWeight: 600, padding: '4px 12px', borderRadius: '12px',
-                                                background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, color: statusCfg.color,
-                                                textTransform: 'uppercase', letterSpacing: '0.04em'
-                                            }}>
+                                            <span className={`status-badge ${leave.status.toLowerCase()}`}>
                                                 {leave.status}
                                             </span>
                                             <ChevronDown size={16} style={{

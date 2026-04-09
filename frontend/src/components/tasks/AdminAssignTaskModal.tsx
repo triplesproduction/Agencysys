@@ -6,6 +6,7 @@ import Button from '../Button';
 import Input from '../Input';
 import { X, Calendar, Clock, Link as LinkIcon, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
+import DatePicker from '../common/DatePicker';
 import './AdminAssignTaskModal.css';
 
 interface AdminAssignTaskModalProps {
@@ -245,17 +246,15 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
                     </div>
 
                     <div className="form-row split-row">
-                        <Input
-                            type="date"
+                        <DatePicker 
                             label="Start Date (Optional)"
                             value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
+                            onChange={(dt) => setStartDate(dt)}
                         />
-                        <Input
-                            type="date"
+                        <DatePicker 
                             label="Deadline"
                             value={dueDate}
-                            onChange={(e) => setDueDate(e.target.value)}
+                            onChange={(dt) => setDueDate(dt)}
                             required
                         />
                     </div>

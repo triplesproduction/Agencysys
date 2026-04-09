@@ -5,7 +5,8 @@ export interface EmployeeDTO {
     firstName: string;
     lastName: string;
     email: string;
-    roleId: string;
+    roleId: string; // System Role (ADMIN, MANAGER, EMPLOYEE)
+    designation: string; // Professional Role (e.g. Website Developer)
     department?: string;
     status: 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED' | 'SUSPENDED';
 
@@ -16,10 +17,16 @@ export interface EmployeeDTO {
     phone?: string;
     address?: string;
     emergencyContact?: string;
-    designation?: string;
-    workLocation?: 'OFFICE' | 'REMOTE' | 'HYBRID';
-
     joinedAt: string; // ISO DateTime
+    workLocation?: 'OFFICE' | 'REMOTE' | 'HYBRID';
+    
+    // Enterprise Employment & Payroll
+    employmentType: 'FULL_TIME' | 'PART_TIME' | 'INTERNSHIP';
+    internshipStatus?: 'PAID' | 'UNPAID';
+    internshipStipend?: number;
+    salaryHistory?: SalaryHistory[];
+    baseSalary: number;
+    experience?: number; // Years of experience
 
     // Nested Relations (Optional for Grid)
     tasksAssigned?: any[];
@@ -169,4 +176,30 @@ export interface KpiAuditLogDTO {
     extra_points_after: number;
     description: string;
     created_at: string;
+}
+
+export interface SalaryHistory {
+    id: string;
+    employeeId: string;
+    amount: number;
+    effectiveDate: string;
+    reason?: string;
+    createdAt: string;
+}
+
+export interface PayrollRecord {
+    id: string;
+    employeeId: string;
+    month: number;
+    year: number;
+    baseSalary: number;
+    deductions: number;
+    netPayable: number;
+    workingDays: number;
+    daysPresent: number;
+    approvedLeaves: number;
+    unpaidAbsences: number;
+    formula?: string;
+    status: 'DRAFT' | 'FINALIZED' | 'PAID';
+    createdAt: string;
 }

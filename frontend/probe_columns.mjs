@@ -1,43 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://tslixoanxxkrzkjesxds.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzbGl4b2FueHhrcnpramVzeGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTAxMjEsImV4cCI6MjA5MDE2NjEyMX0.S9z0GbmDfyO_nxoLtkxjhQpXl-CIo8lS_AQWiZyJRQk';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzbGl4b2FueHhrcnpramVzeGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTAxMjEsImV4cCI6MjA5MDE2NjEyMX0.S9z0GbmDfyO_nxoLtkxjhQpXl-CIo8lS_AQWiZyJRQk';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function getColumnNames() {
-    // We can't query information_schema directly via anon key usually
-    // But we can try to "peek" by inserting an empty object and seeing the error message,
-    // OR we can try to query it if the user has a "read-only-columns" view.
-    // Actually, one way to see columns of an empty table is to use RPC or if the client allows it.
-    
-    // Instead of querying columns, let's try a test insert with NO fields and see what the database complains about.
-    // Or just try common names.
-    
-    console.log('--- Probing eod_reports columns by trial insert ---');
-    // Try to insert mandatory fields and see what it says
-    const { error } = await supabase.from('eod_reports').insert([{ reportDate: new Date().toISOString() }]);
+async function probe() {
+    const { data, error } = await supabase.rpc('get_table_columns_v2', { tname: 'employees' });
     if (error) {
-        console.log('Trial insert error:', error.message);
-        // Sometimes the error message contains required columns
-    }
-
-    // Try a broad insert and see if it fails on data types
-    const testData = {
-        employeeId: '00000000-0000-0000-0000-000000000000',
-        reportDate: new Date().toISOString(),
-        tasksCompleted: ['test'],
-        completedText: '["test"]',
-        sentiment: 'GOOD'
-    };
-    
-    for (const key of Object.keys(testData)) {
-        const { error } = await supabase.from('eod_reports').insert([{ [key]: testData[key] }]);
-        if (error) {
-            console.log(`Column '${key}' check: FAIL - ${error.message}`);
+        // Fallback to a direct query on information_schema if RPC fails
+        console.log('RPC failed, trying raw query...');
+        const { data: cols, error: err2 } = await supabase.from('employees').select('firstName, lastName, profilePhoto').limit(1);
+        if (err2) {
+            console.error('Direct query failed:', err2.message);
+            // Try snake_case
+            const { data: cols2, error: err3 } = await supabase.from('employees').select('first_name, last_name, profile_photo').limit(1);
+            if (err3) {
+                console.error('Snake case also failed:', err3.message);
+            } else {
+                console.log('Table uses snake_case');
+            }
         } else {
-            console.log(`Column '${key}' check: PASS (or exists)`);
+            console.log('Table uses camelCase');
         }
+    } else {
+        console.log('Columns:', data);
     }
 }
 
-getColumnNames();
+probe();

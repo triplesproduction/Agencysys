@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye, Plus, ShieldCheck, RefreshCw, Printer } from 'lucide-react';
+import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye, Plus, ShieldCheck, RefreshCw, Printer, ArrowUpRight } from 'lucide-react';
 import { EmployeeDTO } from '@/types/dto';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -9,6 +9,16 @@ import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import Link from 'next/link';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
+import DatePicker from '../common/DatePicker';
+
+const DEPARTMENT_ROLES: Record<string, string[]> = {
+    'Admin': ['Admin'],
+    'Operations': ['Manager', 'Project Manager', 'Sales Executive'],
+    'Marketing': ['Digital Marketer', 'SEO Specialist', 'Social Media Manager'],
+    'Development': ['Website Developer', 'AI Journalist', 'UI Designer', 'App Developer', 'Software Developer', 'QA Tester'],
+    'Content Creation': ['Model', 'Influencer', 'Cameraman', 'Cinematographer'],
+    'Creative': ['Graphics Designer', 'Video Editor', 'Content Writer']
+};
 
 export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: { employee: EmployeeDTO, onClose: () => void, onRefresh?: () => void }) {
     const { user: currentUser, employee: authProfile } = useAuth();
@@ -24,6 +34,12 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     const [isEditing, setIsEditing] = useState(false);
     const [isResetingPassword, setIsResetingPassword] = useState(false);
     const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+    const [isHikeModalOpen, setIsHikeModalOpen] = useState(false);
+    const [hikeData, setHikeData] = useState({ amount: 0, reason: '', effectiveDate: new Date().toISOString().split('T')[0] });
+    const [isApplyingHike, setIsApplyingHike] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [showPasswordInput, setShowPasswordInput] = useState(false);
     
     const [profilePhoto, setProfilePhoto] = useState(employee.profilePhoto);
     const [editData, setEditData] = useState({
@@ -31,11 +47,21 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         lastName: employee.lastName,
         email: employee.email,
         phone: employee.phone || '',
+        roleId: employee.roleId || 'EMPLOYEE',
         designation: employee.designation || '',
         address: employee.address || '',
-        roleId: employee.roleId || 'STAFF',
         status: (employee.status || 'ACTIVE') as "ACTIVE" | "INACTIVE" | "ON_LEAVE" | "TERMINATED" | "SUSPENDED",
-        department: employee.department || 'General'
+        department: employee.department || '',
+        employmentType: employee.employmentType || 'FULL_TIME',
+        internshipStatus: employee.internshipStatus || '',
+        internshipStipend: employee.internshipStipend || 0,
+        baseSalary: employee.baseSalary || 0,
+        experience: employee.experience || 0,
+        dob: employee.dob || '',
+        joinedAt: employee.joinedAt || '',
+        gender: employee.gender || '' as 'MALE' | 'FEMALE' | 'OTHER' | '',
+        emergencyContact: employee.emergencyContact || '',
+        workLocation: employee.workLocation || 'OFFICE' as 'OFFICE' | 'REMOTE' | 'HYBRID',
     });
     
     // Dynamic Data State
@@ -99,15 +125,15 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             return;
         }
 
-        // Validation: Size (2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            alert('File size too large. Maximum limit is 2MB.');
+        // Validation: Size (4MB)
+        if (file.size > 4 * 1024 * 1024) {
+            alert('File size too large. Maximum limit is 4MB.');
             return;
         }
 
         setIsUploading(true);
         try {
-            const { url } = await api.uploadFile(file);
+            const { url } = await api.uploadPhoto(file);
             await api.updateEmployee(employee.id, { profilePhoto: url });
             setProfilePhoto(url);
             addNotification({
@@ -138,7 +164,6 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                 role: employee.roleId,
                 status: employee.status,
                 joinedAt: employee.joinedAt,
-                designation: employee.designation,
                 phone: employee.phone,
                 address: employee.address
             },
@@ -184,15 +209,43 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         }
     };
 
+    const handleSetPassword = async () => {
+        if (!newPassword || newPassword.length < 6) {
+            alert('Password must be at least 6 characters.');
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to manually OVERRIDE the password for ${employee.firstName}?`)) return;
+
+        setIsUpdatingPassword(true);
+        try {
+            await api.manageEmployeeAccount('UPDATE_PASSWORD', employee.id, { password: newPassword });
+            
+            addNotification({
+                title: 'Security Override',
+                message: `Password has been manually updated for ${employee.firstName}.`,
+                type: 'SYSTEM'
+            });
+            
+            setNewPassword('');
+            setShowPasswordInput(false);
+        } catch (err: any) {
+            console.error('Password update failed:', err);
+            alert(`Failed to update password: ${err.message}`);
+        } finally {
+            setIsUpdatingPassword(false);
+        }
+    };
+
     const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Validation: Size (2MB)
-        if (file.size > 2 * 1024 * 1024) {
+        // Validation: Size (4MB)
+        if (file.size > 4 * 1024 * 1024) {
             addNotification({
                 title: 'Security Alert',
-                message: 'Document exceeds the 2MB transmission limit. Please optimize the file.',
+                message: 'Document exceeds the 4MB transmission limit. Please optimize the file.',
                 type: 'SYSTEM'
             });
             return;
@@ -225,33 +278,52 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         }
     };
 
+    const [isSaving, setIsSaving] = useState(false);
+
     const handleSaveChanges = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
         try {
             const updatePayload = {
                 firstName: editData.firstName,
                 lastName: editData.lastName,
                 email: editData.email,
                 phone: editData.phone,
-                designation: editData.designation,
-                address: editData.address,
                 roleId: editData.roleId,
+                address: editData.address,
                 status: editData.status as any,
-                department: editData.department
+                department: editData.department,
+                employmentType: editData.employmentType,
+                internshipStatus: editData.internshipStatus || null,
+                internshipStipend: editData.internshipStipend || null,
+                baseSalary: editData.baseSalary || null,
+                experience: editData.experience || null,
+                designation: editData.designation || null,
+                dob: editData.dob || null,
+                joinedAt: editData.joinedAt || null,
             };
-            
+
+            console.log('[Save] Sending update payload:', updatePayload);
             await api.updateEmployee(employee.id, updatePayload);
             setIsEditing(false);
             
             addNotification({
-                title: 'Record Synchronized',
-                message: 'All changes have been successfully persisted to the cloud.',
+                title: 'Profile Saved',
+                message: 'All changes have been saved successfully.',
                 type: 'SYSTEM'
             });
             
             window.dispatchEvent(new CustomEvent('app:employee-updated', { detail: { id: employee.id } }));
+            onRefresh?.();
         } catch (err: any) {
-            console.error('Update failed:', err);
-            alert('Failed to save changes: ' + err.message);
+            console.error('[Save] Update failed — full error:', err);
+            addNotification({
+                title: 'Save Failed',
+                message: err?.message || 'Could not save changes. Check console for details.',
+                type: 'SYSTEM'
+            });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -353,13 +425,19 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Designation</div>
                                     {isEditing ? (
-                                        <input 
+                                        <select 
                                             value={editData.designation} 
                                             onChange={e => setEditData({ ...editData, designation: e.target.value })}
-                                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', width: '100%' }}
-                                        />
+                                            className="filter-select"
+                                            style={{ width: '100%', minWidth: 'unset' }}
+                                        >
+                                            {editData.department && DEPARTMENT_ROLES[editData.department]?.map(role => (
+                                                <option key={role} value={role}>{role}</option>
+                                            ))}
+                                            {!editData.department && <option value={editData.designation}>{editData.designation}</option>}
+                                        </select>
                                     ) : (
-                                        <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.designation || 'General Staff'}</div>
+                                        <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.designation || employee.roleId || 'General Staff'}</div>
                                     )}
                                 </div>
                                 <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -377,30 +455,146 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                             </div>
                         </div>
 
+                        {/* Professional Metadata Section */}
+                        <div style={{ marginTop: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Professional Profile</h3>
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '24px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Department</div>
+                                        {isEditing ? (
+                                            <select className="filter-select" value={editData.department} onChange={e => { const dept = e.target.value; setEditData({ ...editData, department: dept, designation: DEPARTMENT_ROLES[dept]?.[0] || editData.designation }); }} style={{ width: '100%', minWidth: 'unset' }}>
+                                                <option value="">Select Department</option>
+                                                {Object.keys(DEPARTMENT_ROLES).map(dept => (<option key={dept} value={dept}>{dept}</option>))}
+                                            </select>
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.department || 'Unassigned'}</div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Joined Date</div>
+                                        {isEditing ? (
+                                            <DatePicker label="" value={editData.joinedAt} onChange={dt => setEditData({ ...editData, joinedAt: dt })} />
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.joinedAt ? new Date(employee.joinedAt).toLocaleDateString() : 'N/A'}</div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Employment</div>
+                                        {isEditing ? (
+                                            <select className="filter-select" value={editData.employmentType} onChange={e => { const type = e.target.value; setEditData({ ...editData, employmentType: type as any, internshipStatus: type === 'INTERNSHIP' ? 'PAID' : '' }); }} style={{ width: '100%', minWidth: 'unset' }}>
+                                                <option value="FULL_TIME">Full Time</option>
+                                                <option value="PART_TIME">Part Time</option>
+                                                <option value="INTERNSHIP">Internship</option>
+                                            </select>
+                                        ) : (
+                                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'white', background: 'var(--purple-main)', padding: '4px 8px', borderRadius: '4px', width: 'fit-content', textTransform: 'uppercase' }}>
+                                                {employee.employmentType?.replace('_', ' ') || 'FULL TIME'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Monthly Financial</div>
+                                        {isEditing ? (
+                                            <input type="number" className="input-field" value={editData.employmentType === 'INTERNSHIP' ? editData.internshipStipend : editData.baseSalary} onChange={e => editData.employmentType === 'INTERNSHIP' ? setEditData({ ...editData, internshipStipend: Number(e.target.value) }) : setEditData({ ...editData, baseSalary: Number(e.target.value) })} style={{ padding: '8px 12px' }} />
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10B981' }}>
+                                                    ₹{(employee.employmentType === 'INTERNSHIP' && employee.internshipStatus === 'PAID' ? employee.internshipStipend : employee.baseSalary)?.toLocaleString() || '0'}
+                                                </div>
+                                                {isAdminUser && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            setHikeData({ ...hikeData, amount: (employee.employmentType === 'INTERNSHIP' ? employee.internshipStipend : employee.baseSalary) || 0 });
+                                                            setIsHikeModalOpen(true);
+                                                        }}
+                                                        style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#a78bfa', padding: '2px 8px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase' }}
+                                                    >
+                                                        Give Hike
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Total Experience</div>
+                                        {isEditing ? (
+                                            <input type="number" step="0.1" className="input-field" value={editData.experience} onChange={e => setEditData({ ...editData, experience: Number(e.target.value) })} style={{ padding: '8px 12px' }} />
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.experience || 0} Years</div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Office Pulse</div>
+                                        {isEditing ? (
+                                            <select className="filter-select" value={editData.workLocation} onChange={e => setEditData({ ...editData, workLocation: e.target.value as any })} style={{ width: '100%', minWidth: 'unset' }}>
+                                                <option value="OFFICE">Office</option>
+                                                <option value="REMOTE">Remote</option>
+                                                <option value="HYBRID">Hybrid</option>
+                                            </select>
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.workLocation || 'OFFICE'}</div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Birthday</div>
+                                        {isEditing ? (
+                                            <DatePicker label="" value={editData.dob} onChange={dt => setEditData({ ...editData, dob: dt })} />
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A'}</div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Gender</div>
+                                        {isEditing ? (
+                                            <select className="filter-select" value={editData.gender} onChange={e => setEditData({ ...editData, gender: e.target.value as any })} style={{ width: '100%', minWidth: 'unset' }}>
+                                                <option value="">Select Gender</option>
+                                                <option value="MALE">Male</option>
+                                                <option value="FEMALE">Female</option>
+                                                <option value="OTHER">Other</option>
+                                            </select>
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'}</div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Emergency Contact</div>
+                                        {isEditing ? (
+                                            <input value={editData.emergencyContact} placeholder="+91 9876543210" onChange={e => setEditData({ ...editData, emergencyContact: e.target.value })} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', width: '100%' }} />
+                                        ) : (
+                                            <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.emergencyContact || 'N/A'}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {isEditing && (
                             <div style={{ marginTop: '24px' }}>
-                                <h3 style={{ fontSize: '1.25rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}><ShieldCheck size={20} color="var(--purple-main)" /> Security & System</h3>
+                                <h3 style={{ fontSize: '1.25rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <ShieldCheck size={20} color="var(--purple-main)" /> HR & Administration
+                                </h3>
                                 <div style={{ background: 'rgba(139, 92, 246, 0.05)', padding: '24px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Account Role</div>
-                                            <select 
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>System Access Permissions</div>
+                                            <select
                                                 className="filter-select"
                                                 value={editData.roleId}
                                                 onChange={e => setEditData({ ...editData, roleId: e.target.value })}
                                                 style={{ width: '100%', minWidth: 'unset' }}
                                             >
-                                                <option value="EMPLOYEE">Employee</option>
-                                                <option value="MANAGER">Manager</option>
-                                                <option value="ADMIN">Admin</option>
-                                                <option value="WEBSITE_DEVELOPER">Web Developer</option>
-                                                <option value="GRAPHIC_DESIGNER">Graphic Designer</option>
-                                                <option value="VIDEO_EDITOR">Video Editor</option>
+                                                <option value="EMPLOYEE">Employee Access</option>
+                                                <option value="MANAGER">Manager Access</option>
+                                                <option value="ADMIN">Administrator Access</option>
                                             </select>
                                         </div>
+
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>System Status</div>
-                                            <select 
+                                            <select
                                                 className="filter-select"
                                                 value={editData.status}
                                                 onChange={e => setEditData({ ...editData, status: e.target.value as any })}
@@ -414,26 +608,101 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                             </select>
                                         </div>
 
+                                        {/* Internship-specific controls — only shown when employment type is INTERNSHIP */}
+                                        {editData.employmentType === 'INTERNSHIP' && (
+                                            <>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Stipend Type</div>
+                                                    <select
+                                                        className="filter-select"
+                                                        value={editData.internshipStatus}
+                                                        onChange={e => setEditData({ ...editData, internshipStatus: e.target.value })}
+                                                        style={{ width: '100%', minWidth: 'unset' }}
+                                                    >
+                                                        <option value="PAID">Paid</option>
+                                                        <option value="UNPAID">Unpaid</option>
+                                                    </select>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Monthly Stipend (₹)</div>
+                                                    <input
+                                                        type="number"
+                                                        className="input-field"
+                                                        value={editData.internshipStipend}
+                                                        onChange={e => setEditData({ ...editData, internshipStipend: Number(e.target.value) })}
+                                                        disabled={editData.internshipStatus === 'UNPAID'}
+                                                        style={{ padding: '8px 12px' }}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
                                         <div style={{ gridColumn: '1 / -1', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <div>
                                                     <div style={{ fontWeight: 600, fontSize: '1rem' }}>Credential Access</div>
-                                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Send a secure link for the employee to change their password.</div>
+                                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Manually override or reset employee security credentials.</div>
                                                 </div>
-                                                <button 
-                                                    onClick={handleResetPassword}
-                                                    disabled={isResetingPassword}
-                                                    className="secondary-button" 
-                                                    style={{ background: 'rgba(255,255,255,0.05)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
-                                                >
-                                                    {isResetingPassword ? 'Sending...' : 'Reset Password'}
-                                                </button>
+                                                <div style={{ display: 'flex', gap: '10px' }}>
+                                                    {isAdminUser && !showPasswordInput && (
+                                                        <button
+                                                            onClick={() => setShowPasswordInput(true)}
+                                                            className="secondary-button"
+                                                            style={{ background: 'rgba(139,92,246,0.1)', color: 'var(--purple-light)', borderColor: 'rgba(139,92,246,0.2)' }}
+                                                        >
+                                                            Set New Password
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={handleResetPassword}
+                                                        disabled={isResetingPassword}
+                                                        className="secondary-button"
+                                                        style={{ background: 'rgba(255,255,255,0.05)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
+                                                    >
+                                                        {isResetingPassword ? 'Sending Link...' : 'Send Reset Link'}
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            {showPasswordInput && (
+                                                <div className="fade-in" style={{ marginTop: '16px', padding: '16px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}>
+                                                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>New Password Override</div>
+                                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                                        <input
+                                                            type="text"
+                                                            className="input-field"
+                                                            placeholder="Enter new secure password"
+                                                            value={newPassword}
+                                                            onChange={e => setNewPassword(e.target.value)}
+                                                            style={{ flex: 1 }}
+                                                        />
+                                                        <button 
+                                                            onClick={handleSetPassword}
+                                                            disabled={isUpdatingPassword}
+                                                            className="primary-button"
+                                                            style={{ padding: '0 20px', fontSize: '0.85rem' }}
+                                                        >
+                                                            {isUpdatingPassword ? 'Updating...' : 'Set Password'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => { setShowPasswordInput(false); setNewPassword(''); }}
+                                                            className="secondary-button"
+                                                            style={{ padding: '0 12px' }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#F59E0B', marginTop: '8px' }}>
+                                                        ⚠ This will immediately revoke the old password and set the new one.
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         )}
+
                     </div>
                 );
             case 'TASKS':
@@ -739,13 +1008,15 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                             {(isEditingOwnProfile || isAdminUser) && (
 
                                 <div className="avatar-hover-overlay" style={{
-                                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+                                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                    justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s',
-                                    fontSize: '0.85rem', color: 'white'
+                                    justifyContent: 'center', opacity: 0, transition: 'all 0.2s ease',
+                                    fontSize: '0.7rem', color: 'white', textAlign: 'center',
+                                    padding: '8px', pointerEvents: 'none'
                                 }}>
-                                    <ImageIcon size={20} style={{ marginBottom: '4px' }} />
-                                    <span>Change Photo</span>
+                                    <ImageIcon size={16} style={{ marginBottom: '4px' }} />
+                                    <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Change</span>
+                                    <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Photo</span>
                                 </div>
                             )}
 
@@ -854,10 +1125,11 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                             setIsEditing(true);
                             setActiveTab('OVERVIEW');
                         }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        disabled={isSaving}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: isSaving ? 0.7 : 1 }}
                     >
                         {isEditing ? (
-                            <>Save Profile</>
+                            isSaving ? <>Saving...</> : <>Save Profile</>
                         ) : (
                             <><User size={16} /> Edit Capabilities</>
                         )}
@@ -876,6 +1148,82 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             </div>
 
             {isIdCardOpen && <DigitalEmployeeCard employee={employee} onClose={() => setIsIdCardOpen(false)} />}
+
+            {/* Salary Hike Modal */}
+            {isHikeModalOpen && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div style={{ background: '#0d0d1a', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '20px', width: '100%', maxWidth: '400px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+                        <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(to right, rgba(139,92,246,0.1), transparent)' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <ArrowUpRight size={20} color="var(--purple-main)" /> Salary Appreciation
+                            </h3>
+                            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Update employee compensation with historical tracking.</p>
+                        </div>
+                        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div>
+                                <label className="input-label">New Monthly CTC (INR)</label>
+                                <input 
+                                    type="number" 
+                                    className="input-field" 
+                                    value={hikeData.amount} 
+                                    onChange={e => setHikeData({ ...hikeData, amount: Number(e.target.value) })}
+                                    style={{ fontSize: '1.2rem', fontWeight: 700, color: '#10B981' }}
+                                />
+                            </div>
+                            <div>
+                                <label className="input-label">Effective From</label>
+                                <input 
+                                    type="date" 
+                                    className="input-field" 
+                                    value={hikeData.effectiveDate} 
+                                    onChange={e => setHikeData({ ...hikeData, effectiveDate: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="input-label">Appreciation Reason / Note</label>
+                                <textarea 
+                                    className="input-field" 
+                                    rows={3} 
+                                    placeholder="e.g., Performance Bonus, Annual Review, Promotion..."
+                                    value={hikeData.reason}
+                                    onChange={e => setHikeData({ ...hikeData, reason: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div style={{ padding: '20px 24px', background: 'rgba(255,255,255,0.02)', display: 'flex', gap: '12px' }}>
+                            <button 
+                                onClick={() => setIsHikeModalOpen(false)}
+                                className="secondary-button"
+                                style={{ flex: 1 }}
+                            >Cancel</button>
+                            <button 
+                                disabled={isApplyingHike}
+                                onClick={async () => {
+                                    setIsApplyingHike(true);
+                                    try {
+                                        await api.addSalaryHike(employee.id, hikeData.amount, hikeData.effectiveDate, hikeData.reason);
+                                        addNotification({
+                                            title: 'Salary Updated',
+                                            message: `Success! New salary effective from ${hikeData.effectiveDate}.`,
+                                            type: 'PERFORMANCE'
+                                        });
+                                        setIsHikeModalOpen(false);
+                                        onRefresh?.();
+                                    } catch (err: any) {
+                                        alert('Failed to apply hike: ' + err.message);
+                                    } finally {
+                                        setIsApplyingHike(false);
+                                    }
+                                }}
+                                className="primary-button"
+                                style={{ flex: 1, boxShadow: '0 4px 12px rgba(139,92,246,0.3)' }}
+                            >
+                                {isApplyingHike ? 'Processing...' : 'Confirm Hike'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

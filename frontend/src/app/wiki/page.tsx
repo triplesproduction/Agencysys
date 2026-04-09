@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Plus, Search, Filter, Trash2, Edit2, ShieldAlert, Zap, AlertTriangle, AlertCircle } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
+import DatePicker from '@/components/common/DatePicker';
 import { api } from '@/lib/api';
 import { RuleDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
@@ -303,10 +304,11 @@ export default function RuleBookPage() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Effective Date (Optional)</label>
-                                    <input type="date" value={formData.effectiveDate} onChange={e => setFormData({ ...formData, effectiveDate: e.target.value })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none', colorScheme: 'dark' }} />
-                                </div>
+                                <DatePicker 
+                                    label="Effective Date"
+                                    value={formData.effectiveDate}
+                                    onChange={(dt) => setFormData({ ...formData, effectiveDate: dt })}
+                                />
 
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Detailed Description *</label>

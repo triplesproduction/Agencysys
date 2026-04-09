@@ -74,7 +74,8 @@ export const api = {
             ...emp,
             firstName: emp.firstName || 'Unknown',
             lastName: emp.lastName || '',
-            roleId: emp.roleId || 'STAFF',
+            roleId: emp.roleId || 'EMPLOYEE',
+            designation: emp.designation || emp.roleId || 'Staff',
             status: emp.status || 'ACTIVE',
             department: emp.department || 'General'
         }));
@@ -90,9 +91,10 @@ export const api = {
             .from('employees')
             .select(`
                 *,
-                tasksAssigned:tasks(*),
+                tasksAssigned:tasks!assigneeId(*),
                 kpis:kpi_metrics(*),
-                documents:employee_documents(*)
+                documents:employee_documents(*),
+                salaryHistory:salary_history(*)
             `)
             .eq('id', id)
             .single();
@@ -101,8 +103,10 @@ export const api = {
         return data as EmployeeDTO;
     },
     createEmployee: async (data: any) => {
+        console.log('[API] Create Employee Payload:', data);
         const { data: res, error } = await supabase.from('employees').insert(data).select().single();
         handleSupabaseEvent(data, error, 'Create Employee');
+        console.log('[API] Create Employee Response:', res);
         return res as EmployeeDTO;
     },
     createEmployeeAccount: async (data: any): Promise<{ userId: string; email: string; tempPassword: string }> => {
@@ -133,9 +137,29 @@ export const api = {
         return data as EmployeeDTO;
     },
     updateEmployee: async (id: string, data: any) => {
-        const { data: res, error } = await supabase.from('employees').update(data).eq('id', id).select().single();
-        handleSupabaseEvent(data, error, 'Update Employee');
-        return res as EmployeeDTO;
+        console.log(`[API] Update Employee (${id}) Payload:`, data);
+        
+        // Directly update with camelCase keys - no mapping layer
+        const updatePromise = supabase
+            .from('employees')
+            .update(data)
+            .eq('id', id)
+            .select();
+
+        // 10-second safety timeout
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Update timed out. Verify your database columns use camelCase.')), 10000)
+        );
+
+        const { data: rows, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
+
+        if (error) {
+            console.error('[API] updateEmployee Supabase error:', error);
+            throw new Error(error.message || 'Failed to update employee');
+        }
+
+        console.log('[API] updateEmployee Response (rows):', rows);
+        return (rows?.[0] ?? null) as EmployeeDTO;
     },
     deleteEmployee: async (id: string) => {
         // We use the manage-user edge function instead of a direct table delete to ensure the auth user is also removed
@@ -146,12 +170,69 @@ export const api = {
         if (error || data?.error) throw new Error(error?.message || data?.error || 'Failed to delete user account');
         return data;
     },
-    manageEmployeeAccount: async (action: 'DELETE' | 'UPDATE_STATUS', targetUserId: string, status?: string) => {
+    manageEmployeeAccount: async (action: 'DELETE' | 'UPDATE_STATUS' | 'UPDATE_PASSWORD', targetUserId: string, payload?: any) => {
         const { data, error } = await supabase.functions.invoke('manage-user', {
-            body: { action, targetUserId, status },
+            body: { action, targetUserId, ...payload },
         });
 
         if (error || data?.error) throw new Error(error?.message || data?.error || `Failed to ${action.toLowerCase()} user account`);
+        return data;
+    },
+
+    // --- Salary & Payroll ---
+    addSalaryHike: async (employeeId: string, amount: number, effectiveDate: string, reason: string) => {
+        // 1. Add to salaryHistory table
+        const { data: hike, error: hikeError } = await supabase.from('salary_history').insert({
+            employeeId: employeeId,
+            amount: amount,
+            effectiveDate: effectiveDate,
+            reason: reason
+        }).select().single();
+        
+        if (hikeError) throw hikeError;
+
+        // 2. Update current baseSalary in employees table
+        const { error: empError } = await supabase.from('employees')
+            .update({ baseSalary: amount })
+            .eq('id', employeeId);
+
+        if (empError) throw empError;
+        return hike;
+    },
+
+    getPayrollRecords: async (month: number, year: number) => {
+        const { data, error } = await supabase
+            .from('payroll_records')
+            .select(`
+                *,
+                employee:employees(*)
+            `)
+            .eq('month', month)
+            .eq('year', year);
+        if (error) throw error;
+        return data as any[];
+    },
+
+    savePayrollRecord: async (record: any) => {
+        const { data, error } = await supabase
+            .from('payroll_records')
+            .upsert({
+                employeeId: record.employeeId,
+                month: record.month,
+                year: record.year,
+                baseSalary: record.baseSalary,
+                deductions: record.deductions,
+                netPayable: record.netPayable,
+                workingDays: record.workingDays,
+                daysPresent: record.daysPresent,
+                approvedLeaves: record.approvedLeaves,
+                unpaidAbsences: record.unpaidAbsences,
+                formula: record.formula,
+                status: record.status
+            })
+            .select()
+            .single();
+        if (error) throw error;
         return data;
     },
 
@@ -236,6 +317,26 @@ export const api = {
         handleSupabaseEvent(data, error, 'Update Sentiment');
         return data as any;
     },
+    getMonthlyAttendance: async (month: number, year: number) => {
+        const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+        const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+        
+        const { data, error } = await supabase
+            .from('eod_reports')
+            .select('employeeId, reportDate')
+            .gte('reportDate', startDate)
+            .lte('reportDate', endDate);
+            
+        handleSupabaseEvent(data, error, 'Fetch Monthly Attendance');
+        
+        // Return a map of employeeId -> count of unique days
+        const attendanceMap: Record<string, number> = {};
+        (data || []).forEach((report: any) => {
+            if (!attendanceMap[report.employeeId]) attendanceMap[report.employeeId] = 0;
+            attendanceMap[report.employeeId]++;
+        });
+        return attendanceMap;
+    },
 
     // Work Hours
     logWorkHours: async (data: Partial<WorkHourLogDTO>) => {
@@ -293,12 +394,14 @@ export const api = {
     },
     getKpiProfile: async (employeeId: string, monthYear?: string) => {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
-        const { data, error } = await supabase.from('kpi_profiles').select('*').eq('employee_id', employeeId).eq('month_year', queryMonth).maybeSingle();
+        // Using camelCase columns: employeeId, monthYear
+        const { data, error } = await supabase.from('kpi_profiles').select('*').eq('employeeId', employeeId).eq('monthYear', queryMonth).maybeSingle();
         handleSupabaseEvent(data, error, 'Fetch KPI Profile');
         return data as KpiProfileDTO | null;
     },
     getKpiAuditLogs: async (employeeId: string) => {
-        const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employee_id', employeeId).order('created_at', { ascending: false });
+        // Using camelCase columns: employeeId, createdAt
+        const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employeeId', employeeId).order('createdAt', { ascending: false });
         handleSupabaseEvent(data, error, 'Fetch KPI Audit Logs');
         return data as KpiAuditLogDTO[];
     },
@@ -351,10 +454,10 @@ export const api = {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
-            .eq('month_year', queryMonth)
-            .order('current_score', { ascending: false })
-            .limit(limit); // Optimization: Added limit
+            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)')
+            .eq('monthYear', queryMonth)
+            .order('currentScore', { ascending: false })
+            .limit(limit);
 
         handleSupabaseEvent(data, error, 'Fetch All KPI Profiles');
         return data as any[];
@@ -362,8 +465,8 @@ export const api = {
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
             .from('kpi_audit_logs')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
-            .order('created_at', { ascending: false })
+            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)')
+            .order('createdAt', { ascending: false })
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
         return data as any[];
@@ -456,13 +559,22 @@ export const api = {
     },
 
     // Uploads
-    uploadFile: async (file: File) => {
+    uploadPhoto: async (file: File) => {
+        // Profile photos stored in the 'documents' bucket under profiles/ subfolder
         const ext = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
-        const { error } = await supabase.storage.from('uploads').upload(fileName, file);
+        const fileName = `profiles/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
+        const { error } = await supabase.storage.from('documents').upload(fileName, file, { upsert: true });
+        if (error) throw new Error(error.message);
+        const { data: pubData } = supabase.storage.from('documents').getPublicUrl(fileName);
+        return { url: pubData.publicUrl };
+    },
+    uploadFile: async (file: File) => {
+        // Documents stored in the 'documents' bucket under docs/ subfolder
+        const ext = file.name.split('.').pop();
+        const fileName = `docs/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
+        const { error } = await supabase.storage.from('documents').upload(fileName, file);
         handleSupabaseEvent(null, error, 'File Upload');
-        
-        const { data: pubData } = supabase.storage.from('uploads').getPublicUrl(fileName);
+        const { data: pubData } = supabase.storage.from('documents').getPublicUrl(fileName);
         return { url: pubData.publicUrl };
     },
 };

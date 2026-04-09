@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Check, X, Calendar, Clock, Search, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
+import DatePicker from '@/components/common/DatePicker';
 import { api } from '@/lib/api';
 import '../Leaves.css';
 
@@ -42,6 +43,8 @@ export default function LeaveApprovalsPage() {
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     const fetchLeaves = async () => {
         if (!authEmployee) {
@@ -70,7 +73,7 @@ export default function LeaveApprovalsPage() {
 
     useEffect(() => {
         if (!authLoading) {
-            if (!authEmployee || !['ADMIN', 'MANAGER'].includes(authEmployee.roleId || '')) {
+            if (!authEmployee || !['ADMIN'].includes(authEmployee.roleId || '')) {
                 router.push('/dashboard');
                 setLoading(false);
                 return;
@@ -104,7 +107,13 @@ export default function LeaveApprovalsPage() {
         const q = search.toLowerCase();
         const matchSearch = empName.includes(q) || dept.includes(q) || l.leaveType.toLowerCase().includes(q);
         const matchStatus = !filterStatus || l.status === filterStatus;
-        return matchSearch && matchStatus;
+        
+        const lStart = new Date(l.startDate);
+        const lEnd = new Date(l.endDate);
+        const matchDate = (!startDate || lEnd >= new Date(startDate)) && 
+                          (!endDate || lStart <= new Date(endDate));
+                          
+        return matchSearch && matchStatus && matchDate;
     });
 
     const pendingCount = leaves.filter(l => l.status === 'PENDING').length;
@@ -153,6 +162,18 @@ export default function LeaveApprovalsPage() {
                         <option value="APPROVED">Approved</option>
                         <option value="REJECTED">Rejected</option>
                     </select>
+                    
+                    <DatePicker 
+                        label="From"
+                        value={startDate}
+                        onChange={setStartDate}
+                    />
+                    <DatePicker 
+                        label="To"
+                        value={endDate}
+                        onChange={setEndDate}
+                    />
+
                     <button onClick={fetchLeaves} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '9px 14px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 500 }}>
                         <RefreshCw size={14} /> Refresh
                     </button>
@@ -204,11 +225,7 @@ export default function LeaveApprovalsPage() {
                                                     {empDept} · {empRole}
                                                 </div>
                                             </div>
-                                            <span style={{
-                                                fontSize: '0.7rem', fontWeight: 700, padding: '3px 10px', borderRadius: '12px',
-                                                background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
-                                                color: '#A78BFA', marginLeft: '4px'
-                                            }}>
+                                            <span className={`status-badge submitted`} style={{ marginLeft: '4px' }}>
                                                 {leave.leaveType}
                                             </span>
                                         </div>
@@ -234,11 +251,7 @@ export default function LeaveApprovalsPage() {
 
                                     {/* Right: Status + Actions */}
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', minWidth: '140px' }}>
-                                        <span style={{
-                                            fontSize: '0.72rem', fontWeight: 700, padding: '4px 14px', borderRadius: '12px',
-                                            background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, color: statusCfg.color,
-                                            textTransform: 'uppercase', letterSpacing: '0.04em'
-                                        }}>
+                                        <span className={`status-badge ${leave.status.toLowerCase()}`}>
                                             {leave.status}
                                         </span>
 
