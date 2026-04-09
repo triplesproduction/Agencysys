@@ -559,8 +559,26 @@ export const api = {
     },
 
     // Uploads
-    uploadPhoto: async (file: File) => {
-        // Profile photos stored in the 'documents' bucket under profiles/ subfolder
+    uploadPhoto: async (file: File, oldUrl?: string) => {
+        // Delete old photo from storage if it exists
+        if (oldUrl) {
+            try {
+                // Extract path after /public/documents/ from the Supabase public URL
+                const marker = '/object/public/documents/';
+                const idx = oldUrl.indexOf(marker);
+                if (idx !== -1) {
+                    const oldPath = oldUrl.substring(idx + marker.length);
+                    // Only delete if it's a profile photo (not a default/external URL)
+                    if (oldPath.startsWith('profiles/')) {
+                        await supabase.storage.from('documents').remove([oldPath]);
+                    }
+                }
+            } catch (delErr) {
+                console.warn('Could not delete old profile photo:', delErr);
+            }
+        }
+
+        // Upload new photo
         const ext = file.name.split('.').pop();
         const fileName = `profiles/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
         const { error } = await supabase.storage.from('documents').upload(fileName, file, { upsert: true });

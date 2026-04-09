@@ -133,7 +133,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
 
         setIsUploading(true);
         try {
-            const { url } = await api.uploadPhoto(file);
+            const { url } = await api.uploadPhoto(file, profilePhoto || undefined);
             await api.updateEmployee(employee.id, { profilePhoto: url });
             setProfilePhoto(url);
             addNotification({
