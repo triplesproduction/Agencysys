@@ -70,6 +70,7 @@ export default function LeavesPage() {
         setSubmitting(true);
         try {
             await api.applyForLeave({
+                employeeId: user!.id, // Required: must match auth.uid() for RLS
                 leaveType: leaveType as any,
                 startDate: new Date(startDate).toISOString(),
                 endDate: new Date(endDate).toISOString(),
@@ -83,7 +84,12 @@ export default function LeavesPage() {
             setTimeout(() => setSuccess(false), 4000);
             fetchLeaves();
         } catch (err: any) {
-            setError(err.message || 'Failed to submit leave application.');
+            const msg = err.message || '';
+            if (msg.includes('row-level security') || msg.includes('violates')) {
+                setError('Permission denied. Please contact your admin to unlock leave submissions.');
+            } else {
+                setError(msg || 'Failed to submit leave application.');
+            }
         } finally {
             setSubmitting(false);
         }

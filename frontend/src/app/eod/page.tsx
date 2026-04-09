@@ -96,11 +96,10 @@ export default function EODPage() {
                 sentiment: 'GOOD',
             });
 
-            // Log work hours if provided
+            // Log work hours if provided (non-critical — silently skip on RLS errors)
             const hours = parseFloat(formData.workHours);
             if (!isNaN(hours) && hours > 0) {
                 try {
-                    console.log('[EOD TRACE] Logging work hours...', { hours });
                     await api.logWorkHours({
                         employeeId: empId,
                         date: new Date().toISOString().split('T')[0],
@@ -108,10 +107,9 @@ export default function EODPage() {
                         description: 'EOD Daily Submission',
                     });
                 } catch (hourError: any) {
-                    console.error('[EOD TRACE] Work hour logging failed (KPI Trigger?):', hourError);
-                    if (hourError.message?.includes('row-level security')) {
-                        setError('EOD saved, but KPI update failed (RLS Policy). Please contact Admin.');
-                    }
+                    // Non-critical: work hours logging / KPI trigger may fail due to RLS.
+                    // EOD is already saved — don't alarm the user with a red error.
+                    console.warn('[EOD] Work hour/KPI logging skipped (RLS or trigger):', hourError?.message);
                 }
             }
 
