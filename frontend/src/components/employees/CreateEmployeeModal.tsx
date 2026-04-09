@@ -131,12 +131,14 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             setError('Please fill in required professional details.');
             return;
         }
-        if (step === 3 && (!formData.email)) {
-            setError('Please provide a valid work email address for credential provisioning.');
-            return;
-        }
         if (step === 2 && !formData.designation) {
             setError('Please select a designation/role.');
+            return;
+        }
+        // Step 3 = Documents (no required fields — optional uploads)
+        // Step 4 = System Credentials (email required)
+        if (step === 4 && !formData.email) {
+            setError('Please provide a valid work email address for credential provisioning.');
             return;
         }
         setError('');
@@ -145,6 +147,12 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // Guard: only submit when on the final step (step 4 = Credentials)
+        // Prevents accidental form submission via Enter key on earlier steps
+        if (step !== 4) {
+            handleNext();
+            return;
+        }
         setError('');
         setLoading(true);
         setProvisioningStatus('Initializing employee setup...');
@@ -486,11 +494,40 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                             </div>
                         </div>
 
-                        {/* STEP 3: SYSTEM ROLE */}
+                        {/* STEP 3: DOCUMENTS (optional — upload before credentials) */}
                         <div style={{ display: step === 3 ? 'block' : 'none' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><FileText size={18} color="var(--purple-main)" /> Documents</h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '20px' }}>Upload employee documents (optional). You can skip this step — documents can be added later from the employee profile.</p>
+                            <div onClick={() => fileInputRef.current?.click()} style={{ padding: '32px', border: '2px dashed var(--glass-border)', borderRadius: 'var(--radius-md)', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s' }}
+                                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--purple-main)')}
+                                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--glass-border)')}
+                            >
+                                <Plus size={32} color="var(--purple-main)" style={{ margin: '0 auto 12px' }} />
+                                <div style={{ fontWeight: 600 }}>Click to upload documents</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>PDF, JPG, PNG — Max 4MB each</div>
+                                <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} />
+                            </div>
+                            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {documents.map(doc => (
+                                    <div key={doc.id} style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontSize: '0.875rem' }}>{doc.name}</div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button type="button" onClick={() => viewDocument(doc)} className="action-btn"><Eye size={14} /></button>
+                                            <button type="button" onClick={() => removeDocument(doc.id)} className="action-btn danger-hover"><Trash2 size={14} /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            {documents.length === 0 && (
+                                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '12px' }}>No documents uploaded yet.</p>
+                            )}
+                        </div>
+
+                        {/* STEP 4: SYSTEM CREDENTIALS (last step before provisioning) */}
+                        <div style={{ display: step === 4 ? 'block' : 'none' }}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><Key size={18} color="var(--purple-main)" /> System Credentials</h3>
                             <div style={{ padding: '12px 16px', background: 'rgba(139,92,246,0.08)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--purple-light)', marginBottom: '20px' }}>
-                                🔒 Password will be auto-generated.
+                                🔒 Password will be auto-generated and shown once after account creation.
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                 <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Work Email *</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="user@triples.os" /></div>
@@ -504,32 +541,11 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                 </div>
                                 <div>
                                     <label className="input-label">Status *</label>
-                                                                        <select name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
+                                    <select name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="ACTIVE">Active</option>
                                         <option value="INACTIVE">Inactive</option>
                                     </select>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* STEP 4: DOCUMENTS */}
-                        <div style={{ display: step === 4 ? 'block' : 'none' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '16px' }}><FileText size={18} color="var(--purple-main)" /> Documents</h3>
-                            <div onClick={() => fileInputRef.current?.click()} style={{ padding: '32px', border: '2px dashed var(--glass-border)', borderRadius: 'var(--radius-md)', textAlign: 'center', cursor: 'pointer' }}>
-                                <Plus size={32} color="var(--purple-main)" style={{ margin: '0 auto 12px' }} />
-                                <div>Click to upload documents</div>
-                                <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} />
-                            </div>
-                            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {documents.map(doc => (
-                                    <div key={doc.id} style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ fontSize: '0.875rem' }}>{doc.name}</div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button type="button" onClick={() => viewDocument(doc)} className="action-btn"><Eye size={14} /></button>
-                                            <button type="button" onClick={() => removeDocument(doc.id)} className="action-btn danger-hover"><Trash2 size={14} /></button>
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                         {error && <div style={{ color: '#EF4444', fontSize: '0.875rem' }}>{error}</div>}
