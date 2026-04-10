@@ -58,11 +58,11 @@ function LoginForm() {
     return (
         <div className="login-card">
             <div className="login-header">
-                <div className="login-logo" style={{ flexDirection: 'column', gap: '8px' }}>
-                    <img src="/logo.png" alt="TripleS" style={{ width: '64px', height: '64px', marginBottom: '8px' }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2' }}>
-                        <div>TripleS <span style={{ color: 'var(--purple-light)' }}>OS</span></div>
-                        <div style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Internal Agency Software</div>
+                <div className="login-logo" style={{ flexDirection: 'column', gap: '0' }}>
+                    <img src="/logo.png" alt="TripleS" style={{ width: '80px', height: '80px', marginBottom: '20px' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ fontSize: '2.4rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '4px' }}>TripleS <span style={{ color: 'var(--purple-light)', fontWeight: '900' }}>OS</span></div>
+                        <div style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Internal Agency Software</div>
                     </div>
                 </div>
                 <p className="login-subtitle">Sign in to your dashboard to continue</p>
