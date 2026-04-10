@@ -140,41 +140,81 @@ export default function LeaveApprovalsPage() {
                         Review and manage employee time-off requests.
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                        <input
-                            type="text"
-                            placeholder="Search by name..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '9px 14px 9px 36px', color: 'white', outline: 'none', width: '200px', fontSize: '0.85rem' }}
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label className="input-label" style={{ margin: 0 }}>Search</label>
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                            <input
+                                type="text"
+                                placeholder="Name..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                style={{ 
+                                    background: 'rgba(255,255,255,0.05)', 
+                                    border: '1px solid var(--glass-border)', 
+                                    borderRadius: 'var(--radius-sm)', 
+                                    padding: '10px 14px 10px 36px', 
+                                    color: 'white', 
+                                    outline: 'none', 
+                                    width: '180px', 
+                                    fontSize: '0.85rem',
+                                    height: '42px'
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label className="input-label" style={{ margin: 0 }}>Status</label>
+                        <select
+                            className="filter-select"
+                            value={filterStatus} 
+                            onChange={e => setFilterStatus(e.target.value)}
+                            style={{ minWidth: '150px', height: '42px' }}
+                        >
+                            <option value="">All Status</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    
+                    <div style={{ width: '170px' }}>
+                        <DatePicker 
+                            label="From"
+                            value={startDate}
+                            onChange={setStartDate}
                         />
                     </div>
-                    <select
-                        className="filter-select"
-                        value={filterStatus} 
-                        onChange={e => setFilterStatus(e.target.value)}
-                        style={{ minWidth: '150px' }}
-                    >
-                        <option value="">All Status</option>
-                        <option value="PENDING">Pending</option>
-                        <option value="APPROVED">Approved</option>
-                        <option value="REJECTED">Rejected</option>
-                    </select>
-                    
-                    <DatePicker 
-                        label="From"
-                        value={startDate}
-                        onChange={setStartDate}
-                    />
-                    <DatePicker 
-                        label="To"
-                        value={endDate}
-                        onChange={setEndDate}
-                    />
+                    <div style={{ width: '170px' }}>
+                        <DatePicker 
+                            label="To"
+                            value={endDate}
+                            onChange={setEndDate}
+                        />
+                    </div>
 
-                    <button onClick={fetchLeaves} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '9px 14px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 500 }}>
+                    <button 
+                        onClick={fetchLeaves} 
+                        style={{ 
+                            background: 'rgba(139,92,246,0.15)', 
+                            border: '1px solid rgba(139,92,246,0.3)', 
+                            borderRadius: 'var(--radius-sm)', 
+                            padding: '0 16px', 
+                            color: 'var(--purple-main)', 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px', 
+                            fontSize: '0.85rem', 
+                            fontWeight: 600,
+                            height: '42px',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.25)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(139,92,246,0.15)'}
+                    >
                         <RefreshCw size={14} /> Refresh
                     </button>
                 </div>

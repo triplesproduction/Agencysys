@@ -173,29 +173,51 @@ export default function LeavesPage() {
                         </div>
                     </div>
 
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                         <DatePicker 
                             label="Start Date"
                             value={startDate}
                             onChange={(dt) => setStartDate(dt)}
                             disabled={submitting}
-                            className="flex-1"
                         />
                         <DatePicker 
                             label="End Date"
                             value={endDate}
                             onChange={(dt) => setEndDate(dt)}
                             disabled={submitting}
-                            className="flex-1"
                         />
+                    </div>
 
-                    <div style={{ marginBottom: '16px' }}>
-                        <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500 }}>Reason</label>
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ display: 'block', marginBottom: '12px', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason</label>
                         <textarea
-                            style={{ background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', width: '100%', minHeight: '90px', resize: 'vertical', outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit' }}
-                            placeholder="Please provide a brief reason..."
+                            style={{ 
+                                background: 'rgba(0,0,0,0.22)', 
+                                color: 'white', 
+                                border: '1px solid var(--glass-border)', 
+                                padding: '12px 16px', 
+                                borderRadius: '12px', 
+                                width: '100%', 
+                                minHeight: '110px', 
+                                resize: 'vertical', 
+                                outline: 'none', 
+                                fontSize: '0.9rem', 
+                                fontFamily: 'inherit',
+                                transition: 'all 0.3s ease',
+                                backdropFilter: 'blur(8px)'
+                            }}
+                            placeholder="Please provide a detailed reason for leave..."
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             disabled={submitting}
+                            onFocus={e => {
+                                e.currentTarget.style.borderColor = 'var(--purple-main)';
+                                e.currentTarget.style.boxShadow = '0 0 16px var(--purple-glow)';
+                            }}
+                            onBlur={e => {
+                                e.currentTarget.style.borderColor = 'var(--glass-border)';
+                                e.currentTarget.style.boxShadow = 'none';
+                            }}
                         />
                     </div>
 

@@ -394,16 +394,34 @@ export const api = {
     },
     getKpiProfile: async (employeeId: string, monthYear?: string) => {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
-        // Using camelCase columns: employeeId, monthYear
-        const { data, error } = await supabase.from('kpi_profiles').select('*').eq('employeeId', employeeId).eq('monthYear', queryMonth).maybeSingle();
+        // Using snake_case columns as established in DB schema
+        const { data, error } = await supabase.from('kpi_profiles').select('*').eq('employee_id', employeeId).eq('month_year', queryMonth).maybeSingle();
         handleSupabaseEvent(data, error, 'Fetch KPI Profile');
-        return data as KpiProfileDTO | null;
+        
+        if (!data) return null;
+
+        // Map back to camelCase DTO if needed, or return as is if DTO handles it
+        return {
+            ...data,
+            employeeId: data.employee_id,
+            monthYear: data.month_year,
+            currentScore: data.current_score
+        } as KpiProfileDTO;
     },
     getKpiAuditLogs: async (employeeId: string) => {
-        // Using camelCase columns: employeeId, createdAt
-        const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employeeId', employeeId).order('createdAt', { ascending: false });
+        // Using snake_case columns: employee_id, created_at
+        const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employee_id', employeeId).order('created_at', { ascending: false });
         handleSupabaseEvent(data, error, 'Fetch KPI Audit Logs');
-        return data as KpiAuditLogDTO[];
+        
+        return (data || []).map((log: any) => ({
+            ...log,
+            employeeId: log.employee_id,
+            createdAt: log.created_at,
+            pointsChange: log.points_change,
+            eventSource: log.event_source,
+            visibleScoreBefore: log.visible_score_before,
+            visibleScoreAfter: log.visible_score_after
+        })) as KpiAuditLogDTO[];
     },
     assignBonusPoints: async (employeeId: string, points: number, category: string, reason: string) => {
         const { error } = await supabase.rpc('assign_bonus', { 
@@ -454,22 +472,36 @@ export const api = {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)')
-            .eq('monthYear', queryMonth)
-            .order('currentScore', { ascending: false })
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
+            .eq('month_year', queryMonth)
+            .order('current_score', { ascending: false })
             .limit(limit);
 
         handleSupabaseEvent(data, error, 'Fetch All KPI Profiles');
-        return data as any[];
+        return (data || []).map((p: any) => ({
+            ...p,
+            employeeId: p.employee_id,
+            monthYear: p.month_year,
+            currentScore: p.current_score
+        }));
     },
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
             .from('kpi_audit_logs')
-            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)')
-            .order('createdAt', { ascending: false })
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
+            .order('created_at', { ascending: false })
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
-        return data as any[];
+        
+        return (data || []).map((log: any) => ({
+            ...log,
+            employeeId: log.employee_id,
+            createdAt: log.created_at,
+            pointsChange: log.points_change,
+            eventSource: log.event_source,
+            visibleScoreBefore: log.visible_score_before,
+            visibleScoreAfter: log.visible_score_after
+        }));
     },
 
     // Chats

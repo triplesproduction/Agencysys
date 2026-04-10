@@ -2,22 +2,16 @@
     display: flex;
     flex-direction: column;
     gap: 2.5rem;
-    max-width: 850px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem 1rem 5rem;
-}
-
-.page-header {
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    padding-bottom: 1.5rem;
+    padding: 2rem 2rem 5rem;
 }
 
 .greeting {
-    font-size: 2.25rem;
+    font-size: 2.5rem;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    background: linear-gradient(to right, #fff, rgba(255,255,255,0.6));
+    letter-spacing: -0.04em;
+    background: linear-gradient(to right, #fff 20%, rgba(255,255,255,0.4) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -26,38 +20,35 @@
 
 .subtitle {
     color: var(--text-secondary);
-    font-size: 1.05rem;
+    font-size: 1.1rem;
+    opacity: 0.8;
 }
 
-/* Redesigned Form Card - Less Glass, More Structure */
+/* Redesigned Form Card */
 .eod-card {
-    background: rgba(15, 15, 20, 0.7) !important;
-    backdrop-filter: blur(20px);
+    background: linear-gradient(145deg, rgba(20, 20, 25, 0.8) 0%, rgba(10, 10, 15, 0.9) 100%) !important;
+    backdrop-filter: blur(30px);
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
-    padding: 3rem !important;
-    border-radius: 20px !important;
-}
-
-.form-group {
-    margin-bottom: 2rem;
+    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    border-radius: 24px !important;
 }
 
 .input-label {
     display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--purple-light);
+    margin-bottom: 1rem;
+    opacity: 0.9;
 }
 
 .glass-textarea {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 16px;
+    padding: 1.25rem;
     color: #fff;
     font-size: 1rem;
     line-height: 1.6;
@@ -66,83 +57,71 @@
 }
 
 .glass-textarea:focus {
-    background: rgba(0, 0, 0, 0.5) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
     border-color: var(--purple-main) !important;
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15) !important;
+    box-shadow: 0 0 0 5px rgba(139, 92, 246, 0.1) !important;
     outline: none;
 }
 
 .submit-btn {
-    background: linear-gradient(135deg, var(--purple-main), #6d28d9) !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.02em;
-    height: 3.5rem !important;
-    font-size: 1.1rem !important;
-    border-radius: 12px !important;
-    box-shadow: 0 10px 20px rgba(124, 58, 237, 0.2);
-    transition: all 0.3s ease !important;
+    background: linear-gradient(135deg, var(--purple-main), #8b5cf6) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 0.9rem !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 24px rgba(139, 92, 246, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .submit-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(124, 58, 237, 0.3);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
 }
 
-/* Error/Success Polish */
-.error-message {
-    background: rgba(239, 68, 68, 0.08) !important;
-    border: 1px solid rgba(239, 68, 68, 0.2) !important;
-    color: #f87171 !important;
-    font-weight: 500;
-    font-size: 0.95rem;
+/* History Card Polish */
+.active-report {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
 }
 
-.success-message {
-    background: rgba(16, 185, 129, 0.1) !important;
-    border: 1px solid rgba(16, 185, 129, 0.2) !important;
-    color: #34d399 !important;
-    padding: 1.25rem !important;
-    font-size: 1rem !important;
+.inactive-report {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-/* List Component Polish */
-.report-card-header {
-    border-left: 3px solid transparent;
-    transition: all 0.2s ease;
+.inactive-report:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
-.report-card-header:hover {
-    background: rgba(255, 255, 255, 0.02) !important;
-}
-
-.report-card-expanded {
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(0, 0, 0, 0.2);
-}
-
-.sentiment-badge {
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    font-weight: 700;
+.today-badge {
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: #fff;
+    background: var(--purple-main);
+    padding: 2px 8px;
+    border-radius: 100px;
     letter-spacing: 0.05em;
-    padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+}
+
+.sentiment-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px currentColor;
 }
 
 .report-card-container {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    word-break: break-word;
-    overflow-wrap: break-word;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.report-card-container li {
-    word-break: break-word;
-    overflow-wrap: break-word;
-    white-space: pre-wrap;
-}
-
-.report-card-container:hover {
-    border-color: rgba(255, 255, 255, 0.15);
+@media (max-width: 1024px) {
+    .eod-page {
+        padding: 1.5rem 1rem;
+    }
+    .eod-page > div {
+        grid-template-columns: 1fr !important;
+    }
 }

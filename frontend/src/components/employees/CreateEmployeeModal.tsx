@@ -240,15 +240,23 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
 
     const renderStepIndicators = () => (
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-            {[1, 2, 3, 4].map(num => (
-                <div key={num} style={{
-                    flex: 1,
-                    height: '4px',
-                    background: step >= num ? 'var(--purple-main)' : 'rgba(255,255,255,0.1)',
-                    borderRadius: '2px',
-                    transition: 'var(--transition-smooth)'
-                }} />
-            ))}
+            {['Personal info', 'Professional', 'Documents', 'Login Details'].map((title, idx) => {
+                const num = idx + 1;
+                const isActive = step >= num;
+                return (
+                    <div key={num} style={{ flex: 1 }}>
+                        <div style={{
+                            height: '4px',
+                            background: isActive ? 'var(--purple-main)' : 'rgba(255,255,255,0.1)',
+                            borderRadius: '2px',
+                            transition: 'all 0.4s ease'
+                        }} />
+                        <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', marginTop: '6px', color: isActive ? 'var(--purple-light)' : 'rgba(255,255,255,0.2)', fontWeight: 700, letterSpacing: '0.05em' }}>
+                            {title}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 
@@ -496,15 +504,23 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
 
                         {/* STEP 3: DOCUMENTS (optional — upload before credentials) */}
                         <div style={{ display: step === 3 ? 'block' : 'none' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><FileText size={18} color="var(--purple-main)" /> Documents</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '20px' }}>Upload employee documents (optional). You can skip this step — documents can be added later from the employee profile.</p>
-                            <div onClick={() => fileInputRef.current?.click()} style={{ padding: '32px', border: '2px dashed var(--glass-border)', borderRadius: 'var(--radius-md)', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s' }}
-                                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--purple-main)')}
-                                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--glass-border)')}
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><FileText size={18} color="var(--purple-main)" /> Document Repository</h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '24px', opacity: 0.8 }}>Securely store official identification, contracts, or certifications. This step is optional but recommended.</p>
+                            
+                            <div 
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{ 
+                                    border: '2px dashed rgba(255,255,255,0.1)', 
+                                    borderRadius: '16px', 
+                                    padding: '40px 20px', 
+                                    textAlign: 'center', 
+                                    cursor: 'pointer',
+                                    background: 'rgba(255,255,255,0.02)',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseOver={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'}
+                                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
                             >
-                                <Plus size={32} color="var(--purple-main)" style={{ margin: '0 auto 12px' }} />
-                                <div style={{ fontWeight: 600 }}>Click to upload documents</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>PDF, JPG, PNG — Max 4MB each</div>
                                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} />
                             </div>
                             <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>

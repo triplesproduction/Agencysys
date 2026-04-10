@@ -152,184 +152,216 @@ export default function EODPage() {
 
     return (
         <div className="eod-page fade-in">
-            <header className="page-header">
+            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: 'none', paddingBottom: '0' }}>
                 <div>
-                    <h1 className="greeting">Execution Summary</h1>
+                    <h1 className="greeting">Daily Execution Summary</h1>
                     <p className="subtitle">Account for your productivity and log daily progress.</p>
+                </div>
+                <div style={{ textAlign: 'right', paddingBottom: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Current Streak</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--purple-light)' }}>{myReports.length} Days 🔥</div>
                 </div>
             </header>
 
-            {/* Submission Form Section */}
-            <div className="form-container">
-                <GlassCard className="eod-card">
-                    <form onSubmit={handleSubmit} className="eod-form">
-                        <div className="form-group">
-                            <label className="input-label">Tasks Completed Today</label>
-                            <textarea
-                                className="glass-textarea"
-                                rows={4}
-                                placeholder="List your accomplishments (one per line)..."
-                                value={formData.tasksCompleted}
-                                onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
-                            />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '2.4rem', alignItems: 'start' }}>
+                {/* Submission Form Section */}
+                <div className="form-container">
+                    <GlassCard className="eod-card" style={{ padding: '2.5rem' }}>
+                        <form onSubmit={handleSubmit} className="eod-form">
                             <div className="form-group">
-                                <label className="input-label">Work Hours</label>
-                                <input
-                                    type="number"
+                                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    Tasks Completed Today
+                                    <span style={{ fontSize: '0.7rem', opacity: 0.6, fontWeight: 400 }}>List one item per line</span>
+                                </label>
+                                <textarea
                                     className="glass-textarea"
-                                    style={{ height: '3.5rem', minHeight: 'unset' }}
-                                    min="0" step="0.5" max="24"
-                                    placeholder="Eg. 8.5"
-                                    value={formData.workHours}
-                                    onChange={e => setFormData({ ...formData, workHours: e.target.value })}
+                                    rows={5}
+                                    placeholder="• Accomplished major feature A
+• Debugged critical issue B
+• Attended sync meeting..."
+                                    value={formData.tasksCompleted}
+                                    onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
                                 />
                             </div>
-                            <div className="form-group">
-                                <label className="input-label">Blockers (Optional)</label>
-                                <input
-                                    type="text"
-                                    className="glass-textarea"
-                                    style={{ height: '3.5rem', minHeight: 'unset' }}
-                                    placeholder="Any impediments?"
-                                    value={formData.blockers}
-                                    onChange={e => setFormData({ ...formData, blockers: e.target.value })}
-                                />
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                <div className="form-group">
+                                    <label className="input-label">Work Hours</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type="number"
+                                            className="glass-textarea"
+                                            style={{ height: '3.5rem', paddingLeft: '3rem' }}
+                                            min="0" step="0.5" max="24"
+                                            placeholder="Eg. 8.5"
+                                            value={formData.workHours}
+                                            onChange={e => setFormData({ ...formData, workHours: e.target.value })}
+                                        />
+                                        <Clock size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="input-label">Blockers (Optional)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type="text"
+                                            className="glass-textarea"
+                                            style={{ height: '3.5rem', paddingLeft: '3rem' }}
+                                            placeholder="Any impediments?"
+                                            value={formData.blockers}
+                                            onChange={e => setFormData({ ...formData, blockers: e.target.value })}
+                                        />
+                                        <AlertTriangle size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="form-actions" style={{ marginTop: '0.5rem' }}>
-                            <Button type="submit" disabled={loading} className="submit-btn" size="lg">
-                                {loading ? 'Processing...' : 'Submit Report'}
-                            </Button>
-                        </div>
-
-                        {error && (
-                            <div className="error-message p-4 rounded-xl mt-4 flex items-center gap-3">
-                                <AlertTriangle size={18} />
-                                {error}
+                            <div className="form-actions" style={{ marginTop: '0.5rem' }}>
+                                <Button type="submit" disabled={loading} className="submit-btn" size="lg" style={{ width: '100%', height: '4rem' }}>
+                                    {loading ? 'Processing Protocol...' : 'Submit Execution Report'}
+                                </Button>
                             </div>
-                        )}
 
-                        {success && (
-                            <div className="success-message p-4 rounded-xl mt-4 flex items-center gap-3">
-                                <CheckCircle2 size={18} />
-                                EOD Report logged successfully. Your activity has been saved.
-                            </div>
-                        )}
-                    </form>
-                </GlassCard>
-            </div>
+                            {error && (
+                                <div className="error-message p-4 rounded-xl mt-4 flex items-center gap-3 fade-in">
+                                    <AlertTriangle size={18} />
+                                    {error}
+                                </div>
+                            )}
 
-            {/* Submissions History Section */}
-            <div className="history-section">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Clock size={20} className="text-purple-400" />
-                        Submission Log
-                    </h2>
+                            {success && (
+                                <div className="success-message p-4 rounded-xl mt-4 flex items-center gap-3 fade-in">
+                                    <CheckCircle2 size={18} />
+                                    EOD Report logged successfully. Your productivity has been recorded.
+                                </div>
+                            )}
+                        </form>
+                    </GlassCard>
                 </div>
 
-                {reportsLoading ? (
-                    <div className="flex flex-col gap-4">
-                        {[1, 2].map(i => (
-                            <div key={i} className="animate-pulse bg-white/5 h-20 rounded-2xl" />
-                        ))}
+                {/* Submissions History Section */}
+                <div className="history-section">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Clock size={16} className="text-purple-400" />
+                            </div>
+                            Recent Log
+                        </h2>
                     </div>
-                ) : myReports.length === 0 ? (
-                    <div style={{ 
-                        padding: '3rem', textAlign: 'center', borderRadius: '20px',
-                        background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)'
-                    }}>
-                        <p style={{ color: 'var(--text-secondary)' }}>No entries found for your account.</p>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {myReports.map(report => {
-                            const isExpanded = expandedId === report.id;
-                            const completedItems = getCompletedItems(report);
-                            const inProgressItems = getInProgressItems(report);
-                            const reportDate = new Date(report.reportDate);
-                            const isToday = new Date().toDateString() === reportDate.toDateString();
 
-                            return (
-                                <div key={report.id} 
-                                    className={`report-card-container overflow-hidden rounded-2xl transition-all duration-300 ${isExpanded ? 'bg-white/[0.05] ring-1 ring-white/10' : 'bg-white/[0.02] border border-white/5 hover:bg-white/[0.04]'}`}
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => setExpandedId(isExpanded ? null : report.id)}
-                                >
-                                    <div className="p-5 flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div style={{
-                                                width: '42px', height: '42px', borderRadius: '12px',
-                                                background: isToday ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.03)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}>
-                                                <Calendar size={18} style={{ color: isToday ? 'var(--purple-main)' : 'rgba(255,255,255,0.4)' }} />
-                                            </div>
-                                            <div>
-                                                <div style={{ fontWeight: 600, fontSize: '1.05rem', color: 'rgba(255,255,255,0.95)' }}>
-                                                    {reportDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    {isToday && <span style={{ marginLeft: '10px', fontSize: '0.65rem', fontWeight: 800, background: 'var(--purple-main)', padding: '3px 8px', borderRadius: '5px', verticalAlign: 'middle', letterSpacing: '0.05em' }}>TODAY</span>}
-                                                </div>
-                                                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
-                                                    {completedItems.length} {completedItems.length === 1 ? 'task' : 'tasks'} recorded
-                                                </div>
-                                            </div>
-                                        </div>
+                    {reportsLoading ? (
+                        <div className="flex flex-col gap-4">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="animate-pulse bg-white/5 h-24 rounded-2xl" />
+                            ))}
+                        </div>
+                    ) : myReports.length === 0 ? (
+                        <div style={{ 
+                            padding: '4rem 2rem', textAlign: 'center', borderRadius: '24px',
+                            background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)'
+                        }}>
+                            <Calendar size={40} style={{ opacity: 0.1, marginBottom: '16px' }} />
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No telemetry data found for your account.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                            {myReports.map(report => {
+                                const isExpanded = expandedId === report.id;
+                                const completedItems = getCompletedItems(report);
+                                const reportDate = new Date(report.reportDate);
+                                const isToday = new Date().toDateString() === reportDate.toDateString();
 
-                                        <div className="flex items-center gap-6">
-                                            {report.sentiment && (
-                                                <div className="sentiment-badge rounded-lg flex items-center gap-2 border-[1.5px]" 
-                                                    style={{ 
-                                                        borderColor: `${sentimentColor[report.sentiment]}40`,
-                                                        background: `${sentimentColor[report.sentiment]}15`,
-                                                        color: sentimentColor[report.sentiment],
-                                                        fontWeight: 700
-                                                    }}>
-                                                    <SentimentIcon sentiment={report.sentiment} />
-                                                    {report.sentiment}
+                                return (
+                                    <div key={report.id} 
+                                        className={`report-card-container overflow-hidden rounded-2xl transition-all duration-300 ${isExpanded ? 'active-report' : 'inactive-report'}`}
+                                        onClick={() => setExpandedId(isExpanded ? null : report.id)}
+                                    >
+                                        <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                <div style={{ 
+                                                    width: '46px', height: '46px', borderRadius: '14px', 
+                                                    background: isToday ? 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.1))' : 'rgba(255,255,255,0.03)',
+                                                    border: '1px solid rgba(255,255,255,0.05)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    <Calendar size={20} style={{ color: isToday ? 'var(--purple-light)' : 'rgba(255,255,255,0.3)' }} />
                                                 </div>
-                                            )}
-                                            <ChevronDown size={20} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'rgba(255,255,255,0.4)' }} />
-                                        </div>
-                                    </div>
-
-                                    {isExpanded && (
-                                        <div className="p-6 pt-0 border-t border-white/5 animate-in slide-in-from-top-2 duration-300">
-                                            <div className="grid gap-6 mt-6">
                                                 <div>
-                                                    <h4 className="text-[0.7rem] uppercase tracking-widest text-white/30 font-bold mb-3 flex items-center gap-2">
-                                                        <CheckSquare size={12} className="text-green-500" /> Major Accomplishments
-                                                    </h4>
-                                                    <ul className="space-y-2">
+                                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {reportDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                        {isToday && <span className="today-badge">TODAY</span>}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px', fontWeight: 500 }}>
+                                                        {completedItems.length} Key Assignments
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                {report.sentiment && (
+                                                    <div className="sentiment-dot" style={{ background: sentimentColor[report.sentiment] }}></div>
+                                                )}
+                                                <ChevronDown size={18} style={{ opacity: 0.3, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+                                            </div>
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className="fade-in" style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
+                                                <div style={{ paddingTop: '1.25rem' }}>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <CheckSquare size={12} /> Execution Log
+                                                    </div>
+                                                    <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                         {completedItems.map((item, i) => (
-                                                            <li key={i} className="text-white/80 text-sm pl-4 relative before:content-[''] before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:bg-green-500/40 before:rounded-full">
-                                                                {item}
-                                                            </li>
+                                                            <li key={i} style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5' }}>{item}</li>
                                                         ))}
                                                     </ul>
+                                                    
+                                                    {report.blockers && (
+                                                        <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(248,113,113,0.05)', borderRadius: '12px', border: '1px solid rgba(248,113,113,0.1)' }}>
+                                                            <div style={{ fontSize: '0.7rem', color: '#f87171', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <AlertTriangle size={12} /> Critical Impediments
+                                                            </div>
+                                                            <div style={{ fontSize: '0.85rem', color: '#fca5a5' }}>{report.blockers}</div>
+                                                        </div>
+                                                    )}
                                                 </div>
-
-                                                {report.blockers && (
-                                                    <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-xl">
-                                                        <h4 className="text-[0.7rem] uppercase tracking-widest text-red-400 font-bold mb-2 flex items-center gap-2">
-                                                            <AlertTriangle size={12} /> Blockers & Impediments
-                                                        </h4>
-                                                        <p className="text-white/70 text-sm">{report.blockers}</p>
-                                                    </div>
-                                                )}
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
 }
+
+const getCompletedItems = (report: EODSubmissionDTO): string[] => {
+    if (Array.isArray(report.tasksCompleted)) return report.tasksCompleted;
+    if (typeof report.tasksCompleted === 'string') {
+        try {
+            const parsed = JSON.parse(report.tasksCompleted);
+            return Array.isArray(parsed) ? parsed : [report.tasksCompleted];
+        } catch {
+            return [report.tasksCompleted];
+        }
+    }
+    return [];
+};
+
+const getInProgressItems = (report: EODSubmissionDTO): string[] => {
+    if (Array.isArray(report.tasksInProgress)) return report.tasksInProgress;
+    if (typeof report.tasksInProgress === 'string') {
+        try {
+            const parsed = JSON.parse(report.tasksInProgress);
+            return Array.isArray(parsed) ? parsed : [report.tasksInProgress];
+        } catch {
+            return [report.tasksInProgress];
+        }
+    }
+    return [];
+};

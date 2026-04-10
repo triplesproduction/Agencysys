@@ -429,7 +429,8 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                             value={editData.designation} 
                                             onChange={e => setEditData({ ...editData, designation: e.target.value })}
                                             className="filter-select"
-                                            style={{ width: '100%', minWidth: 'unset' }}
+                                            disabled={!isAdminUser}
+                                            style={{ width: '100%', minWidth: 'unset', opacity: !isAdminUser ? 0.6 : 1, cursor: !isAdminUser ? 'not-allowed' : 'pointer' }}
                                         >
                                             {editData.department && DEPARTMENT_ROLES[editData.department]?.map(role => (
                                                 <option key={role} value={role}>{role}</option>
@@ -465,7 +466,13 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Department</div>
                                         {isEditing ? (
-                                            <select className="filter-select" value={editData.department} onChange={e => { const dept = e.target.value; setEditData({ ...editData, department: dept, designation: DEPARTMENT_ROLES[dept]?.[0] || editData.designation }); }} style={{ width: '100%', minWidth: 'unset' }}>
+                                            <select 
+                                                className="filter-select" 
+                                                value={editData.department} 
+                                                disabled={!isAdminUser}
+                                                onChange={e => { const dept = e.target.value; setEditData({ ...editData, department: dept, designation: DEPARTMENT_ROLES[dept]?.[0] || editData.designation }); }} 
+                                                style={{ width: '100%', minWidth: 'unset', opacity: !isAdminUser ? 0.6 : 1, cursor: !isAdminUser ? 'not-allowed' : 'pointer' }}
+                                            >
                                                 <option value="">Select Department</option>
                                                 {Object.keys(DEPARTMENT_ROLES).map(dept => (<option key={dept} value={dept}>{dept}</option>))}
                                             </select>
@@ -476,7 +483,9 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Joined Date</div>
                                         {isEditing ? (
-                                            <DatePicker label="" value={editData.joinedAt} onChange={dt => setEditData({ ...editData, joinedAt: dt })} />
+                                            <div style={{ opacity: !isAdminUser ? 0.6 : 1, pointerEvents: !isAdminUser ? 'none' : 'auto' }}>
+                                                <DatePicker label="" value={editData.joinedAt} onChange={dt => setEditData({ ...editData, joinedAt: dt })} />
+                                            </div>
                                         ) : (
                                             <div style={{ fontSize: '1rem', fontWeight: 500, color: 'rgba(255,255,255,0.95)' }}>{employee.joinedAt ? new Date(employee.joinedAt).toLocaleDateString() : 'N/A'}</div>
                                         )}
@@ -484,7 +493,13 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Employment</div>
                                         {isEditing ? (
-                                            <select className="filter-select" value={editData.employmentType} onChange={e => { const type = e.target.value; setEditData({ ...editData, employmentType: type as any, internshipStatus: type === 'INTERNSHIP' ? 'PAID' : '' }); }} style={{ width: '100%', minWidth: 'unset' }}>
+                                            <select 
+                                                className="filter-select" 
+                                                value={editData.employmentType} 
+                                                disabled={!isAdminUser}
+                                                onChange={e => { const type = e.target.value; setEditData({ ...editData, employmentType: type as any, internshipStatus: type === 'INTERNSHIP' ? 'PAID' : '' }); }} 
+                                                style={{ width: '100%', minWidth: 'unset', opacity: !isAdminUser ? 0.6 : 1, cursor: !isAdminUser ? 'not-allowed' : 'pointer' }}
+                                            >
                                                 <option value="FULL_TIME">Full Time</option>
                                                 <option value="PART_TIME">Part Time</option>
                                                 <option value="INTERNSHIP">Internship</option>
@@ -498,7 +513,14 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Monthly Financial</div>
                                         {isEditing ? (
-                                            <input type="number" className="input-field" value={editData.employmentType === 'INTERNSHIP' ? editData.internshipStipend : editData.baseSalary} onChange={e => editData.employmentType === 'INTERNSHIP' ? setEditData({ ...editData, internshipStipend: Number(e.target.value) }) : setEditData({ ...editData, baseSalary: Number(e.target.value) })} style={{ padding: '8px 12px' }} />
+                                            <input 
+                                                type="number" 
+                                                className="input-field" 
+                                                disabled={!isAdminUser}
+                                                value={editData.employmentType === 'INTERNSHIP' ? editData.internshipStipend : editData.baseSalary} 
+                                                onChange={e => editData.employmentType === 'INTERNSHIP' ? setEditData({ ...editData, internshipStipend: Number(e.target.value) }) : setEditData({ ...editData, baseSalary: Number(e.target.value) })} 
+                                                style={{ padding: '8px 12px', opacity: !isAdminUser ? 0.6 : 1, cursor: !isAdminUser ? 'not-allowed' : 'text' }} 
+                                            />
                                         ) : (
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10B981' }}>
@@ -583,8 +605,9 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                             <select
                                                 className="filter-select"
                                                 value={editData.roleId}
+                                                disabled={!isAdminUser}
                                                 onChange={e => setEditData({ ...editData, roleId: e.target.value })}
-                                                style={{ width: '100%', minWidth: 'unset' }}
+                                                style={{ width: '100%', minWidth: 'unset', opacity: !isAdminUser ? 0.6 : 1, cursor: !isAdminUser ? 'not-allowed' : 'pointer' }}
                                             >
                                                 <option value="EMPLOYEE">Employee Access</option>
                                                 <option value="MANAGER">Manager Access</option>
@@ -597,8 +620,10 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                             <select
                                                 className="filter-select"
                                                 value={editData.status}
+                                                onBlur={() => {}} // No-op for lint
+                                                disabled={!isAdminUser}
                                                 onChange={e => setEditData({ ...editData, status: e.target.value as any })}
-                                                style={{ width: '100%', minWidth: 'unset' }}
+                                                style={{ width: '100%', minWidth: 'unset', opacity: !isAdminUser ? 0.6 : 1, cursor: !isAdminUser ? 'not-allowed' : 'pointer' }}
                                             >
                                                 <option value="ACTIVE">Active (Online)</option>
                                                 <option value="INACTIVE">Inactive (Offline)</option>
@@ -1119,29 +1144,34 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                     >
                         <Download size={16} /> Export Dossier
                     </button>
-                    <button 
-                        className="primary-button hoverable" 
-                        onClick={isEditing ? handleSaveChanges : () => {
-                            setIsEditing(true);
-                            setActiveTab('OVERVIEW');
-                        }}
-                        disabled={isSaving}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: isSaving ? 0.7 : 1 }}
-                    >
-                        {isEditing ? (
-                            isSaving ? <>Saving...</> : <>Save Profile</>
-                        ) : (
-                            <><User size={16} /> Edit Capabilities</>
-                        )}
-                    </button>
-                    {isEditing && (
-                        <button 
-                            className="secondary-button hoverable" 
-                            onClick={() => setIsEditing(false)}
-                            style={{ opacity: 0.7 }}
-                        >
-                            Cancel
-                        </button>
+                    
+                    {(isAdminUser || isEditingOwnProfile) && (
+                        <>
+                            <button 
+                                className="primary-button hoverable" 
+                                onClick={isEditing ? handleSaveChanges : () => {
+                                    setIsEditing(true);
+                                    setActiveTab('OVERVIEW');
+                                }}
+                                disabled={isSaving}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: isSaving ? 0.7 : 1 }}
+                            >
+                                {isEditing ? (
+                                    isSaving ? <>Saving...</> : <>Save Profile</>
+                                ) : (
+                                    <><User size={16} /> {isEditingOwnProfile && !isAdminUser ? 'Update My Profile' : 'Edit Capabilities'}</>
+                                )}
+                            </button>
+                            {isEditing && (
+                                <button 
+                                    className="secondary-button hoverable" 
+                                    onClick={() => setIsEditing(false)}
+                                    style={{ opacity: 0.7 }}
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
 

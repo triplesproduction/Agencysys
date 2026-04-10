@@ -129,56 +129,58 @@ export default function BroadcastPage() {
             <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
 
                 {/* Left - Announcements List */}
-                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <History size={20} style={{ color: 'var(--text-secondary)' }} /> Published Announcements
+                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <History size={22} style={{ color: 'var(--purple-main)' }} /> Published Announcements
                     </h2>
 
                     {isLoading ? (
-                        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }} className="skeleton-pulse">
-                            Loading announcements...
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="skeleton-pulse" style={{ height: '140px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)' }} />
+                            ))}
                         </div>
                     ) : announcements.length === 0 ? (
-                        <GlassCard style={{ padding: '48px', textAlign: 'center' }}>
-                            <MessageSquare size={40} style={{ color: 'rgba(255,255,255,0.2)', marginBottom: '12px' }} />
-                            <p style={{ color: 'var(--text-secondary)' }}>No announcements published yet.</p>
+                        <GlassCard style={{ padding: '64px', textAlign: 'center' }}>
+                            <MessageSquare size={48} style={{ color: 'rgba(255,255,255,0.1)', marginBottom: '16px' }} />
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>No announcements published yet.</p>
                         </GlassCard>
                     ) : (
                         announcements.map(ann => (
-                            <GlassCard key={ann.id} style={{ padding: '20px', border: ann.status === 'active' ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)', opacity: ann.status === 'inactive' ? 0.6 : 1, transition: 'all 0.25s ease' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                            <GlassCard key={ann.id} style={{ padding: '24px', border: ann.status === 'active' ? '1px solid rgba(139,92,246,0.2)' : '1px solid rgba(255,255,255,0.06)', opacity: ann.status === 'inactive' ? 0.7 : 1, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 10px', borderRadius: '12px', background: `${typeColors[ann.type] || '#3B82F6'}20`, border: `1px solid ${typeColors[ann.type] || '#3B82F6'}50`, color: typeColors[ann.type] || '#3B82F6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '4px 12px', borderRadius: '8px', background: `${typeColors[ann.type] || '#3B82F6'}15`, border: `1px solid ${typeColors[ann.type] || '#3B82F6'}30`, color: typeColors[ann.type] || '#3B82F6', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                                                 {ann.type}
                                             </span>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 10px', borderRadius: '12px', background: ann.status === 'active' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', border: ann.status === 'active' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)', color: ann.status === 'active' ? '#10B981' : '#EF4444', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                            <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '4px 12px', borderRadius: '8px', background: ann.status === 'active' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: ann.status === 'active' ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(239,68,68,0.25)', color: ann.status === 'active' ? '#34D399' : '#F87171', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                                                 {ann.status}
                                             </span>
                                         </div>
-                                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'white', margin: '0 0 6px 0' }}>{ann.title}</h3>
-                                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.5', margin: 0 }}>{ann.message}</p>
-                                        <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>
+                                        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'white', margin: '0 0 8px 0' }}>{ann.title}</h3>
+                                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', margin: 0 }}>{ann.message}</p>
+                                        <div style={{ marginTop: '16px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor' }} />
                                             By {ann.author ? `${ann.author.firstName} ${ann.author.lastName}` : ann.createdBy} · {new Date(ann.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </div>
                                     </div>
 
                                     {isAdmin && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
                                             <button
                                                 onClick={() => handleToggleStatus(ann)}
-                                                title={ann.status === 'active' ? 'Disable announcement' : 'Enable announcement'}
-                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: ann.status === 'active' ? '#10B981' : 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600, padding: '6px 10px', borderRadius: '8px', transition: 'all 0.2s ease' }}
+                                                style={{ background: ann.status === 'active' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)', border: 'none', cursor: 'pointer', color: ann.status === 'active' ? '#34D399' : 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', fontWeight: 700, padding: '8px 12px', borderRadius: '10px', transition: 'all 0.3s ease' }}
                                             >
-                                                {ann.status === 'active' ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+                                                {ann.status === 'active' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                                                 {ann.status === 'active' ? 'Active' : 'Inactive'}
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(ann.id, ann.title)}
-                                                title="Delete"
-                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(239,68,68,0.6)', padding: '6px 10px', borderRadius: '8px', transition: 'all 0.2s ease' }}
+                                                className="action-btn danger-hover"
+                                                style={{ padding: '8px', borderRadius: '10px' }}
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash2 size={18} />
                                             </button>
                                         </div>
                                     )}
@@ -188,48 +190,52 @@ export default function BroadcastPage() {
                     )}
                 </div>
 
-                {/* Right Column - Compose or Info */}
+                {/* Right Column - Compose Announcement */}
                 <div style={{ flex: 1, position: 'sticky', top: '32px' }}>
                     {isAdmin ? (
-                        <GlassCard style={{ padding: '28px' }}>
-                            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '20px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Plus size={18} style={{ color: 'var(--purple-main)' }} /> Create Announcement
+                        <GlassCard style={{ padding: '32px', border: '1px solid var(--purple-main)', boxShadow: '0 0 40px rgba(139,92,246,0.1)' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px', color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Plus size={20} strokeWidth={3} style={{ color: 'var(--purple-main)' }} /> Create New
                             </h2>
 
-                            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Title *</label>
+                                    <label className="input-label" style={{ marginBottom: '10px' }}>Title *</label>
                                     <input
                                         type="text"
                                         value={title}
                                         onChange={e => setTitle(e.target.value)}
                                         placeholder="e.g. Office Closed on Monday"
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none', boxSizing: 'border-box' }}
+                                        style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '12px 16px', borderRadius: '12px', color: 'white', outline: 'none', transition: 'all 0.3s ease' }}
+                                        onFocus={e => { e.currentTarget.style.borderColor = 'var(--purple-main)'; e.currentTarget.style.boxShadow = '0 0 16px var(--purple-glow)'; }}
+                                        onBlur={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                                         disabled={isSubmitting}
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Type</label>
-                                                                        <select
+                                    <label className="input-label" style={{ marginBottom: '10px' }}>Type</label>
+                                    <select
                                         value={type}
                                         onChange={e => setType(e.target.value)}
                                         className="filter-select"
-                                        style={{ width: '100%' }}
+                                        style={{ width: '100%', height: '46px', borderRadius: '12px' }}
                                         disabled={isSubmitting}
                                     >
-                                        <option value="ANNOUNCEMENT" style={{ background: 'var(--bg-dark)' }}>Announcement</option>
-                                        <option value="URGENT" style={{ background: 'var(--bg-dark)' }}>Urgent Alert</option>
-                                        <option value="SYSTEM" style={{ background: 'var(--bg-dark)' }}>System Update</option>
+                                        <option value="ANNOUNCEMENT">Announcement</option>
+                                        <option value="URGENT">Urgent Alert</option>
+                                        <option value="SYSTEM">System Update</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Message *</label>
+                                    <label className="input-label" style={{ marginBottom: '10px' }}>Message *</label>
                                     <textarea
                                         value={message}
                                         onChange={e => setMessage(e.target.value)}
-                                        placeholder="Announcement content..."
-                                        style={{ width: '100%', height: '120px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                                        placeholder="Type your announcement contents..."
+                                        style={{ width: '100%', height: '140px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', padding: '12px 16px', borderRadius: '12px', color: 'white', outline: 'none', resize: 'vertical', transition: 'all 0.3s ease' }}
+                                        onFocus={e => { e.currentTarget.style.borderColor = 'var(--purple-main)'; e.currentTarget.style.boxShadow = '0 0 16px var(--purple-glow)'; }}
+                                        onBlur={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                                         disabled={isSubmitting}
                                         required
                                     />
@@ -237,9 +243,27 @@ export default function BroadcastPage() {
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || !title || !message}
-                                    style={{ background: 'var(--purple-main)', border: 'none', color: 'white', padding: '12px', borderRadius: 'var(--radius-sm)', cursor: isSubmitting || !title || !message ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: isSubmitting || !title || !message ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s ease' }}
+                                    style={{ 
+                                        background: 'var(--purple-main)', 
+                                        border: 'none', 
+                                        color: 'white', 
+                                        padding: '14px', 
+                                        borderRadius: '12px', 
+                                        cursor: isSubmitting || !title || !message ? 'not-allowed' : 'pointer', 
+                                        fontWeight: 700, 
+                                        opacity: isSubmitting || !title || !message ? 0.6 : 1, 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        gap: '10px', 
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        marginTop: '10px',
+                                        boxShadow: '0 10px 20px rgba(139, 92, 246, 0.2)'
+                                    }}
+                                    onMouseEnter={e => { if(!isSubmitting && title && message) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
                                 >
-                                    {isSubmitting ? <><Loader2 size={16} className="spin-icon" /> Publishing...</> : <><Send size={16} /> Publish Announcement</>}
+                                    {isSubmitting ? <><Loader2 size={18} className="spin-icon" /> Publishing...</> : <><Send size={18} /> Publish Announcement</>}
                                 </button>
                             </form>
                         </GlassCard>
