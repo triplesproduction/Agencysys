@@ -110,15 +110,16 @@ export default function Sidebar() {
                         </button>
                         {!isCollapsed && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <img src="/logo.png" alt="Logo" style={{ width: '36px', height: '36px', minWidth: '36px' }} />
-                                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
-                                    <span className="logo-text" style={{ fontSize: '1.25rem' }}>TripleS <span className="logo-os">OS</span></span>
-                                    <span style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Internal Agency Software</span>
+                                <div style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}>
+                                    <img src="/logo.png" alt="Logo" style={{ width: '28px', height: '28px', minWidth: '28px' }} />
                                 </div>
+                                <span className="logo-text">TripleS <span className="logo-os">OS</span></span>
                             </div>
                         )}
                         {isCollapsed && (
-                            <img src="/logo.png" alt="Logo" style={{ width: '32px', height: '32px', margin: '8px 0' }} />
+                            <div style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', margin: '8px 0' }}>
+                                <img src="/logo.png" alt="Logo" style={{ width: '28px', height: '28px' }} />
+                            </div>
                         )}
                     </div>
                 </div>
