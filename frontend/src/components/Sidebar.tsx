@@ -108,8 +108,18 @@ export default function Sidebar() {
                         <button className="collapse-toggle-btn" onClick={() => setIsCollapsed(!isCollapsed)}>
                             <Menu size={20} />
                         </button>
-                        {!isCollapsed && <span className="logo-icon"></span>}
-                        {!isCollapsed && <span className="logo-text">TripleS <span className="logo-os">OS</span></span>}
+                        {!isCollapsed && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <img src="/logo.png" alt="Logo" style={{ width: '36px', height: '36px', minWidth: '36px' }} />
+                                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
+                                    <span className="logo-text" style={{ fontSize: '1.25rem' }}>TripleS <span className="logo-os">OS</span></span>
+                                    <span style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Internal Agency Software</span>
+                                </div>
+                            </div>
+                        )}
+                        {isCollapsed && (
+                            <img src="/logo.png" alt="Logo" style={{ width: '32px', height: '32px', margin: '8px 0' }} />
+                        )}
                     </div>
                 </div>
 

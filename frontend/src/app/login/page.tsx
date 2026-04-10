@@ -58,9 +58,12 @@ function LoginForm() {
     return (
         <div className="login-card">
             <div className="login-header">
-                <div className="login-logo">
-                    <div className="login-icon"></div>
-                    TripleS <span style={{ color: 'var(--purple-light)' }}>OS</span>
+                <div className="login-logo" style={{ flexDirection: 'column', gap: '8px' }}>
+                    <img src="/logo.png" alt="TripleS" style={{ width: '64px', height: '64px', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2' }}>
+                        <div>TripleS <span style={{ color: 'var(--purple-light)' }}>OS</span></div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Internal Agency Software</div>
+                    </div>
                 </div>
                 <p className="login-subtitle">Sign in to your dashboard to continue</p>
             </div>
