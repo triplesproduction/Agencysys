@@ -47,7 +47,7 @@ export default function EODPage() {
             setReportsLoading(true);
             const data = await api.getMyEODs(authEmployee.id);
             // Only show reports belonging to this employee if filtering wasn't done on server
-            const filtered = Array.isArray(data) 
+            const filtered = Array.isArray(data)
                 ? data.filter(r => r.employeeId === authEmployee.id)
                 : [];
             setMyReports(filtered);
@@ -123,7 +123,7 @@ export default function EODPage() {
             console.error('[EOD TRACE] Submission Error:', err);
             const msg = err.message || 'Submission failed. Please check your data or try again.';
             setError(msg);
-            
+
             if (msg.includes('row-level security')) {
                 console.error('[CRITICAL] RLS Violation detected on submission path');
             }
@@ -178,7 +178,7 @@ export default function EODPage() {
                                 className="glass-textarea"
                                 rows={4}
                                 style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '14px' }}
-                                placeholder="• Developed user authentication flow&#10;• Integrated Stripe payment gateway..."
+                                placeholder="Write the tasks you completed today"
                                 value={formData.tasksCompleted}
                                 onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
                             />
@@ -216,10 +216,10 @@ export default function EODPage() {
                             </div>
                         </div>
 
-                        <Button 
-                            type="submit" 
-                            disabled={loading} 
-                            className="submit-btn" 
+                        <Button
+                            type="submit"
+                            disabled={loading}
+                            className="submit-btn"
                             style={{ width: '100%', height: '3rem', fontSize: '0.9rem' }}
                         >
                             {loading ? 'Submitting...' : 'Publish Daily EOD'}
@@ -266,11 +266,11 @@ export default function EODPage() {
                             const isToday = new Date().toDateString() === reportDate.toDateString();
 
                             return (
-                                <div 
-                                    key={report.id} 
+                                <div
+                                    key={report.id}
                                     className={`report-log-item ${isExpanded ? 'active' : ''}`}
                                     onClick={() => setExpandedId(isExpanded ? null : report.id)}
-                                    style={{ 
+                                    style={{
                                         background: isExpanded ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
                                         border: isExpanded ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(255,255,255,0.03)',
                                         borderRadius: '12px',

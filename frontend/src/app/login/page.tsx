@@ -58,11 +58,11 @@ function LoginForm() {
     return (
         <div className="login-card">
             <div className="login-header">
-                <div className="login-logo" style={{ flexDirection: 'column', gap: '0' }}>
-                    <img src="/logo.png" alt="TripleS" style={{ width: '80px', height: '80px', marginBottom: '20px' }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ fontSize: '2.4rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '4px' }}>TripleS <span style={{ color: 'var(--purple-light)', fontWeight: '900' }}>OS</span></div>
-                        <div style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Internal Agency Software</div>
+                <div className="login-logo" style={{ flexDirection: 'row', gap: '20px', justifyContent: 'center', marginBottom: '24px' }}>
+                    <img src="/logo.png" alt="TripleS" style={{ width: '64px', height: '64px' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                        <div style={{ fontSize: '2rem', fontWeight: '800', letterSpacing: '-1px', lineHeight: '1' }}>TripleS <span style={{ color: 'var(--purple-light)', fontWeight: '900' }}>OS</span></div>
+                        <div style={{ fontSize: '0.6rem', opacity: 0.4, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '6px' }}>Internal Agency Software</div>
                     </div>
                 </div>
                 <p className="login-subtitle">Sign in to your dashboard to continue</p>
