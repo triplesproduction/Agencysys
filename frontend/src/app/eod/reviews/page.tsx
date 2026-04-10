@@ -96,30 +96,66 @@ export default function EODReviewsPage() {
                         Review all daily end-of-day reports submitted by your team. {reports.length > 0 && <span style={{ color: 'var(--purple-main)', fontWeight: 600 }}>{reports.length} total submissions</span>}
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                        <input
-                            type="text"
-                            placeholder="Search by name or dept..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '9px 14px 9px 36px', color: 'white', outline: 'none', width: '240px', fontSize: '0.875rem' }}
-                        />
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label className="input-label" style={{ margin: 0 }}>Search</label>
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                            <input
+                                type="text"
+                                placeholder="Name or department..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                style={{ 
+                                    background: 'rgba(255,255,255,0.05)', 
+                                    border: '1px solid var(--glass-border)', 
+                                    borderRadius: 'var(--radius-sm)', 
+                                    padding: '10px 14px 10px 36px', 
+                                    color: 'white', 
+                                    outline: 'none', 
+                                    width: '220px', 
+                                    fontSize: '0.875rem',
+                                    height: '42px' // Match DatePicker height
+                                }}
+                            />
+                        </div>
                     </div>
                     
-                    <DatePicker 
-                        label="From"
-                        value={startDate}
-                        onChange={setStartDate}
-                    />
-                    <DatePicker 
-                        label="To"
-                        value={endDate}
-                        onChange={setEndDate}
-                    />
+                    <div style={{ width: '180px' }}>
+                        <DatePicker 
+                            label="From"
+                            value={startDate}
+                            onChange={setStartDate}
+                        />
+                    </div>
+                    <div style={{ width: '180px' }}>
+                        <DatePicker 
+                            label="To"
+                            value={endDate}
+                            onChange={setEndDate}
+                        />
+                    </div>
 
-                    <button onClick={fetchReports} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', fontWeight: 500 }}>
+                    <button 
+                        onClick={fetchReports} 
+                        style={{ 
+                            background: 'rgba(139,92,246,0.15)', 
+                            border: '1px solid rgba(139,92,246,0.3)', 
+                            borderRadius: 'var(--radius-sm)', 
+                            padding: '0 16px', 
+                            color: 'var(--purple-main)', 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px', 
+                            fontSize: '0.875rem', 
+                            fontWeight: 600,
+                            height: '42px', // Match DatePicker height
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.25)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(139,92,246,0.15)'}
+                    >
                         <RefreshCw size={14} /> Refresh
                     </button>
                 </div>
