@@ -1,36 +1,25 @@
 .eod-page {
-    display: flex;
-    flex-direction: column;
-    gap: 2.5rem;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 2rem 5rem;
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .greeting {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
     font-weight: 800;
     letter-spacing: -0.04em;
     background: linear-gradient(to right, #fff 20%, rgba(255,255,255,0.4) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
 }
 
 .subtitle {
     color: var(--text-secondary);
-    font-size: 1.1rem;
-    opacity: 0.8;
+    font-size: 1rem;
+    opacity: 0.7;
 }
 
-/* Redesigned Form Card */
-.eod-card {
-    background: linear-gradient(145deg, rgba(20, 20, 25, 0.8) 0%, rgba(10, 10, 15, 0.9) 100%) !important;
-    backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
-    border-radius: 24px !important;
+.submission-card {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .input-label {
@@ -40,88 +29,50 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--purple-light);
-    margin-bottom: 1rem;
-    opacity: 0.9;
+    opacity: 0.8;
 }
 
 .glass-textarea {
     background: rgba(255, 255, 255, 0.02) !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    border-radius: 16px;
+    border-radius: 14px;
     padding: 1.25rem;
     color: #fff;
-    font-size: 1rem;
-    line-height: 1.6;
     width: 100%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-textarea:focus {
     background: rgba(255, 255, 255, 0.04) !important;
-    border-color: var(--purple-main) !important;
-    box-shadow: 0 0 0 5px rgba(139, 92, 246, 0.1) !important;
+    border-color: rgba(139, 92, 246, 0.3) !important;
     outline: none;
 }
 
-.submit-btn {
-    background: linear-gradient(135deg, var(--purple-main), #8b5cf6) !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    font-size: 0.9rem !important;
-    border-radius: 16px !important;
-    box-shadow: 0 12px 24px rgba(139, 92, 246, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+.report-log-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.submit-btn:hover:not(:disabled) {
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+.report-log-item:hover {
+    background: rgba(255,255,255,0.03) !important;
+    transform: translateY(-1px);
 }
 
-/* History Card Polish */
-.active-report {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+.report-log-item.active {
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
 }
 
-.inactive-report {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.inactive-report:hover {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.08);
-}
-
-.today-badge {
-    font-size: 0.6rem;
-    font-weight: 900;
-    color: #fff;
-    background: var(--purple-main);
-    padding: 2px 8px;
-    border-radius: 100px;
-    letter-spacing: 0.05em;
-}
-
-.sentiment-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    box-shadow: 0 0 10px currentColor;
-}
-
-.report-card-container {
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@media (max-width: 1024px) {
-    .eod-page {
-        padding: 1.5rem 1rem;
+@media (max-width: 768px) {
+    .greeting {
+        font-size: 1.8rem;
     }
-    .eod-page > div {
-        grid-template-columns: 1fr !important;
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 16px;
     }
 }
