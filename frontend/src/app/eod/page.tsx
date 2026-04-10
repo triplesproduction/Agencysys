@@ -151,16 +151,16 @@ export default function EODPage() {
     }
 
     return (
-        <div className="eod-page fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '0 20px 80px' }}>
+        <div className="eod-page fade-in" style={{ width: '100%', maxWidth: '1400px', margin: '0', padding: '0 40px 80px' }}>
             <header className="page-header" style={{ marginBottom: '32px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <h1 className="greeting" style={{ margin: 0, fontSize: '1.5rem' }}>Daily Status Report</h1>
-                        <p className="subtitle" style={{ marginTop: '2px', fontSize: '0.9rem' }}>Log your daily achievements and identify blockers.</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h1 className="greeting" style={{ margin: 0, fontSize: '1.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Daily Status Report</h1>
+                        <p className="subtitle" style={{ marginTop: '4px', fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4' }}>Log your daily achievements and identify blockers.</p>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--purple-light)', lineHeight: 1 }}>{myReports.length} Days 🔥</div>
-                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginTop: '4px' }}>Submission Streak</div>
+                        <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginTop: '6px' }}>Submission Streak</div>
                     </div>
                 </div>
             </header>
@@ -184,39 +184,44 @@ export default function EODPage() {
                             />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '16px', marginBottom: '24px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', marginBottom: '24px' }}>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '10px', fontSize: '0.7rem' }}>Office Hours</label>
+                                <label className="input-label" style={{ marginBottom: '6px', fontSize: '0.65rem' }}>Office Hours</label>
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="number"
                                         className="glass-textarea"
-                                        style={{ height: '2.8rem', paddingLeft: '2.8rem', fontSize: '0.9rem' }}
+                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem' }}
                                         min="0" step="0.5" max="24"
-                                        placeholder="Eg. 8.5"
+                                        placeholder="8.5"
                                         value={formData.workHours}
                                         onChange={e => setFormData({ ...formData, workHours: e.target.value })}
                                     />
-                                    <Clock size={14} style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                                    <Clock size={11} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
                                 </div>
                             </div>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '10px', fontSize: '0.7rem' }}>Blockers / Impediments</label>
+                                <label className="input-label" style={{ marginBottom: '6px', fontSize: '0.65rem' }}>Blockers / Impediments</label>
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"
                                         className="glass-textarea"
-                                        style={{ height: '2.8rem', paddingLeft: '2.8rem', fontSize: '0.9rem' }}
+                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem' }}
                                         placeholder="Anything slowing you down?"
                                         value={formData.blockers}
                                         onChange={e => setFormData({ ...formData, blockers: e.target.value })}
                                     />
-                                    <AlertTriangle size={14} style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                                    <AlertTriangle size={11} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
                                 </div>
                             </div>
                         </div>
 
-                        <Button type="submit" disabled={loading} className="primary-button" style={{ width: '100%', height: '3.2rem', fontSize: '0.9rem', fontWeight: 600 }}>
+                        <Button 
+                            type="submit" 
+                            disabled={loading} 
+                            className="submit-btn" 
+                            style={{ width: '100%', height: '3rem', fontSize: '0.9rem' }}
+                        >
                             {loading ? 'Submitting...' : 'Publish Daily EOD'}
                         </Button>
 
