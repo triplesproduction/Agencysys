@@ -64,7 +64,7 @@ function AdminDashboard({
         <div className="admin-dash-v2 fade-in">
 
             {/* Quick Stats */}
-            <div className="quick-stats">
+            <div className="quick-stats" style={{ marginTop: '8px' }}>
                 <GlassCard className="stat-card">
                     <div className="stat-label">Total Headcount</div>
                     <div className="stat-value">{totalEmployees || '...'}</div>
@@ -88,7 +88,7 @@ function AdminDashboard({
             </div>
 
             {/* Main Bento Grid */}
-            <div className="ad2-bento-grid" style={{ marginTop: '16px' }}>
+            <div className="ad2-bento-grid">
 
                 {/* Column 1: Command Center */}
                 <div className="ad2-col ad2-col-1">

@@ -341,11 +341,11 @@
 
 .admin-dash-v2 {
     padding: 0 8px 8px 8px;
-    height: calc(100vh - 48px); /* Account for main padding + header breathing room */
+    height: calc(100vh - 160px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     width: 100%;
 }
 
@@ -549,7 +549,7 @@
 /* BENTO GRID - Refined Transitions */
 .ad2-bento-grid {
     display: grid;
-    grid-template-columns: 1.2fr 2fr 2fr 1.3fr;
+    grid-template-columns: 1.4fr 2fr 2fr 1.4fr;
     grid-template-areas: 
         "col1 col2 col2 col4";
     gap: 16px;
@@ -561,7 +561,7 @@
 .ad2-col {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     min-width: 0;
     height: 100%;
     overflow-y: auto;
@@ -619,9 +619,6 @@
     gap: 8px;
     margin: 0;
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     flex: 1;
 }
 
