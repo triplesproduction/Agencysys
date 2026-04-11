@@ -549,13 +549,13 @@
 /* BENTO GRID - Refined Transitions */
 .ad2-bento-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: 240px 1fr 1fr 260px;
     grid-template-areas: 
         "col1 col2 col2 col4";
     gap: 16px;
     align-items: stretch;
-    flex: 1; /* Take up all remaining space */
-    min-height: 0; /* Allow grid to shrink below content height */
+    flex: 1;
+    min-height: 0;
 }
 
 .ad2-col {
@@ -565,7 +565,7 @@
     min-width: 0;
     height: 100%;
     overflow-y: auto;
-    padding-right: 4px; /* Space for scrollbar */
+    padding-right: 4px;
 }
 
 /* Custom mini-scrollbar for dashboard columns */
