@@ -294,6 +294,29 @@
     font-size: 0.8125rem;
 }
 
+/* Skeleton loading rows */
+.msg-list-loading { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.msg-skeleton {
+    height: 60px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.03) 0%,
+        rgba(255,255,255,0.07) 50%,
+        rgba(255,255,255,0.03) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Designation hint when no conversation yet */
+.msg-no-conv-hint {
+    color: rgba(255,255,255,0.25);
+    font-style: italic;
+    font-size: 0.78rem;
+}
+
 /* ── Right Panel (Main) ───────────────────────────────────────────────────── */
 .msg-main {
     flex: 1;

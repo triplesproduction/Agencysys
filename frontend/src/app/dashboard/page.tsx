@@ -837,36 +837,37 @@ export default function DashboardPage() {
                 <div className="ad2-header-nav-pill" style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '16px', 
-                    background: 'rgba(255, 255, 255, 0.03)', 
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    padding: '6px 16px',
+                    gap: '18px', 
+                    background: 'rgba(255, 255, 255, 0.04)', 
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    padding: '8px 20px',
                     borderRadius: '50px',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                    transition: 'all 0.3s ease'
                 }}>
-                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', fontWeight: 700, paddingRight: '8px', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontWeight: 800, paddingRight: '12px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>
                         {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toUpperCase()}
                     </div>
                     
-                    <div className="ad2-header-actions" style={{ display: 'flex', gap: '10px' }}>
-                        <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.05)', width: '32px', height: '32px' }} onClick={() => window.location.href = '/messaging'}>
-                            <MessageCircle size={16} />
+                    <div className="ad2-header-actions" style={{ display: 'flex', gap: '12px' }}>
+                        <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }} onClick={() => window.location.href = '/messaging'}>
+                            <MessageCircle size={18} />
                         </div>
-                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.05)', width: '32px', height: '32px' }}>
-                            <Bell size={16} />
+                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }}>
+                            <Bell size={18} />
                         </div>
                     </div>
 
-                    <div className="ad2-user-pill" style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div className="ad2-user-pill" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.15)' }}>
                         <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'white', lineHeight: 1.1 }}>{employee?.firstName}</div>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{userRole}</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>{employee?.firstName}</div>
+                            <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>{userRole}</div>
                         </div>
                         <img 
                             src={employee?.profilePhoto && employee.profilePhoto.length > 5 ? employee.profilePhoto : `https://ui-avatars.com/api/?name=${employee?.firstName || 'User'}&background=6366f1&color=fff`} 
                             alt="Pro" 
-                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)' }} 
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)' }} 
                         />
                     </div>
                 </div>

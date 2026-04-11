@@ -317,20 +317,40 @@ export default function MessagingPage() {
         inputRef.current?.focus();
     };
 
-    // ── Filtered contacts for search ───────────────────────────────────────────
-    const filteredContacts = allContacts.filter((c) => {
-        const q = searchQuery.toLowerCase();
-        return (
-            c.firstName?.toLowerCase().includes(q) ||
-            c.lastName?.toLowerCase().includes(q) ||
-            c.roleId?.toLowerCase().includes(q)
-        );
-    });
-
-    // Contacts that don't have a conversation yet (for new chat)
-    const contactsWithoutConv = allContacts.filter(
-        (c) => !conversations.find((cv) => String(cv.otherUser?.id) === String(c.id))
-    );
+    // ── Unified contact list: all members, with conv data merged in ─────────────
+    const unifiedList = allContacts
+        .map((contact) => {
+            const conv = conversations.find((cv) => String(cv.otherUser?.id) === String(contact.id));
+            return {
+                contact,
+                conversationId: conv?.conversationId || null,
+                lastMessage: conv?.lastMessage || null,
+                unreadCount: conv?.unreadCount || 0,
+            };
+        })
+        .filter((item) => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            const c = item.contact;
+            return (
+                c.firstName?.toLowerCase().includes(q) ||
+                c.lastName?.toLowerCase().includes(q) ||
+                c.roleId?.toLowerCase().includes(q) ||
+                c.department?.toLowerCase().includes(q) ||
+                item.lastMessage?.content?.toLowerCase().includes(q)
+            );
+        })
+        .sort((a, b) => {
+            // Admin first
+            const aAdmin = String(a.contact.roleId || '').toUpperCase() === 'ADMIN';
+            const bAdmin = String(b.contact.roleId || '').toUpperCase() === 'ADMIN';
+            if (aAdmin && !bAdmin) return -1;
+            if (!aAdmin && bAdmin) return 1;
+            // Then by last message time
+            const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+            const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
 
     // ── Render message content ─────────────────────────────────────────────────
     const renderContent = (msg: Message) => {
@@ -378,18 +398,6 @@ export default function MessagingPage() {
         );
     }
 
-    // ── Filtered conv list ─────────────────────────────────────────────────────
-    const displayConvs = conversations.filter((cv) => {
-        if (!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        const u = cv.otherUser;
-        return (
-            u?.firstName?.toLowerCase().includes(q) ||
-            u?.lastName?.toLowerCase().includes(q) ||
-            cv.lastMessage?.content?.toLowerCase().includes(q)
-        );
-    });
-
     // ── JSX ────────────────────────────────────────────────────────────────────
     return (
         <div className="msg-page">
@@ -415,96 +423,72 @@ export default function MessagingPage() {
                         />
                     </div>
 
-                    {/* New Chat */}
-                    <button
-                        className="msg-new-chat-btn"
-                        onClick={() => setShowContactPicker(!showContactPicker)}
-                    >
-                        <MessageSquare size={15} />
-                        New Conversation
-                        <ChevronDown size={14} style={{ marginLeft: 'auto', transform: showContactPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-                    </button>
-
-                    {/* Contact picker for new chats */}
-                    {showContactPicker && (
-                        <div className="msg-contact-picker">
-                            {contactsWithoutConv.length === 0 && (
-                                <div className="msg-empty-note">All contacts are in conversations.</div>
-                            )}
-                            {contactsWithoutConv.map((c) => (
-                                <div key={c.id} className="msg-contact-pick-item" onClick={() => openConversation(c)}>
-                                    <div className="msg-avatar-sm">
-                                        {c.profilePhoto ? (
-                                            <img src={c.profilePhoto} alt={c.firstName} />
-                                        ) : (
-                                            c.firstName?.charAt(0).toUpperCase()
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="msg-contact-name">{c.firstName} {c.lastName}</div>
-                                        <div className="msg-contact-role">{c.roleId}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
+                    {/* Unified contact + conversation list */}
                     <div className="msg-conv-list">
-                        {loading && <div className="msg-empty-note">Loading...</div>}
-
-                        {!loading && displayConvs.length === 0 && !showContactPicker && (
-                            <div className="msg-empty-note">
-                                No conversations yet.<br />Click "New Conversation" to start chatting.
+                        {loading && (
+                            <div className="msg-list-loading">
+                                {[1,2,3,4].map(i => <div key={i} className="msg-skeleton" />)}
                             </div>
                         )}
 
-                        {displayConvs.map((conv) => {
-                            const u = conv.otherUser;
-                            const isActive = conv.conversationId === activeConvId;
-                            const isAdminUser = String(u?.roleId || '').toUpperCase() === 'ADMIN';
+                        {!loading && unifiedList.length === 0 && (
+                            <div className="msg-empty-note">No team members found.</div>
+                        )}
+
+                        {!loading && unifiedList.map(({ contact, conversationId, lastMessage, unreadCount }) => {
+                            const isActive = conversationId === activeConvId;
+                            const isAdminUser = String(contact.roleId || '').toUpperCase() === 'ADMIN';
 
                             return (
                                 <div
-                                    key={conv.conversationId}
-                                    className={`msg-conv-item ${isActive ? 'active' : ''} ${isAdminUser ? 'admin-pinned' : ''}`}
-                                    onClick={() => selectConversation(conv)}
+                                    key={contact.id}
+                                    className={`msg-conv-item ${
+                                        isActive ? 'active' : ''
+                                    } ${isAdminUser ? 'admin-pinned' : ''}`}
+                                    onClick={async () => {
+                                        if (conversationId) {
+                                            setActiveConvId(conversationId);
+                                            setActiveOtherUser(contact);
+                                        } else {
+                                            await openConversation(contact);
+                                        }
+                                    }}
                                 >
                                     <div className="msg-avatar-container">
                                         <div className="msg-avatar">
-                                            {u?.profilePhoto ? (
-                                                <img src={u.profilePhoto} alt={u?.firstName} />
+                                            {contact.profilePhoto ? (
+                                                <img src={contact.profilePhoto} alt={contact.firstName} />
                                             ) : (
-                                                u?.firstName?.charAt(0).toUpperCase() || '?'
+                                                contact.firstName?.charAt(0).toUpperCase() || '?'
                                             )}
                                         </div>
-                                        {/* Online dot — always show for now, can wire to presence later */}
                                         <div className="msg-online-dot" />
                                     </div>
 
                                     <div className="msg-conv-info">
                                         <div className="msg-conv-top">
                                             <span className="msg-conv-name">
-                                                {u?.firstName} {u?.lastName}
+                                                {contact.firstName} {contact.lastName}
                                                 {isAdminUser && (
                                                     <span className="msg-admin-badge">ADMIN</span>
                                                 )}
                                             </span>
-                                            {conv.lastMessage && (
+                                            {lastMessage && (
                                                 <span className="msg-conv-time">
-                                                    {formatTime(conv.lastMessage.createdAt)}
+                                                    {formatTime(lastMessage.createdAt)}
                                                 </span>
                                             )}
                                         </div>
                                         <div className="msg-conv-bottom">
                                             <span className="msg-conv-snippet">
-                                                {conv.lastMessage
-                                                    ? conv.lastMessage.type === 'image'
+                                                {lastMessage
+                                                    ? lastMessage.type === 'image'
                                                         ? '📷 Image'
-                                                        : conv.lastMessage.content
-                                                    : 'Start a conversation'}
+                                                        : lastMessage.content
+                                                    : <span className="msg-no-conv-hint">{contact.designation || contact.roleId || 'Team Member'}</span>}
                                             </span>
-                                            {conv.unreadCount > 0 && (
-                                                <span className="msg-unread-badge">{conv.unreadCount}</span>
+                                            {unreadCount > 0 && (
+                                                <span className="msg-unread-badge">{unreadCount}</span>
                                             )}
                                         </div>
                                     </div>
