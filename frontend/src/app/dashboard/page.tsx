@@ -544,7 +544,9 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                     </div>
                 </div>
                 <div className="ad2-header-right">
-                    <div className="ad2-icon-btn" onClick={() => window.location.href = '/messaging'}><MessageCircle size={18} /></div>
+                    <div className="ad2-icon-btn has-notification" onClick={() => window.location.href = '/messaging'}>
+                        <MessageCircle size={18} />
+                    </div>
                     <div className="ad2-icon-btn"><Bell size={18} /></div>
                     <div className="ad2-user-profile">
                         <img 
@@ -641,26 +643,28 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                     {employee && <KpiAuditLedger employeeId={employee.id} />}
                 </div>
 
-                {/* Column 3: Quick Actions & Monthly Pace */}
+                {/* Column 3: Quick Actions, Messages & Monthly Pace */}
                 <div className="ad2-col">
-                    <div className="ad2-card" style={{ marginBottom: '16px' }}>
-                         <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
+                    <div className="ad2-card" style={{ marginBottom: '12px' }}>
+                         <div className="ad2-card-header" style={{ marginBottom: '10px' }}>
                             <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <button className="ad2-btn-add primary" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/tasks'}>Kanban Board</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button className="ad2-btn-add primary" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/tasks'}>Kanban Board</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
                         </div>
                     </div>
 
-                    <div className="ad2-card" style={{ padding: '18px' }}>
-                         <div className="ad2-card-header" style={{ marginBottom: '10px' }}>
+                    <RecentMessagesWidget maxItems={2} />
+
+                    <div className="ad2-card" style={{ padding: '16px', marginTop: '12px' }}>
+                         <div className="ad2-card-header" style={{ marginBottom: '8px' }}>
                             <h3><Activity size={15} color="#10B981" /> Month Pace</h3>
                             <span style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 800 }}>{kpis?.total_hours_worked || 0}h</span>
                         </div>
-                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
+                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '8px' }}>
                             <div style={{ 
                                 height: '100%', 
                                 width: `${Math.min(100, ((kpis?.total_hours_worked || 0) / 160) * 100)}%`, 
@@ -668,18 +672,15 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                                 transition: 'width 1s ease'
                             }}></div>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.3 }}>Target: 160h</p>
+                        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.2 }}>Target: 160h</p>
                     </div>
                 </div>
 
-                {/* Column 4: Communication & Rules (Stacked Right Side) */}
+                {/* Column 4: Communication & Rules (Right Side) */}
                 <div className="ad2-col">
                     <AnnouncementsWidget maxItems={2} />
-                    <div style={{ marginTop: '16px' }}>
+                    <div style={{ marginTop: '12px' }}>
                         <RulesWidget maxItems={2} />
-                    </div>
-                    <div style={{ marginTop: '16px' }}>
-                        <RecentMessagesWidget maxItems={1} />
                     </div>
                 </div>
             </div>
