@@ -577,7 +577,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 
                 {/* Column 3: Quick Actions, Messages & Monthly Pace */}
                 <div className="ad2-col">
-                    <div className="ad2-card" style={{ marginBottom: '8px' }}>
+                    <div className="ad2-card" style={{ marginBottom: '8px', paddingBottom: '16px' }}>
                          <div className="ad2-card-header" style={{ marginBottom: '8px' }}>
                             <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
@@ -747,7 +747,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <main className={userRole === 'ADMIN' ? 'admin-page-wrapper' : "dashboard-page fade-in"}>
+        <main className={userRole === 'ADMIN' ? '' : "dashboard-page fade-in"}>
 
             <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0px', padding: '4px 0' }}>
                 <div>
