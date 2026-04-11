@@ -864,9 +864,9 @@ export default function DashboardPage() {
                             <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{userRole}</div>
                         </div>
                         <img 
-                            src={employee?.profilePhoto || `https://ui-avatars.com/api/?name=${employee?.firstName}&background=random`} 
+                            src={employee?.profilePhoto && employee.profilePhoto.length > 5 ? employee.profilePhoto : `https://ui-avatars.com/api/?name=${employee?.firstName || 'User'}&background=6366f1&color=fff`} 
                             alt="Pro" 
-                            style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)' }} 
+                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)' }} 
                         />
                     </div>
                 </div>
