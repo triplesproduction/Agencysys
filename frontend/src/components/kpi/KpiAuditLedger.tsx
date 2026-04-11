@@ -32,7 +32,7 @@ export default function KpiAuditLedger({ employeeId }: { employeeId: string }) {
     if (loading) return <div className="ledger-loader">Loading audit logs...</div>;
 
     if (logs.length === 0) {
-        return <div className="ledger-empty">No performance logs found for this period.</div>;
+        return null;
     }
 
     return (

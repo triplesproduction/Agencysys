@@ -554,7 +554,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                 
                 {/* Column 1 + 2: Task Runway & Performance Audit */}
                 <div className="ad2-col" style={{ gridColumn: 'span 2' }}>
-                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '300px', overflow: 'hidden' }}>
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '400px', overflow: 'hidden' }}>
                         <div className="ad2-card-header">
                             <h3><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
                             <Link href="/tasks" className="ad2-badge-btn">View All</Link>
