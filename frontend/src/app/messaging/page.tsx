@@ -1,507 +1,742 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import GlassCard from '@/components/GlassCard';
-import { Search, Send, Phone, Video, Image as ImageIcon, X, Paperclip, Check, CheckCheck, MessageSquare, MessageCircle } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, AtSign, Smile, ChevronDown } from 'lucide-react';
 import './Messaging.css';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { useNotifications } from '@/components/notifications/NotificationProvider';
 
+// ── Types ──────────────────────────────────────────────────────────────────────
+interface Conversation {
+    conversationId: string;
+    otherUser: any;
+    lastMessage: any;
+    unreadCount: number;
+}
+
+interface Message {
+    id: string;
+    conversationId: string;
+    senderId: string;
+    content?: string;
+    type: 'text' | 'image';
+    mediaUrl?: string;
+    taskRef?: any;
+    status: 'sent' | 'delivered' | 'seen';
+    createdAt: string;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const formatLastSeen = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.floor(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 export default function MessagingPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();
-    const [activeTab, setActiveTab] = useState<'personal' | 'admin'>('personal');
-    const [isAdminState, setIsAdminState] = useState(false);
-    const [selfInfo, setSelfInfo] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const { addNotification } = useNotifications();
+    const myId = authEmployee?.id ? String(authEmployee.id) : null;
+    const isAdmin = ['ADMIN', 'MANAGER'].includes(String(authEmployee?.roleId || '').toUpperCase());
 
-    // Data State
-    const [contacts, setContacts] = useState<any[]>([]); // Employees list
-    const [myChats, setMyChats] = useState<any[]>([]);
-    const [adminChats, setAdminChats] = useState<any[]>([]);
-    const [activeContactId, setActiveContactId] = useState<string | null>(null);
-
-    // Chat UI State
-    const [messageInput, setMessageInput] = useState('');
+    // ── State ──────────────────────────────────────────────────────────────────
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [allContacts, setAllContacts] = useState<any[]>([]);
+    const [activeConvId, setActiveConvId] = useState<string | null>(null);
+    const [activeOtherUser, setActiveOtherUser] = useState<any>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    // Drag, Drop, & Image State
-    const [isDragging, setIsDragging] = useState(false);
-    const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
+    const [messageInput, setMessageInput] = useState('');
+    const [isTyping, setIsTyping] = useState(false); // other user typing
+    const [imagePreview, setImagePreview] = useState<{ file: File; url: string } | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [showTaskDropdown, setShowTaskDropdown] = useState(false);
+    const [myTasks, setMyTasks] = useState<any[]>([]);
+    const [showContactPicker, setShowContactPicker] = useState(false);
+    const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
+    // ── Refs ───────────────────────────────────────────────────────────────────
+    const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const selfFileInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const realtimeRef = useRef<any>(null);
 
-    // Derive admin state from the global auth context
-    useEffect(() => {
-        if (authEmployee) {
-            const role = String(authEmployee.roleId || '').toUpperCase();
-            if (role === 'ADMIN' || role === 'MANAGER') setIsAdminState(true);
-        }
-    }, [authEmployee]);
-
-    const currentUserId = authEmployee?.id;
-
-    const fetchInitialData = async () => {
-        if (!authEmployee) return;
+    // ── Load conversations & contacts ──────────────────────────────────────────
+    const loadConversations = useCallback(async () => {
+        if (!myId) return;
         try {
+            const convs = await api.getConversations(myId);
+            setConversations(convs as Conversation[]);
+        } catch (e) {
+            console.error('loadConversations error:', e);
+        }
+    }, [myId]);
+
+    useEffect(() => {
+        if (authLoading || !myId) return;
+        const init = async () => {
             setLoading(true);
-            const myId = authEmployee.id;
-
-            // Fetch list of employees (Contacts)
-            const employeesRes: any = await api.getEmployees({ limit: 100 });
-            const employeeArray = Array.isArray(employeesRes) ? employeesRes : (employeesRes?.data || []);
-            
-            const filteredContacts = employeeArray
-                .filter((emp: any) => emp.id !== myId)
-                .sort((a: any, b: any) => {
-                    const weight = (role: string) => role === 'ADMIN' ? 3 : role === 'MANAGER' ? 2 : 1;
-                    return weight(b.roleId) - weight(a.roleId);
-                });
-            setContacts(filteredContacts);
-
-            const selfRes: any = await api.getEmployeeById(myId);
-            setSelfInfo(selfRes);
-
-            const personalRes: any = await api.getMyChats(myId);
-            const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
-            setMyChats(chats);
-        } catch (err) {
-            console.error('Failed to load messaging data:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchAdminChats = async () => {
-        try {
-            const res: any = await api.getAdminChats();
-            setAdminChats(Array.isArray(res) ? res : (res?.data || []));
-        } catch (err) {
-            console.error('Failed to fetch admin restricted chats:', err);
-        }
-    };
-
-    // Re-fetch whenever authEmployee resolves (avoids relying on cookie timing)
-    useEffect(() => {
-        if (authLoading) return;
-        fetchInitialData();
-
-        const handleLiveNotification = (event: any) => {
-            const notif = event.detail;
-            if (notif?.type === 'CHAT_MESSAGE' && authEmployee) {
-                api.getMyChats(authEmployee.id).then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
-                if (activeTab === 'admin') fetchAdminChats();
+            try {
+                const [empRes, tasks] = await Promise.all([
+                    api.getEmployees({ limit: 100 }),
+                    api.getTasks(myId, undefined, 30),
+                ]);
+                const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
+                setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
+                setMyTasks(tasks || []);
+                await loadConversations();
+            } catch (e) {
+                console.error('init error:', e);
+            } finally {
+                setLoading(false);
             }
         };
+        init();
+    }, [authLoading, myId]);
 
-        if (typeof window !== 'undefined') {
-            window.addEventListener('app:live-notification', handleLiveNotification);
+    // ── Load messages when conversation changes ────────────────────────────────
+    useEffect(() => {
+        if (!activeConvId || !myId) {
+            setMessages([]);
+            return;
+        }
+        const load = async () => {
+            const msgs = await api.getMessages(activeConvId);
+            setMessages(msgs as Message[]);
+            await api.markMessagesRead(activeConvId, myId);
+            // Refresh unread counts
+            await loadConversations();
+        };
+        load();
+    }, [activeConvId, myId]);
+
+    // ── Supabase Realtime subscription ─────────────────────────────────────────
+    useEffect(() => {
+        if (!activeConvId || !myId) return;
+
+        // Cleanup previous subscription
+        if (realtimeRef.current) {
+            supabase.removeChannel(realtimeRef.current);
         }
 
-        const interval = setInterval(() => {
-            if (activeTab === 'personal' && authEmployee) {
-                api.getMyChats(authEmployee.id).then((res: any) => setMyChats(Array.isArray(res) ? res : (res?.data || []))).catch(() => { });
-            } else if (activeTab === 'admin') {
-                fetchAdminChats();
-            }
-        }, 5000);
+        const channel = supabase
+            .channel(`conv-${activeConvId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversationId=eq.${activeConvId}`,
+                },
+                async (payload: any) => {
+                    const newMsg = payload.new as Message;
+                    setMessages((prev) => {
+                        if (prev.find((m) => m.id === newMsg.id)) return prev;
+                        return [...prev, newMsg];
+                    });
+                    // Mark as read if from other user
+                    if (String(newMsg.senderId) !== myId) {
+                        await api.markMessagesRead(activeConvId, myId);
+                        addNotification({
+                            title: activeOtherUser ? `${activeOtherUser.firstName} ${activeOtherUser.lastName}` : 'New Message',
+                            message: newMsg.content || '📷 Image',
+                            type: 'REMINDER',
+                        });
+                    }
+                    await loadConversations();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'typing_status',
+                    filter: `conversationId=eq.${activeConvId}`,
+                },
+                (payload: any) => {
+                    const row = payload.new;
+                    // Show indicator if other user is typing
+                    if (row && String(row.userId) !== myId) {
+                        setIsTyping(row.isTyping);
+                        // Auto-clear after 4s just in case
+                        if (row.isTyping) {
+                            setTimeout(() => setIsTyping(false), 4000);
+                        }
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversationId=eq.${activeConvId}`,
+                },
+                (payload: any) => {
+                    const updated = payload.new as Message;
+                    setMessages((prev) =>
+                        prev.map((m) => (m.id === updated.id ? { ...m, status: updated.status } : m))
+                    );
+                }
+            )
+            .subscribe();
 
+        realtimeRef.current = channel;
         return () => {
-            clearInterval(interval);
-            if (typeof window !== 'undefined') {
-                window.removeEventListener('app:live-notification', handleLiveNotification);
-            }
+            supabase.removeChannel(channel);
         };
-    }, [activeTab]);
+    }, [activeConvId, myId]);
 
-    useEffect(() => {
-        if (activeTab === 'admin') {
-            fetchAdminChats();
-        }
-    }, [activeTab]);
-
+    // ── Auto-scroll ────────────────────────────────────────────────────────────
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [myChats, adminChats, activeContactId]);
+    }, [messages, isTyping]);
 
-    const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
-    const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) {
-             // Handle drop upload logic would go here if needed
+    // ── Typing indicator logic ─────────────────────────────────────────────────
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setMessageInput(val);
+
+        // @ trigger
+        if (val.endsWith('@')) {
+            setShowTaskDropdown(true);
+        } else if (!val.includes('@')) {
+            setShowTaskDropdown(false);
         }
+
+        // Typing status
+        if (!activeConvId || !myId) return;
+        api.setTypingStatus(myId, activeConvId, true).catch(() => {});
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            if (myId && activeConvId) api.setTypingStatus(myId, activeConvId, false).catch(() => {});
+        }, 2500);
     };
 
-    const handleSend = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const trimmedMessage = messageInput.trim();
+    // ── Start / open a conversation ────────────────────────────────────────────
+    const openConversation = async (contact: any) => {
+        if (!myId) return;
+        setShowContactPicker(false);
+        const convId = await api.getOrCreateConversation(myId, String(contact.id));
+        setActiveConvId(convId);
+        setActiveOtherUser(contact);
+        // Refresh conversations list
+        await loadConversations();
+    };
 
-        if (!trimmedMessage) return;
-        if (!activeContactId || !currentUserId) {
-            window.alert('Please select a contact to start chatting.');
+    const selectConversation = (conv: Conversation) => {
+        setActiveConvId(conv.conversationId);
+        setActiveOtherUser(conv.otherUser);
+    };
+
+    // ── Send message ───────────────────────────────────────────────────────────
+    const handleSend = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (!activeConvId || !myId || isSending) return;
+
+        // Image send
+        if (imagePreview) {
+            try {
+                setIsSending(true);
+                setIsUploading(true);
+                const { url } = await api.uploadChatMedia(imagePreview.file);
+                await api.sendMessage({
+                    conversationId: activeConvId,
+                    senderId: myId,
+                    type: 'image',
+                    mediaUrl: url,
+                    content: messageInput.trim() || undefined,
+                });
+                setImagePreview(null);
+                setMessageInput('');
+            } catch (err: any) {
+                alert('Image upload failed: ' + err.message);
+            } finally {
+                setIsSending(false);
+                setIsUploading(false);
+            }
             return;
         }
 
-        const previousMessage = messageInput;
-        setMessageInput(''); 
+        const text = messageInput.trim();
+        if (!text) return;
 
         try {
-            await api.sendChatMessage({
-                receiverId: String(activeContactId),
-                content: trimmedMessage
-            }, currentUserId);
-
-            const personalRes: any = await api.getMyChats(currentUserId);
-            const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
-            setMyChats(chats);
-
-            setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+            setIsSending(true);
+            setMessageInput('');
+            await api.sendMessage({ conversationId: activeConvId, senderId: myId, content: text, type: 'text' });
+            if (myId && activeConvId) api.setTypingStatus(myId, activeConvId, false).catch(() => {});
         } catch (err: any) {
-            console.error('Failed to send message:', err);
-            setMessageInput(previousMessage);
-            window.alert(`Failed to send message: ${err.message || 'Unknown error'}`);
+            setMessageInput(text);
+            alert('Failed to send: ' + err.message);
+        } finally {
+            setIsSending(false);
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ── Image picker ───────────────────────────────────────────────────────────
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file || !activeContactId || !currentUserId) return;
-
-        try {
-            setIsUploading(true);
-            const { url } = await api.uploadFile(file);
-
-            await api.sendChatMessage({
-                receiverId: String(activeContactId),
-                content: `Sent an attachment: ${url}`
-            }, currentUserId);
-
-            const personalRes: any = await api.getMyChats(currentUserId);
-            const chats = Array.isArray(personalRes) ? personalRes : (personalRes?.data || []);
-            setMyChats(chats);
-
-            setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        } catch (err: any) {
-            console.error('Upload failed:', err);
-            setIsUploading(false);
-            alert(`File upload failed: ${err.message || 'Unknown error'}`);
+        if (!file) return;
+        if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+            alert('Only JPG and PNG images are allowed.');
+            return;
         }
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Maximum image size is 5MB.');
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        setImagePreview({ file, url });
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !currentUserId) return;
-
-        try {
-            setIsUploading(true);
-            const { url } = await api.uploadFile(file);
-
-            await api.updateEmployee(String(currentUserId), { profilePhoto: url });
-
-            // Refresh self data
-            const updated = await api.getEmployeeById(String(currentUserId));
-            setSelfInfo(updated);
-            setIsUploading(false);
-        } catch (err: any) {
-            console.error('Profile photo upload error:', err);
-            alert(`Failed to save photo: ${err.message || 'Unknown error'}`);
-            setIsUploading(false);
-        }
+    // ── Task tagging ───────────────────────────────────────────────────────────
+    const insertTaskTag = (task: any) => {
+        const beforeAt = messageInput.slice(0, messageInput.lastIndexOf('@'));
+        setMessageInput(`${beforeAt}[Task: ${task.title}] `);
+        setShowTaskDropdown(false);
+        inputRef.current?.focus();
     };
 
-    const filteredSearchContacts = contacts.filter(c => {
+    // ── Filtered contacts for search ───────────────────────────────────────────
+    const filteredContacts = allContacts.filter((c) => {
         const q = searchQuery.toLowerCase();
-        return c.firstName.toLowerCase().includes(q) ||
-            c.lastName.toLowerCase().includes(q) ||
-            c.id.toLowerCase().includes(q);
+        return (
+            c.firstName?.toLowerCase().includes(q) ||
+            c.lastName?.toLowerCase().includes(q) ||
+            c.roleId?.toLowerCase().includes(q)
+        );
     });
 
-    const activeContactInfo = contacts.find(c => c.id === activeContactId);
+    // Contacts that don't have a conversation yet (for new chat)
+    const contactsWithoutConv = allContacts.filter(
+        (c) => !conversations.find((cv) => String(cv.otherUser?.id) === String(c.id))
+    );
 
-    const currentThreadModeMessages = myChats.filter(msg => {
-        if (!currentUserId || !activeContactId) return false;
-        const mSender = String(msg.senderId);
-        const mReceiver = String(msg.receiverId);
-        const myId = String(currentUserId);
-        const partnerId = String(activeContactId);
-        return (mSender === myId && mReceiver === partnerId) || (mSender === partnerId && mReceiver === myId);
-    });
+    // ── Render message content ─────────────────────────────────────────────────
+    const renderContent = (msg: Message) => {
+        if (msg.type === 'image' && msg.mediaUrl) {
+            return (
+                <div className="msg-img-wrapper" onClick={() => setExpandedImage(msg.mediaUrl!)}>
+                    <img src={msg.mediaUrl} alt="Shared image" className="msg-img" />
+                    {msg.content && <p className="msg-caption">{msg.content}</p>}
+                </div>
+            );
+        }
+        // Task tag rendering
+        const taskTagRegex = /\[Task: ([^\]]+)\]/g;
+        const parts = msg.content?.split(taskTagRegex) || [];
+        if (parts.length <= 1) return <span>{msg.content}</span>;
 
-    const renderMessageContent = (content: string | null | undefined) => {
-        if (!content) return null;
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const parts = content.split(urlRegex);
-
-        return parts.map((part, i) => {
-            if (part && part.match(urlRegex)) {
-                return (
-                    <a
-                        key={i}
-                        href={part}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'var(--purple-accent)', textDecoration: 'underline', wordBreak: 'break-all' }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {part}
-                    </a>
-                );
-            }
-            return part;
-        });
+        return (
+            <>
+                {parts.map((part, i) =>
+                    i % 2 === 1 ? (
+                        <span key={i} className="task-tag">
+                            <AtSign size={10} /> {part}
+                        </span>
+                    ) : (
+                        <span key={i}>{part}</span>
+                    )
+                )}
+            </>
+        );
     };
 
+    // ── Status tick ────────────────────────────────────────────────────────────
+    const StatusTick = ({ status }: { status: string }) => {
+        if (status === 'seen') return <CheckCheck size={13} className="tick-seen" />;
+        if (status === 'delivered') return <CheckCheck size={13} className="tick-delivered" />;
+        return <Check size={13} className="tick-sent" />;
+    };
+
+    // ── Loading screen ──────────────────────────────────────────────────────────
     if (authLoading) {
-        return <div className="page-loader"><div className="spinner"></div></div>;
+        return (
+            <div className="msg-loading">
+                <div className="msg-spinner" />
+            </div>
+        );
     }
 
+    // ── Filtered conv list ─────────────────────────────────────────────────────
+    const displayConvs = conversations.filter((cv) => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        const u = cv.otherUser;
+        return (
+            u?.firstName?.toLowerCase().includes(q) ||
+            u?.lastName?.toLowerCase().includes(q) ||
+            cv.lastMessage?.content?.toLowerCase().includes(q)
+        );
+    });
+
+    // ── JSX ────────────────────────────────────────────────────────────────────
     return (
-        <div className="messaging-page fade-in">
+        <div className="msg-page">
+            {/* Header */}
             <header className="page-header">
                 <div>
                     <h1 className="greeting">Messages</h1>
-                    <p className="subtitle">Collaborate with your team instantly.</p>
+                    <p className="subtitle">Real-time collaboration with your team.</p>
                 </div>
             </header>
 
-            <div className="messages-container">
-                <GlassCard className="chat-list-panel fade-in slide-up" style={{ animationDelay: '0.1s' }}>
-                    {selfInfo && (
-                        <div className="self-profile-mini" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div
-                                className="chat-avatar self-photo-wrapper"
-                                style={{ position: 'relative', cursor: 'pointer', borderColor: 'var(--purple-main)', padding: 0, overflow: 'hidden' }}
-                                onClick={() => selfFileInputRef.current?.click()}
-                            >
-                                {selfInfo.profilePhoto ? (
-                                    <img src={selfInfo.profilePhoto} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    selfInfo.firstName?.charAt(0) || '?'
-                                )}
-                                <div className="avatar-overlay-camera">
-                                    <ImageIcon size={14} />
-                                </div>
-                            </div>
-                            <input
-                                type="file"
-                                ref={selfFileInputRef}
-                                style={{ display: 'none' }}
-                                accept="image/*"
-                                onChange={handleProfilePhotoUpload}
-                            />
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>{selfInfo.firstName} {selfInfo.lastName}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--purple-accent)' }}>My Account • {selfInfo.roleId}</div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="chat-search-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {isAdminState && (
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                <button
-                                    onClick={() => setActiveTab('personal')}
-                                    style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-sm)', border: 'none', background: activeTab === 'personal' ? 'var(--purple-main)' : 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, transition: 'var(--transition-smooth)' }}
-                                >
-                                    My Chats
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('admin')}
-                                    style={{ flex: 1, padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(239, 68, 68, 0.5)', background: activeTab === 'admin' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)', color: activeTab === 'admin' ? '#FCA5A5' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, transition: 'var(--transition-smooth)' }}
-                                >
-                                    All Conversations
-                                </button>
-                            </div>
-                        )}
-
-                        <div style={{ position: 'relative' }}>
-                            <Search size={18} color="rgba(255,255,255,0.4)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-                            <input
-                                type="text"
-                                className="chat-search-input hover-focus-glow"
-                                placeholder={activeTab === 'admin' ? "Filter globally..." : "Search employees..."}
-                                style={{ paddingLeft: '2.5rem' }}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
+            <div className="msg-layout">
+                {/* ── LEFT PANEL ── */}
+                <aside className="msg-sidebar">
+                    {/* Search */}
+                    <div className="msg-sidebar-search">
+                        <Search size={16} className="msg-search-icon" />
+                        <input
+                            className="msg-search-input"
+                            placeholder="Search conversations..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
 
-                    <div className="chat-directory scroll-smooth">
-                        {loading && activeTab === 'personal' ? (
-                            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>Loading contacts...</div>
-                        ) : activeTab === 'personal' ? (
-                            filteredSearchContacts.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>No matches found.</div>
-                            ) : (
-                                filteredSearchContacts.map((contact, i) => {
-                                    const thread = myChats.filter(m => {
-                                        const mSender = String(m.senderId);
-                                        const mReceiver = String(m.receiverId);
-                                        const myId = String(currentUserId);
-                                        const partnerId = String(contact.id);
-                                        return (mSender === myId && mReceiver === partnerId) || (mSender === partnerId && mReceiver === myId);
-                                    });
-                                    const lastMessage = thread.length > 0 ? thread[thread.length - 1] : null;
+                    {/* New Chat */}
+                    <button
+                        className="msg-new-chat-btn"
+                        onClick={() => setShowContactPicker(!showContactPicker)}
+                    >
+                        <MessageSquare size={15} />
+                        New Conversation
+                        <ChevronDown size={14} style={{ marginLeft: 'auto', transform: showContactPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    </button>
 
-                                    return (
-                                        <div key={contact.id}
-                                            className={`chat-item ${contact.id === activeContactId ? 'active' : ''} fade-in slide-up`}
-                                            style={{ animationDelay: `${0.15 + (i * 0.05)}s` }}
-                                            onClick={() => setActiveContactId(contact.id)}
-                                        >
-                                            <div className="chat-avatar" style={{ borderColor: contact.id === activeContactId ? 'var(--purple-accent)' : 'var(--panel-border)', padding: 0, overflow: 'hidden', background: '#111' }}>
-                                                {contact.profilePhoto ? (
-                                                    <img src={contact.profilePhoto} alt={contact.firstName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                ) : (
-                                                    contact.firstName?.charAt(0).toUpperCase() || '?'
-                                                )}
-                                            </div>
-                                            <div className="chat-preview">
-                                                <div className="chat-user-name">
-                                                    {contact.firstName} {contact.lastName}
-                                                </div>
-                                                <div className="chat-snippet">
-                                                    {lastMessage ? lastMessage.content : 'Start a conversation'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )
-                                })
-                            )
-                        ) : (
-                            adminChats.length === 0 ? (
-                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>No system messages found.</div>
-                            ) : (
-                                adminChats.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase())).map((msg, i) => (
-                                    <div key={msg.id} className="chat-item fade-in slide-up" style={{ borderLeft: '3px solid #EF4444' }}>
-                                        <div className="chat-preview" style={{ width: '100%' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#FCA5A5', marginBottom: '4px' }}>
-                                                <span>{msg.sender?.firstName || 'System'} → {msg.receiver?.firstName || 'Global'}</span>
-                                                <span>{new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                            </div>
-                                            <div className="chat-snippet" style={{ color: 'white' }}>{msg.content}</div>
-                                        </div>
+                    {/* Contact picker for new chats */}
+                    {showContactPicker && (
+                        <div className="msg-contact-picker">
+                            {contactsWithoutConv.length === 0 && (
+                                <div className="msg-empty-note">All contacts are in conversations.</div>
+                            )}
+                            {contactsWithoutConv.map((c) => (
+                                <div key={c.id} className="msg-contact-pick-item" onClick={() => openConversation(c)}>
+                                    <div className="msg-avatar-sm">
+                                        {c.profilePhoto ? (
+                                            <img src={c.profilePhoto} alt={c.firstName} />
+                                        ) : (
+                                            c.firstName?.charAt(0).toUpperCase()
+                                        )}
                                     </div>
-                                ))
-                            )
-                        )}
-                    </div>
-                </GlassCard>
-
-                <div
-                    className={`conversation-wrapper fade-in slide-up ${isDragging ? 'drag-active' : ''}`}
-                    style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    {isDragging && (
-                        <div className="drag-overlay fade-in">
-                            <ImageIcon size={48} style={{ color: 'var(--purple-main)', marginBottom: '16px' }} />
-                            <h3>Drop to Upload</h3>
+                                    <div>
+                                        <div className="msg-contact-name">{c.firstName} {c.lastName}</div>
+                                        <div className="msg-contact-role">{c.roleId}</div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 
-                    <GlassCard className="conversation-panel">
-                        {activeTab === 'personal' ? (
-                            activeContactInfo ? (
-                                <>
-                                    <div className="conversation-header">
-                                        <div className="chat-avatar" style={{ padding: 0, overflow: 'hidden', background: '#111' }}>
-                                            {activeContactInfo.profilePhoto ? (
-                                                <img src={activeContactInfo.profilePhoto} alt={activeContactInfo.firstName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div className="msg-conv-list">
+                        {loading && <div className="msg-empty-note">Loading...</div>}
+
+                        {!loading && displayConvs.length === 0 && !showContactPicker && (
+                            <div className="msg-empty-note">
+                                No conversations yet.<br />Click "New Conversation" to start chatting.
+                            </div>
+                        )}
+
+                        {displayConvs.map((conv) => {
+                            const u = conv.otherUser;
+                            const isActive = conv.conversationId === activeConvId;
+                            const isAdminUser = String(u?.roleId || '').toUpperCase() === 'ADMIN';
+
+                            return (
+                                <div
+                                    key={conv.conversationId}
+                                    className={`msg-conv-item ${isActive ? 'active' : ''} ${isAdminUser ? 'admin-pinned' : ''}`}
+                                    onClick={() => selectConversation(conv)}
+                                >
+                                    <div className="msg-avatar-container">
+                                        <div className="msg-avatar">
+                                            {u?.profilePhoto ? (
+                                                <img src={u.profilePhoto} alt={u?.firstName} />
                                             ) : (
-                                                activeContactInfo.firstName.charAt(0)
+                                                u?.firstName?.charAt(0).toUpperCase() || '?'
                                             )}
                                         </div>
-                                        <div className="conversation-meta" style={{ flex: 1 }}>
-                                            <h2>{activeContactInfo.firstName} {activeContactInfo.lastName}</h2>
-                                            <p>{activeContactInfo.roleId}</p>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-secondary)' }}>
-                                            <span className="hoverable-icon" onClick={() => setActiveContactId(null)}>
-                                                <X size={20} />
+                                        {/* Online dot — always show for now, can wire to presence later */}
+                                        <div className="msg-online-dot" />
+                                    </div>
+
+                                    <div className="msg-conv-info">
+                                        <div className="msg-conv-top">
+                                            <span className="msg-conv-name">
+                                                {u?.firstName} {u?.lastName}
+                                                {isAdminUser && (
+                                                    <span className="msg-admin-badge">ADMIN</span>
+                                                )}
                                             </span>
+                                            {conv.lastMessage && (
+                                                <span className="msg-conv-time">
+                                                    {formatTime(conv.lastMessage.createdAt)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="msg-conv-bottom">
+                                            <span className="msg-conv-snippet">
+                                                {conv.lastMessage
+                                                    ? conv.lastMessage.type === 'image'
+                                                        ? '📷 Image'
+                                                        : conv.lastMessage.content
+                                                    : 'Start a conversation'}
+                                            </span>
+                                            {conv.unreadCount > 0 && (
+                                                <span className="msg-unread-badge">{conv.unreadCount}</span>
+                                            )}
                                         </div>
                                     </div>
-
-                                    <div className="chat-history scroll-smooth">
-                                        {currentThreadModeMessages.length === 0 ? (
-                                            <div style={{ textAlign: 'center', margin: 'auto' }}>No message history.</div>
-                                        ) : (
-                                            currentThreadModeMessages.map((msg) => {
-                                                const isMine = String(msg.senderId) === String(currentUserId);
-                                                return (
-                                                    <div key={msg.id} className={`message-bubble-row ${isMine ? 'sent' : 'received'}`}>
-                                                        <div className="chat-avatar mini-avatar">
-                                                            {isMine ? (
-                                                                selfInfo?.profilePhoto ? <img src={selfInfo.profilePhoto} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'M'
-                                                            ) : (
-                                                                activeContactInfo.profilePhoto ? <img src={activeContactInfo.profilePhoto} alt="Partner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'P'
-                                                            )}
-                                                        </div>
-                                                        <div className="message-content-wrapper">
-                                                            <div className="message-text">{renderMessageContent(msg.content)}</div>
-                                                            <div className="message-meta">
-                                                                <span>{new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
-                                        )}
-                                        <div ref={messagesEndRef} />
-                                    </div>
-
-                                    <form className="conversation-compose" onSubmit={handleSend}>
-                                        <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
-                                        <button type="button" className="attach-button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                                            <Paperclip size={20} />
-                                        </button>
-                                        <input
-                                            type="text"
-                                            className="compose-input"
-                                            placeholder="Write a message..."
-                                            value={messageInput}
-                                            onChange={(e) => setMessageInput(e.target.value)}
-                                        />
-                                        <button type="submit" className="send-button" disabled={!messageInput.trim()}>
-                                            <Send size={18} />
-                                        </button>
-                                    </form>
-                                </>
-                            ) : (
-                                <div className="no-chat-selected fade-in">
-                                    <MessageSquare size={64} />
-                                    <h3>TripleS Messaging</h3>
-                                    <p>Select a contact to start chatting.</p>
                                 </div>
-                            )
-                        ) : (
-                            <div className="chat-history scroll-smooth" style={{ padding: '20px' }}>
-                                <h2 style={{ color: '#FCA5A5', textAlign: 'center' }}>Global Audit Trail</h2>
-                                {adminChats.map((msg: any) => (
-                                    <div key={msg.id} style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                            {msg.sender?.firstName || 'System'} → {msg.receiver?.firstName || 'Global'}
-                                        </div>
-                                        <div>{msg.content}</div>
-                                    </div>
-                                ))}
+                            );
+                        })}
+                    </div>
+                </aside>
+
+                {/* ── RIGHT PANEL ── */}
+                <main className="msg-main">
+                    {!activeConvId ? (
+                        <div className="msg-empty-state">
+                            <div className="msg-empty-icon">
+                                <MessageSquare size={48} />
                             </div>
-                        )}
-                    </GlassCard>
-                </div>
+                            <h3>TripleS Messaging</h3>
+                            <p>Select a conversation or start a new one.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Chat Header */}
+                            <div className="msg-chat-header">
+                                <div className="msg-avatar-container">
+                                    <div className="msg-avatar">
+                                        {activeOtherUser?.profilePhoto ? (
+                                            <img src={activeOtherUser.profilePhoto} alt={activeOtherUser?.firstName} />
+                                        ) : (
+                                            activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
+                                        )}
+                                    </div>
+                                    <div className="msg-online-dot" />
+                                </div>
+                                <div className="msg-chat-header-info">
+                                    <div className="msg-chat-header-name">
+                                        {activeOtherUser?.firstName} {activeOtherUser?.lastName}
+                                    </div>
+                                    <div className="msg-chat-header-sub">
+                                        {String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                            <span style={{ color: '#a78bfa' }}>Admin · Online</span>
+                                        ) : isAdmin ? (
+                                            <span style={{ color: '#10B981' }}>Online</span>
+                                        ) : (
+                                            <span style={{ color: '#10B981' }}>Online</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button
+                                    className="msg-close-btn"
+                                    onClick={() => { setActiveConvId(null); setActiveOtherUser(null); }}
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Messages Area */}
+                            <div className="msg-messages-area">
+                                {messages.length === 0 && (
+                                    <div className="msg-no-msgs">
+                                        <p>Say hello to {activeOtherUser?.firstName} 👋</p>
+                                    </div>
+                                )}
+
+                                {messages.map((msg, idx) => {
+                                    const isMine = String(msg.senderId) === String(myId);
+                                    const showAvatar = idx === 0 || messages[idx - 1]?.senderId !== msg.senderId;
+
+                                    return (
+                                        <div key={msg.id} className={`msg-row ${isMine ? 'sent' : 'received'}`}>
+                                            {!isMine && (
+                                                <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
+                                                    {activeOtherUser?.profilePhoto ? (
+                                                        <img src={activeOtherUser.profilePhoto} alt="" />
+                                                    ) : (
+                                                        activeOtherUser?.firstName?.charAt(0) || '?'
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <div className="msg-bubble-wrap">
+                                                <div className={`msg-bubble ${isMine ? 'msg-bubble-sent' : 'msg-bubble-recv'}`}>
+                                                    {renderContent(msg)}
+                                                </div>
+                                                <div className={`msg-meta ${isMine ? 'msg-meta-sent' : ''}`}>
+                                                    <span>{formatTime(msg.createdAt)}</span>
+                                                    {isMine && <StatusTick status={msg.status} />}
+                                                </div>
+                                            </div>
+
+                                            {isMine && (
+                                                <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
+                                                    {(authEmployee as any)?.profilePhoto ? (
+                                                        <img src={String((authEmployee as any).profilePhoto)} alt="" />
+                                                    ) : (
+                                                        authEmployee?.firstName?.charAt(0) || 'M'
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+
+                                {/* Typing indicator */}
+                                {isTyping && (
+                                    <div className="msg-row received">
+                                        <div className="msg-mini-avatar">
+                                            {activeOtherUser?.firstName?.charAt(0) || '?'}
+                                        </div>
+                                        <div className="msg-typing-indicator">
+                                            <span /><span /><span />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            {/* Image Preview before send */}
+                            {imagePreview && (
+                                <div className="msg-img-preview-bar">
+                                    <div className="msg-img-preview-thumb">
+                                        <img src={imagePreview.url} alt="Preview" />
+                                        <button
+                                            className="msg-img-preview-remove"
+                                            onClick={() => { URL.revokeObjectURL(imagePreview.url); setImagePreview(null); }}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                    <span className="msg-img-preview-label">{imagePreview.file.name}</span>
+                                </div>
+                            )}
+
+                            {/* Task dropdown */}
+                            {showTaskDropdown && (
+                                <div className="msg-task-dropdown">
+                                    <div className="msg-task-dropdown-header">📌 Your Tasks</div>
+                                    {myTasks.length === 0 && (
+                                        <div className="msg-empty-note">No tasks found.</div>
+                                    )}
+                                    {myTasks.map((task) => (
+                                        <div
+                                            key={task.id}
+                                            className="msg-task-item"
+                                            onClick={() => insertTaskTag(task)}
+                                        >
+                                            <span className={`task-priority-dot priority-${task.priority?.toLowerCase()}`} />
+                                            <span className="msg-task-title">{task.title}</span>
+                                            <span className="msg-task-status">{task.status}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Compose bar */}
+                            <form className="msg-compose" onSubmit={handleSend}>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    accept="image/jpeg,image/jpg,image/png"
+                                    onChange={handleFileChange}
+                                />
+                                <button
+                                    type="button"
+                                    className="msg-attach-btn"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    title="Send image"
+                                >
+                                    <ImageIcon size={18} />
+                                </button>
+
+                                <div className="msg-input-wrap">
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        className="msg-input"
+                                        placeholder={imagePreview ? 'Add a caption...' : 'Type a message...'}
+                                        value={messageInput}
+                                        onChange={handleInputChange}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSend();
+                                            }
+                                            if (e.key === 'Escape') {
+                                                setShowTaskDropdown(false);
+                                                setImagePreview(null);
+                                            }
+                                        }}
+                                        autoComplete="off"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="msg-at-btn"
+                                        title="Tag a task"
+                                        onClick={() => {
+                                            setMessageInput((prev) => prev + '@');
+                                            setShowTaskDropdown(true);
+                                            inputRef.current?.focus();
+                                        }}
+                                    >
+                                        <AtSign size={15} />
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="msg-send-btn"
+                                    disabled={(!messageInput.trim() && !imagePreview) || isSending || isUploading}
+                                >
+                                    {isSending || isUploading ? (
+                                        <div className="msg-send-spinner" />
+                                    ) : (
+                                        <Send size={17} />
+                                    )}
+                                </button>
+                            </form>
+                        </>
+                    )}
+                </main>
             </div>
+
+            {/* Expanded image lightbox */}
+            {expandedImage && (
+                <div className="msg-lightbox" onClick={() => setExpandedImage(null)}>
+                    <button className="msg-lightbox-close" onClick={() => setExpandedImage(null)}>
+                        <X size={20} />
+                    </button>
+                    <img src={expandedImage} alt="Full size" className="msg-lightbox-img" />
+                </div>
+            )}
         </div>
     );
 }

@@ -65,33 +65,6 @@ function AdminDashboard({
 
     return (
         <div className="admin-dash-v2 fade-in">
-            {/* Custom Admin Header */}
-            <header className="ad2-header">
-                <div className="ad2-header-left">
-                    <div className="ad2-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</div>
-                </div>
-                <div className="ad2-header-center">
-                    <div className="ad2-search-bar">
-                        <Search size={16} />
-                        <input type="text" placeholder="Search tasks, employees..." />
-                    </div>
-                </div>
-                <div className="ad2-header-right">
-                    <div className="ad2-icon-btn" onClick={() => window.location.href = '/messaging'}><MessageCircle size={18} /></div>
-                    <div className="ad2-icon-btn"><Bell size={18} /></div>
-                    <div className="ad2-user-profile">
-                        <img 
-                            src={employee?.profilePhoto || "https://i.pravatar.cc/150?img=11"} 
-                            alt="Admin" 
-                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', background: 'var(--glass-bg)' }} 
-                        />
-                        <div className="ad2-user-info">
-                            <span className="ad2-user-name">{adminName}</span>
-                            <span className="ad2-user-role">{adminRole}</span>
-                        </div>
-                    </div>
-                </div>
-            </header>
 
             {/* Quick Stats - Enhanced fallback logic */}
             <div className="quick-stats" style={{ marginTop: '12px' }}>
@@ -416,8 +389,8 @@ function ManagerDashboard({
                             <span className="ad2-badge">{eodList.length}</span>
                         </div>
                         <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
-                            {eodList.length === 0 ? (
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>No reports to show.</p>
+                            {tasks.length === 0 ? (
+                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.2, padding: '40px 0' }}>No reports to show.</div>
                             ) : (
                                 eodList.map((eod: any) => (
                                     <div key={eod.id} className="ad2-task-list-item">
@@ -532,35 +505,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 
     return (
         <div className="admin-dash-v2 fade-in">
-             {/* Employee Header */}
-             <header className="ad2-header" style={{ marginBottom: '8px' }}>
-                <div className="ad2-header-left">
-                    <div className="ad2-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</div>
-                </div>
-                <div className="ad2-header-center">
-                    <div className="ad2-search-bar">
-                        <Search size={16} />
-                        <input type="text" placeholder="Search my tasks, docs..." />
-                    </div>
-                </div>
-                <div className="ad2-header-right">
-                    <div className="ad2-icon-btn has-notification" onClick={() => window.location.href = '/messaging'}>
-                        <MessageCircle size={18} />
-                    </div>
-                    <div className="ad2-icon-btn"><Bell size={18} /></div>
-                    <div className="ad2-user-profile">
-                        <img 
-                            src={employee?.profilePhoto || "https://i.pravatar.cc/150?u="+employee?.id} 
-                            alt="Pro" 
-                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', background: 'var(--glass-bg)' }} 
-                        />
-                        <div className="ad2-user-info">
-                            <span className="ad2-user-name">{empName}</span>
-                            <span className="ad2-user-role">{empRole}</span>
-                        </div>
-                    </div>
-                </div>
-            </header>
+
 
             {/* KPI & Quick Stats */}
             <div className="quick-stats" style={{ marginTop: '12px' }}>
@@ -609,12 +554,12 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                 
                 {/* Column 1 + 2: Task Runway & Performance Audit */}
                 <div className="ad2-col" style={{ gridColumn: 'span 2' }}>
-                    <div className="ad2-card" style={{ flex: 1, minHeight: '300px' }}>
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '300px', overflow: 'hidden' }}>
                         <div className="ad2-card-header">
                             <h3><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
-                            <Link href="/tasks" className="ad2-badge hoverable">View All</Link>
+                            <Link href="/tasks" className="ad2-badge-btn">View All</Link>
                         </div>
-                        <div className="custom-scrollbar" style={{ overflowY: 'auto' }}>
+                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
                             {pendingTasks.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
                                     <CheckSquare size={40} style={{ opacity: 0.1, marginBottom: '12px' }} />
@@ -883,14 +828,49 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {userRole !== 'ADMIN' && (
-                <header className="page-header">
-                    <div>
-                        <h1 className="greeting">Welcome back, {employee?.firstName || 'User'}</h1>
-                        <p className="subtitle">Here's your {userRole.toLowerCase()} overview for today.</p>
+            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px', padding: '12px 0' }}>
+                <div>
+                    <h1 className="greeting" style={{ margin: 0, fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Welcome back, {employee?.firstName || 'User'}</h1>
+                    <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.5, fontSize: '0.95rem' }}>Here's your {userRole.toLowerCase()} overview for today.</p>
+                </div>
+                
+                <div className="ad2-header-nav-pill" style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '16px', 
+                    background: 'rgba(255, 255, 255, 0.03)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '6px 16px',
+                    borderRadius: '50px',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                }}>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', fontWeight: 700, paddingRight: '8px', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                        {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toUpperCase()}
                     </div>
-                </header>
-            )}
+                    
+                    <div className="ad2-header-actions" style={{ display: 'flex', gap: '10px' }}>
+                        <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.05)', width: '32px', height: '32px' }} onClick={() => window.location.href = '/messaging'}>
+                            <MessageCircle size={16} />
+                        </div>
+                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.05)', width: '32px', height: '32px' }}>
+                            <Bell size={16} />
+                        </div>
+                    </div>
+
+                    <div className="ad2-user-pill" style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'white', lineHeight: 1.1 }}>{employee?.firstName}</div>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{userRole}</div>
+                        </div>
+                        <img 
+                            src={employee?.profilePhoto || `https://ui-avatars.com/api/?name=${employee?.firstName}&background=random`} 
+                            alt="Pro" 
+                            style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)' }} 
+                        />
+                    </div>
+                </div>
+            </header>
 
             {userRole === 'ADMIN' && (
                 <AdminDashboard 

@@ -27,6 +27,7 @@ import {
     ChevronRight 
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import './Sidebar.css';
 
 // Centralized navigation configurations dictated by Role
@@ -71,10 +72,25 @@ export default function Sidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    // Poll unread message count every 30s
+    useEffect(() => {
+        if (!employee?.id) return;
+        const fetchUnread = async () => {
+            try {
+                const count = await api.getUnreadCount(String(employee.id));
+                setUnreadCount(count);
+            } catch { /* silent */ }
+        };
+        fetchUnread();
+        const interval = setInterval(fetchUnread, 30000);
+        return () => clearInterval(interval);
+    }, [employee?.id]);
 
     const handleLogout = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -153,11 +169,35 @@ export default function Sidebar() {
                                     ? pathname === '/dashboard'
                                     : pathname?.startsWith(item.href || '');
 
-                                return (
+                            return (
                                     <li key={item.name}>
                                         <Link href={item.href || '#'} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)}>
                                             {Icon && <Icon className="nav-icon" size={20} />}
                                             {!isCollapsed && <span>{item.name}</span>}
+                                            {/* Unread messages badge */}
+                                            {item.href === '/messaging' && unreadCount > 0 && (
+                                                <span style={{
+                                                    marginLeft: isCollapsed ? 0 : 'auto',
+                                                    minWidth: '18px',
+                                                    height: '18px',
+                                                    background: 'var(--purple-main)',
+                                                    borderRadius: '9px',
+                                                    padding: '0 5px',
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 800,
+                                                    color: 'white',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    boxShadow: '0 0 8px rgba(124,58,237,0.5)',
+                                                    position: isCollapsed ? 'absolute' : 'relative',
+                                                    top: isCollapsed ? '4px' : 'auto',
+                                                    right: isCollapsed ? '4px' : 'auto',
+                                                    animation: 'pulse 2s infinite',
+                                                }}>
+                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                </span>
+                                            )}
                                         </Link>
                                     </li>
                                 );

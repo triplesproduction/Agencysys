@@ -525,37 +525,8 @@ export const api = {
         }));
     },
 
-    // Chats
-    sendChatMessage: async (data: { receiverId: string; content: string }, senderId: string) => {
-        if (!senderId) throw new Error('Not authenticated');
-        const msg = { ...data, senderId };
-        const { data: res, error } = await supabase.from('messages').insert(msg).select().single();
-        handleSupabaseEvent(res, error, 'Send Message');
-        return res;
-    },
-    getMyChats: async (userId: string) => {
-        if (!userId) throw new Error('Not authenticated');
 
-        // Relaxed filtering for visibility due to ID mismatch
-        // const { data, error } = await supabase.from('messages')
-        //    .select('*')
-        //    .or(`senderId.eq.${user.id},receiverId.eq.${user.id}`)
-        //    .order('sentAt', { ascending: true });
-        const { data, error } = await supabase.from('messages')
-            .select('*')
-            .order('sentAt', { ascending: true });
-            
-        handleSupabaseEvent(data, error, 'Fetch My Chats');
-        return { data: data || [] };
-    },
-    getAdminChats: async () => {
-        const { data, error } = await supabase.from('messages')
-            .select('*, sender:employees!senderId(*), receiver:employees!receiverId(*)')
-            .order('sentAt', { ascending: false });
-        handleSupabaseEvent(data, error, 'Fetch Admin Chats');
-        return { data: data || [], message: 'Admin chats' };
-    },
-    deleteChatMessage: async (messageId: string, forEveryone: boolean) => {
+    deleteChatMessage: async (messageId: string, _forEveryone: boolean) => {
         const { error } = await supabase.from('messages').delete().eq('id', messageId);
         handleSupabaseEvent(null, error, 'Delete Message');
         return { success: true };
@@ -832,7 +803,7 @@ export const api = {
         return count || 0;
     },
 
-    // Legacy stubs (kept for backward compat if referenced anywhere)
+    // Legacy compat
     getMyChats: async (myId: string) => {
         return api.getConversations(myId);
     },
@@ -843,7 +814,7 @@ export const api = {
     getAdminChats: async () => {
         const { data } = await supabase
             .from('messages')
-            .select('*, sender:senderId(*), receiver:conversationId(*)')
+            .select('*')
             .order('createdAt', { ascending: false })
             .limit(100);
         return data || [];
