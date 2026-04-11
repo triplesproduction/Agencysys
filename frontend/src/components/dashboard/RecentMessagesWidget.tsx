@@ -54,16 +54,14 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
         }
 
         fetchChats();
-    }, [maxItems]);
+    }, [authLoading, authEmployee, maxItems]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
-                    <MessageSquare size={16} style={{ color: 'var(--purple-main)' }} /> Recent Chats
-                </h2>
-                <Link href="/messaging" style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
-                    Open Inbox <ArrowRight size={10} />
+        <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="ad2-card-header">
+                <h3><MessageSquare size={16} color="var(--purple-main)" /> Recent Chats</h3>
+                <Link href="/messaging" className="ad2-badge" style={{ textDecoration: 'none' }}>
+                    Open Inbox <ArrowRight size={10} style={{ marginLeft: '4px' }} />
                 </Link>
             </div>
 
@@ -76,7 +74,7 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>No messages yet.</p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {threads.map(msg => {
                         const isMine = String(msg.senderId) === authEmployee?.id;
                         const partner = isMine ? msg.receiver : msg.sender;
@@ -85,25 +83,12 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
 
                         return (
                             <Link key={msg.id} href="/messaging" style={{ textDecoration: 'none' }}>
-                                <div style={{
-                                    background: 'rgba(255,255,255,0.03)',
-                                    border: '1px solid rgba(255,255,255,0.06)',
-                                    borderRadius: '12px',
-                                    padding: '10px 12px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    transition: 'all 0.2s',
-                                    cursor: 'pointer'
-                                }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                                >
+                                <div className="ad2-task-list-item" style={{ padding: '12px' }}>
                                     <div style={{
                                         width: '36px',
                                         height: '36px',
                                         borderRadius: '50%',
-                                        background: 'var(--panel-bg)',
+                                        background: 'rgba(255,255,255,0.05)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -122,19 +107,18 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{name}</span>
-                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'white' }}>{name}</span>
+                                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
                                                 {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
                                         <p style={{
-                                            fontSize: '0.75rem',
+                                            fontSize: '0.78rem',
                                             color: 'var(--text-secondary)',
                                             margin: 0,
                                             whiteSpace: 'nowrap',
                                             overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            opacity: 0.8
+                                            textOverflow: 'ellipsis'
                                         }}>
                                             {isMine ? 'You: ' : ''}{msg.content}
                                         </p>

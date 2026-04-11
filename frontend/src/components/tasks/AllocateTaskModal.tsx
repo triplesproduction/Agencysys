@@ -34,7 +34,6 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
     const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
 
-    const [expectedHours, setExpectedHours] = useState('');
     const [managerId, setManagerId] = useState('');
     const [isManagerListOpen, setIsManagerListOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +63,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
             setTitle(''); setSelectedTaskId(''); setSelectedEmployeeIds([]);
             setPriority('MEDIUM'); setDueDate(new Date().toISOString().split('T')[0]); setInstructions('');
             setAttachments(''); setUploadedFiles([]); setErrorMsg('');
-            setExpectedHours(''); setManagerId(''); setIsManagerListOpen(false);
+            setManagerId(''); setIsManagerListOpen(false);
 
         }
     }, [isOpen]);
@@ -118,7 +117,6 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                 assigneeIds: selectedEmployeeIds,
                 managerId: managerId || undefined,
                 priority,
-                expectedHours: expectedHours ? parseFloat(expectedHours) : undefined,
                 dueDate: new Date(dueDate).toISOString(),
                 attachments: allAttachments.length > 0 ? allAttachments : undefined,
             };
@@ -267,18 +265,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                <div>
-                                    <div className="trello-section-label">Est. Hours</div>
-                                    <input 
-                                        type="number" 
-                                        className="trello-native-input" 
-                                        value={expectedHours} 
-                                        onChange={(e) => setExpectedHours(e.target.value)}
-                                        placeholder="0.0"
-                                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', color: 'white', width: '100%' }}
-                                    />
-                                </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                                 <div>
                                     <DatePicker 
                                         label="Due Date"

@@ -38,14 +38,12 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
     }, []);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>
             {/* Section header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
-                    <Megaphone size={16} style={{ color: '#3B82F6' }} /> Announcements
-                </h2>
-                <Link href="/messaging/broadcast" style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
-                    View all <ExternalLink size={10} />
+            <div className="ad2-card-header">
+                <h3><Megaphone size={16} color="#3B82F6" /> Announcements</h3>
+                <Link href="/messaging/broadcast" className="ad2-badge" style={{ textDecoration: 'none' }}>
+                    View all <ExternalLink size={10} style={{ marginLeft: '4px' }} />
                 </Link>
             </div>
 
@@ -59,26 +57,28 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
                     <span style={{ fontSize: '0.8rem' }}>No active announcements</span>
                 </div>
             ) : (
-                items.map(ann => {
-                    const c = typeColors[ann.type] || typeColors.ANNOUNCEMENT;
-                    return (
-                        <div key={ann.id} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 'var(--radius-sm)', padding: '12px 14px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                                <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'white', lineHeight: 1.3 }}>{ann.title}</span>
-                                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: c.text, background: c.bg, border: `1px solid ${c.border}`, borderRadius: '8px', padding: '1px 7px', whiteSpace: 'nowrap', marginLeft: '8px' }}>
-                                    {ann.type}
-                                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {items.map(ann => {
+                        const c = typeColors[ann.type] || typeColors.ANNOUNCEMENT;
+                        return (
+                            <div key={ann.id} className="ad2-task-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '16px', borderLeft: `3px solid ${c.text}` }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'white' }}>{ann.title}</span>
+                                    <span className="ad2-badge ad2-tag" style={{ background: c.bg, color: c.text, borderColor: c.border }}>
+                                        {ann.type}
+                                    </span>
+                                </div>
+                                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', margin: '0 0 10px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    {ann.message}
+                                </p>
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
+                                    {ann.author ? `${ann.author.firstName} ${ann.author.lastName} • ` : ''}
+                                    {new Date(ann.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                </div>
                             </div>
-                            <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', margin: '0 0 6px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {ann.message}
-                            </p>
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)' }}>
-                                {ann.author ? `${ann.author.firstName} ${ann.author.lastName} · ` : ''}
-                                {new Date(ann.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </div>
-                        </div>
-                    );
-                })
+                        );
+                    })}
+                </div>
             )}
         </div>
     );

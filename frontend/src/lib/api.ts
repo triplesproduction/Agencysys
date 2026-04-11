@@ -596,7 +596,7 @@ export const api = {
         handleSupabaseEvent(data, error, 'Fetch Announcements');
         return data as any[];
     },
-    createAnnouncement: async (data: { title: string; message: string; type?: string }) => {
+    createAnnouncement: async (data: { title: string; message: string; priority?: string; channel?: string; type?: string }) => {
         const { data: res, error } = await supabase.from('announcements').insert(data).select().single();
         handleSupabaseEvent(res, error, 'Create Announcement');
         return res as any;

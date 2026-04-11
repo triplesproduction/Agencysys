@@ -32,17 +32,15 @@ export default function RulesWidget({ maxItems = 4 }: { maxItems?: number }) {
             .then(data => setRules((data || []).slice(0, maxItems)))
             .catch(() => setRules([]))
             .finally(() => setIsLoading(false));
-    }, []);
+    }, [maxItems]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>
             {/* Section header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
-                    <BookOpen size={16} style={{ color: 'var(--purple-main)' }} /> Latest Rules
-                </h2>
-                <Link href="/rulebook" style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
-                    Full rulebook <ExternalLink size={10} />
+            <div className="ad2-card-header">
+                <h3><BookOpen size={16} color="var(--purple-main)" /> Latest Rules</h3>
+                <Link href="/rulebook" className="ad2-badge" style={{ textDecoration: 'none' }}>
+                    Full rulebook <ExternalLink size={10} style={{ marginLeft: '4px' }} />
                 </Link>
             </div>
 
@@ -56,32 +54,32 @@ export default function RulesWidget({ maxItems = 4 }: { maxItems?: number }) {
                     <span style={{ fontSize: '0.8rem' }}>No rules published yet</span>
                 </div>
             ) : (
-                rules.map(rule => {
-                    const pColor = priorityColors[rule.priority] || '#6B7280';
-                    return (
-                        <div key={rule.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', borderLeft: `3px solid ${pColor}` }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px', gap: '8px' }}>
-                                <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'white', lineHeight: 1.3 }}>{rule.title}</span>
-                                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: pColor, background: `${pColor}18`, border: `1px solid ${pColor}40`, borderRadius: '8px', padding: '1px 7px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {rules.map(rule => {
+                        const pColor = priorityColors[rule.priority] || '#6B7280';
+                        return (
+                            <div key={rule.id} className="ad2-task-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '16px', borderLeft: `3px solid ${pColor}` }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'white' }}>{rule.title}</span>
+                                    <span className="ad2-badge" style={{ color: pColor, borderColor: pColor, background: `${pColor}10` }}>
                                         {rule.priority}
                                     </span>
                                 </div>
+                                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)', margin: '0 0 10px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    {rule.description}
+                                </p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Tag size={10} /> {rule.category}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
+                                        {new Date(rule.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                </div>
                             </div>
-                            <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)', margin: '0 0 6px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {rule.description}
-                            </p>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <Tag size={10} /> {rule.category}
-                                </span>
-                                <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
-                                    {new Date(rule.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })
+                        );
+                    })}
+                </div>
             )}
         </div>
     );

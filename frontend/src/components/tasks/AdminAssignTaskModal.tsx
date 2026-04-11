@@ -26,7 +26,6 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
     const [managerId, setManagerId] = useState(''); 
     const [priority, setPriority] = useState('MEDIUM');
-    const [expectedHours, setExpectedHours] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [attachments, setAttachments] = useState('');
     const [saveAsTemplate, setSaveAsTemplate] = useState(false);
@@ -53,7 +52,6 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
             setSelectedEmployeeIds([]);
             setManagerId('');
             setPriority('MEDIUM');
-            setExpectedHours('');
             setDueDate('');
             setAttachments('');
             setSaveAsTemplate(false);
@@ -116,7 +114,6 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
                 assigneeIds: selectedEmployeeIds,
                 managerId: finalManagerId === "" ? undefined : finalManagerId,
                 priority,
-                expectedHours: expectedHours ? parseFloat(expectedHours) : undefined,
                 dueDate: formattedDueDate,
                 attachments: attachments ? attachments.split(',').map(url => url.trim()).filter(url => url !== "") : undefined,
                 // isTemplate: saveAsTemplate
@@ -214,16 +211,6 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
                                         <option value="HIGH">High</option>
                                         <option value="CRITICAL">Critical</option>
                                     </select>
-                                </div>
-                                <div className="input-field">
-                                    <label>Est. Hours</label>
-                                    <input 
-                                        type="number" 
-                                        value={expectedHours} 
-                                        onChange={(e) => setExpectedHours(e.target.value)}
-                                        placeholder="0.0"
-                                        className="glass-native-input"
-                                    />
                                 </div>
                             </div>
                         </div>
