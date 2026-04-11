@@ -114,7 +114,7 @@ function AdminDashboard({
                             <h3>Pending EODs</h3>
                             <span className="ad2-badge">{eodList.length}</span>
                         </div>
-                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '350px', paddingRight: '4px' }}>
+                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '200px', paddingRight: '4px' }}>
                             {eodList.length === 0 ? (
                                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>No EODs submitted yet today.</p>
                             ) : (
@@ -142,7 +142,7 @@ function AdminDashboard({
                     </div>
 
                     {/* Performance Feed */}
-                    <div className="ad2-card custom-scrollbar" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(5, 5, 5, 0.4)', minHeight: '350px' }}>
+                    <div className="ad2-card custom-scrollbar" style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(5, 5, 5, 0.4)', minHeight: '180px' }}>
                         <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Activity size={16} color="#10B981" /> Performance Feed

@@ -59,7 +59,7 @@
     border: none;
     border-radius: 20px !important;
     min-width: 0;
-    min-height: 120px;
+    min-height: 80px;
     height: 100%;
 }
 
@@ -549,7 +549,7 @@
 /* BENTO GRID - Refined Transitions */
 .ad2-bento-grid {
     display: grid;
-    grid-template-columns: 240px 1fr 1fr 260px;
+    grid-template-columns: 1.2fr 2fr 2fr 1.3fr;
     grid-template-areas: 
         "col1 col2 col2 col4";
     gap: 16px;
