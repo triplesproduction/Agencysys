@@ -469,9 +469,8 @@ function ManagerDashboard({
                 {/* Column 3: Communication & Rules */}
                 <div className="ad2-col ad2-col-4" style={{ gridArea: 'col4' }}>
                     <RecentMessagesWidget maxItems={3} />
-                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ marginTop: '12px' }}>
                         <AnnouncementsWidget maxItems={2} />
-                        <RulesWidget maxItems={2} />
                     </div>
                 </div>
             </div>
@@ -624,9 +623,6 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                 {/* Column 4: Communication & Rules (Right Side) */}
                 <div className="ad2-col">
                     <AnnouncementsWidget maxItems={2} />
-                    <div style={{ marginTop: '8px' }}>
-                        <RulesWidget maxItems={2} />
-                    </div>
                 </div>
             </div>
         </div>
@@ -850,9 +846,14 @@ export default function DashboardPage() {
                         {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toUpperCase()}
                     </div>
                     
-                    <div className="ad2-header-actions" style={{ display: 'flex', gap: '12px' }}>
+                    <div className="ad2-header-actions" style={{ display: 'flex', gap: '8px' }}>
                         <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }} onClick={() => window.location.href = '/messaging'}>
                             <MessageCircle size={18} />
+                        </div>
+                        <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }} onClick={() => window.location.href = '/rulebook'}>
+                            <BookOpen size={18} />
+                            {/* System Update Badge */}
+                            <span style={{ position: 'absolute', top: '0', right: '0', width: '8px', height: '8px', background: '#F59E0B', borderRadius: '50%', border: '2px solid #000', boxShadow: '0 0 10px #F59E0B' }}></span>
                         </div>
                         <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }}>
                             <Bell size={18} />

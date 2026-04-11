@@ -667,16 +667,34 @@ export const api = {
             .select('conversationId')
             .eq('userId', myId);
 
-        if (error || !parts || parts.length === 0) return [];
+        if (error) {
+            console.error('[Chat] getConversations error (check RLS policies):', error.message);
+            return [];
+        }
+        if (!parts || parts.length === 0) return [];
 
         const convIds = parts.map((p: any) => p.conversationId);
 
-        // Get the other participant for each conversation
-        const { data: otherParts } = await supabase
+        // Get all other participants (their userId only)
+        const { data: otherParts, error: otherErr } = await supabase
             .from('conversation_participants')
-            .select('conversationId, userId, employees:userId(*)')
+            .select('conversationId, userId')
             .in('conversationId', convIds)
             .neq('userId', myId);
+
+        if (otherErr) console.error('[Chat] otherParts error:', otherErr.message);
+
+        // Collect unique other userIds and fetch employee data in one query
+        const otherUserIds = Array.from(new Set((otherParts || []).map((p: any) => p.userId)));
+        let employeeMap: Record<string, any> = {};
+
+        if (otherUserIds.length > 0) {
+            const { data: emps } = await supabase
+                .from('employees')
+                .select('*')
+                .in('id', otherUserIds);
+            (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
+        }
 
         // Get last message per conversation
         const results = await Promise.all(
@@ -695,11 +713,12 @@ export const api = {
                     .neq('senderId', myId)
                     .neq('status', 'seen');
 
-                const other = otherParts?.find((p: any) => p.conversationId === convId);
+                const other = (otherParts || []).find((p: any) => p.conversationId === convId);
+                const otherEmployee = other ? employeeMap[other.userId] : null;
 
                 return {
                     conversationId: convId,
-                    otherUser: other?.employees || null,
+                    otherUser: otherEmployee || null,
                     lastMessage: msgs?.[0] || null,
                     unreadCount: unread || 0,
                 };
