@@ -9,17 +9,17 @@
     flex: 1;
     height: 100vh;
     overflow-y: auto;
-    padding: 32px;
-    padding-left: calc(var(--sidebar-width, 280px) + 32px);
+    padding: 20px;
+    padding-left: calc(var(--sidebar-width, 280px) + 20px);
     transition: padding-left 0.25s ease;
     display: flex;
     flex-direction: column;
 }
 
-/* Optional semantic wrapper to constrain max width cleanly without restricting full background color if needed, but since max-width 1400px is on main wrapper: */
+/* Expanded container to utilize more screen real estate per user request */
 .main-content-inner {
     width: 100%;
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 0 auto;
 }
 
