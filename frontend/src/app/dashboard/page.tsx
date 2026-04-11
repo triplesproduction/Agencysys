@@ -507,7 +507,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 
 
             {/* KPI & Quick Stats */}
-            <div className="quick-stats" style={{ marginTop: '12px' }}>
+            <div className="quick-stats" style={{ marginTop: '0px' }}>
                 <Link href="/kpis" style={{ textDecoration: 'none', flex: 1 }}>
                     <div className="stat-card gradient-card" style={{ border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.1), rgba(139, 92, 246, 0.05))' }}>
                         <div className="stat-label">Performance Score</div>
@@ -549,7 +549,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
             )}
 
             {/* Main Layout Grid */}
-            <div className="ad2-bento-grid" style={{ marginTop: '16px' }}>
+            <div className="ad2-bento-grid" style={{ marginTop: '10px' }}>
                 
                 {/* Column 1 + 2: Task Runway & Performance Audit */}
                 <div className="ad2-col" style={{ gridColumn: 'span 2' }}>
@@ -601,19 +601,19 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                         </div>
                     </div>
 
-                    <RecentMessagesWidget maxItems={2} />
+                    <RecentMessagesWidget maxItems={3} />
                 </div>
 
                 {/* Column 4: Communication & Rules (Right Side) */}
                 <div className="ad2-col">
                     <AnnouncementsWidget maxItems={2} />
                     
-                    <div className="ad2-card" style={{ padding: '16px', marginTop: '10px' }}>
-                         <div className="ad2-card-header" style={{ marginBottom: '6px' }}>
-                            <h3><Activity size={15} color="#10B981" /> Month Pace</h3>
-                            <span style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 800 }}>{kpis?.total_hours_worked || 0}h</span>
+                    <div className="ad2-card" style={{ padding: '22px 20px', marginTop: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '140px' }}>
+                         <div className="ad2-card-header" style={{ marginBottom: '10px' }}>
+                            <h3 style={{ fontSize: '1.05rem' }}><Activity size={18} color="#10B981" /> Month Pace</h3>
+                            <span style={{ fontSize: '1rem', color: '#10B981', fontWeight: 900 }}>{kpis?.total_hours_worked || 0}h</span>
                         </div>
-                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '6px' }}>
+                        <div style={{ height: '10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
                             <div style={{ 
                                 height: '100%', 
                                 width: `${Math.min(100, ((kpis?.total_hours_worked || 0) / 160) * 100)}%`, 
@@ -621,7 +621,10 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                                 transition: 'width 1s ease'
                             }}></div>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.1 }}>Target: 160h</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Target: 160h</p>
+                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progress: {Math.round(((kpis?.total_hours_worked || 0) / 160) * 100)}%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -655,7 +658,6 @@ export default function DashboardPage() {
     const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
     const [kanbanRefresh, setKanbanRefresh] = useState(0);
 
-    const [seeding, setSeeding] = useState(false);
 
     useEffect(() => {
         async function fetchData() {
@@ -750,59 +752,6 @@ export default function DashboardPage() {
     }, [authEmployee, authLoading]);
 
     // SEEDING LOGIC: Populate 22 Dummy Tasks
-    const handleSeedData = async () => {
-        if (!authEmployee) return;
-        setSeeding(true);
-        try {
-            const departments = ['Design', 'Development', 'Marketing', 'QA', 'Strategy'];
-            const priorities: ('LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL')[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-            
-            // Fetch employees to assign tasks to
-            const empsRes = await api.getEmployees();
-            const empIds = (empsRes.data || empsRes || []).map((e: any) => e.id);
-            if (empIds.length === 0) throw new Error("No employees found to assign tasks to.");
-
-            const seedPromises = Array.from({ length: 22 }).map((_, i) => {
-                const randomEmpId = empIds[Math.floor(Math.random() * empIds.length)];
-                const randomPriority = priorities[Math.floor(Math.random() * priorities.length)];
-                const randomHours = Math.floor(Math.random() * 20) + 1;
-                
-                return api.createTask({
-                    title: `[Seed] ${departments[i % departments.length]} Sprint Task #${i + 1}`,
-                    description: `## Task Objectives\n- Automated seed task for testing workflow efficiency.\n- Requires focus on **High Fidelity** output.\n- Verify all #H1 and #H2 tags correctly.\n\n### Deliverables\n1. Initial Research\n2. Documentation Draft\n3. Final Review`,
-                    priority: randomPriority,
-                    status: i % 4 === 0 ? 'SUBMITTED' : (i % 3 === 0 ? 'TODO' : 'IN_PROGRESS'),
-                    assigneeId: randomEmpId,
-                    managerId: authEmployee.id,
-                    dueDate: new Date(Date.now() + (Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString()
-                } as any);
-            });
-
-            await Promise.all(seedPromises);
-            
-            addNotification({
-                title: 'Seeding Complete',
-                message: '22 dummy tasks have been successfully generated and assigned.',
-                type: 'SYSTEM',
-                metadata: null
-            });
-            
-            // Refresh
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('app:live-notification', { detail: { type: 'TASK_ASSIGNED' } }));
-            }
-        } catch (err: any) {
-            console.error("SEEDING FAILURE:", err);
-            addNotification({
-                title: 'Seeding Error',
-                message: err.message || 'Failed to populate dummy tasks.',
-                type: 'SYSTEM',
-                metadata: null
-            });
-        } finally {
-            setSeeding(false);
-        }
-    };
 
     // Only block if we strictly have no user found yet
     if (authLoading && !authEmployee) {
@@ -811,20 +760,8 @@ export default function DashboardPage() {
 
     return (
         <main className={userRole === 'ADMIN' ? '' : "dashboard-page fade-in"}>
-            {userRole === 'ADMIN' && (
-                <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 100 }}>
-                    <button 
-                        className={`ad2-btn-add ${seeding ? 'loading' : ''}`} 
-                        onClick={handleSeedData}
-                        disabled={seeding}
-                        style={{ background: 'var(--purple-main)', boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' }}
-                    >
-                        {seeding ? 'Seeding...' : <><Zap size={16} /> Seed 22 Tasks</>}
-                    </button>
-                </div>
-            )}
 
-            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px', padding: '12px 0' }}>
+            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0px', padding: '4px 0' }}>
                 <div>
                     <h1 className="greeting" style={{ margin: 0, fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Welcome back, {employee?.firstName || 'User'}</h1>
                     <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.6, fontSize: '0.95rem', fontWeight: 500 }}>
