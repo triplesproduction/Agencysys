@@ -54,20 +54,10 @@ function AdminDashboard({
     const kpiLogList = recentKpiLogs || [];
 
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE').length;
-    
-    // Improved role/name fallback for instant display
-    const adminName = employee?.firstName || 'Admin';
-    const adminRole = employee?.roleId || 'Administrator';
-
-    const avgTeamScore = kpiList.length > 0
-        ? (kpiList.reduce((acc: number, curr: any) => acc + (curr.current_score || 0), 0) / kpiList.length).toFixed(1)
-        : '0.0';
 
     return (
-        <div className="admin-dash-v2 fade-in">
-
-            {/* Quick Stats - Enhanced fallback logic */}
-            <div className="quick-stats" style={{ marginTop: '12px' }}>
+        <div className="admin-dash fade-in">
+             <div className="quick-stats">
                 <GlassCard className="stat-card">
                     <div className="stat-label">Total Headcount</div>
                     <div className="stat-value">{totalEmployees || '...'}</div>
@@ -77,29 +67,27 @@ function AdminDashboard({
                     <div className="stat-value">{activeTasksCount || '0'}</div>
                 </GlassCard>
                 <GlassCard className="stat-card">
-                    <div className="stat-label">Tasks Pending Approval</div>
-                    <div className="stat-value">{(tasks || []).filter(t => t && t.status === 'SUBMITTED').length}</div>
+                    <div className="stat-label">Pending Approval</div>
+                    <div className="stat-value">{taskList.filter(t => t && t.status === 'SUBMITTED').length}</div>
                 </GlassCard>
                 <Link href="/kpis" style={{ textDecoration: 'none' }}>
                     <GlassCard className="stat-card gradient-card hoverable">
                         <div className="stat-label">Avg Team Score</div>
-                        <div className="stat-value purple-glow">
-                            {avgTeamScore}/100
+                        <div className="stat-value purple-glow" style={{ fontSize: '1.75rem', fontWeight: 700 }}>
+                            {kpiList.length > 0 ? (kpiList.reduce((acc, curr) => acc + (curr.current_score || 0), 0) / kpiList.length).toFixed(1) : '0.0'}/100
                         </div>
                     </GlassCard>
                 </Link>
             </div>
 
-            {/* Main Bento Grid */}
-            <div className="ad2-bento-grid" style={{ marginTop: '16px' }}>
-
-                {/* Column 1: System Quick Actions & EOD Summary */}
-                <div className="ad2-col ad2-col-1">
-                    <div className="ad2-card primary-gradient">
-                        <div className="ad2-card-header" style={{ border: 'none', marginBottom: '12px' }}>
-                            <h3><Activity size={18} color="var(--purple-main)" /> Command Center</h3>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="dashboard-grid" style={{ marginTop: '24px' }}>
+                {/* Column 1: System Quick Actions */}
+                <div className="bento-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="ad2-card" style={{ padding: '20px' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Plus size={18} color="var(--purple-main)" /> Quick Actions
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <button className="ad2-btn-add primary" onClick={onAssignTaskTrigger}>
                                 <Plus size={16} /> New Task Assignment
                             </button>
@@ -114,106 +102,51 @@ function AdminDashboard({
 
                     <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <div className="ad2-card-header">
-                            <h3>Team EOD Activity</h3>
-                            <button 
-                                onClick={() => window.location.reload()} 
-                                className="ad2-badge hoverable" 
-                                style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem', color: '#A78BFA', cursor: 'pointer' }}
-                            >
-                                Refresh
-                            </button>
+                            <h3>Team EOD Updates</h3>
+                            <span className="ad2-badge">{eodList.length}</span>
                         </div>
-                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '350px', paddingRight: '4px' }}>
-                            {allEmployees.length === 0 ? (
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>Loading team status...</p>
+                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
+                             {eodList.length === 0 ? (
+                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.2, padding: '40px 0' }}>No reports to show.</div>
                             ) : (
-                                allEmployees.map((emp: any) => {
-                                    const hasSubmitted = eodList.some((e: any) => e.employeeId === emp.id);
-                                    const eod = eodList.find((e: any) => e.employeeId === emp.id);
-                                    return (
-                                        <div key={emp.id} className="ad2-task-list-item" style={{ padding: '10px 12px' }}>
-                                            <img src={emp.profilePhoto || "https://i.pravatar.cc/150"} alt="E" style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 }} />
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div className="ad2-tli-title" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                                    {emp.firstName} {emp.lastName}
-                                                </div>
-                                                <div style={{ fontSize: '0.7rem', color: hasSubmitted ? '#10B981' : 'rgba(255,255,255,0.3)', fontWeight: hasSubmitted ? 600 : 400 }}>
-                                                    {hasSubmitted ? `Submitted at ${new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Pending Submission'}
-                                                </div>
-                                            </div>
-                                            {hasSubmitted && (
-                                                <Link href={`/eod/${eod.id}`} className="ad2-circle-btn" style={{ width: '24px', height: '24px' }}>
-                                                    <ChevronRight size={12} />
-                                                </Link>
-                                            )}
+                                eodList.map((eod: any) => (
+                                    <div key={eod.id} className="ad2-task-list-item">
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div className="ad2-tli-title">{eod.employee?.firstName} {eod.employee?.lastName}</div>
+                                            <div className="ad2-tli-time">{new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Performance Feed - REAL TIME TEAM KPI AUDIT */}
-                    <div className="ad2-card custom-scrollbar" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(5, 5, 5, 0.4)', minHeight: '350px' }}>
-                        <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Activity size={16} color="#10B981" /> Performance Feed
-                            </h3>
-                            <span className="ad2-badge">{kpiLogList.length}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {kpiLogList.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No recent KPI activity.</div>
-                            ) : (
-                                    kpiLogList.map((log: any) => {
-                                        if (!log) return null;
-                                        return (
-                                            <div key={log.id} style={{ padding: '10px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.03)', position: 'relative' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{log.employee?.firstName} {log.employee?.lastName}</span>
-                                                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444' }}>
-                                                        {log.points_change >= 0 ? `+${log.points_change}` : log.points_change} PTS
-                                                    </span>
-                                                </div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '4px' }}>{log.reason}</div>
-                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                    {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} • {log.category}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
+                                        <Link href={`/eod/${eod.id}`} className="ad2-circle-btn">
+                                            <ChevronRight size={14} />
+                                        </Link>
+                                    </div>
+                                ))
                             )}
                         </div>
                     </div>
                 </div>
 
                 {/* Column 2: Tasks Requiring Action */}
-                <div className="ad2-col ad2-col-2" style={{ gridColumn: 'span 2' }}>
+                <div className="bento-col" style={{ flex: 1.5, display: 'flex', flexDirection: 'column' }}>
                     <div className="ad2-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
+                        <div className="ad2-card-header">
                             <h3>Action Required: Submitted Tasks</h3>
                             <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
                         </div>
-                        <div className="ad2-calendar-grid custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_PROGRESS')).length === 0 ? (
+                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
+                            {taskList.filter(t => t && t.status === 'SUBMITTED').length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                                     <CheckSquare size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
                                     <p>All clear! No tasks await your review right now.</p>
                                 </div>
                             ) : (
-                                taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_PROGRESS')).map((task: any) => {
-                                    if (!task) return null;
+                                taskList.filter(t => t && t.status === 'SUBMITTED').map((task: any) => {
                                     const isSub = task.status === 'SUBMITTED';
                                     return (
                                         <div key={task.id} className="ad2-task-list-item" style={{ padding: '16px' }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
+                                                <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'white' }}>{task.title}</h4>
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                    <span className="ad2-badge" style={{ 
-                                                        background: isSub ? 'rgba(59, 130, 246, 0.1)' : 'rgba(167, 139, 250, 0.1)', 
-                                                        color: isSub ? '#60A5FA' : '#A78BFA', 
-                                                        borderColor: isSub ? 'rgba(59, 130, 246, 0.2)' : 'rgba(167, 139, 250, 0.2)',
-                                                    }}>{task.status}</span>
+                                                    <span className="ad2-badge" style={{ background: isSub ? 'rgba(139, 92, 246, 0.1)' : 'rgba(255,255,255,0.05)', color: isSub ? '#A78BFA' : 'rgba(255,255,255,0.4)', fontWeight: 700 }}>{task.status}</span>
                                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Assignee: {task.assigneeId?.slice(0, 8) || 'Multi'}</span>
                                                 </div>
                                             </div>
@@ -230,16 +163,13 @@ function AdminDashboard({
                     </div>
                 </div>
 
-                {/* Column 4: Announcements & Leaderboard */}
-                <div className="ad2-col ad2-col-4" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div className="ad2-card" style={{ padding: '20px' }}>
-                        <AnnouncementsWidget maxItems={2} />
-                    </div>
-
-                    {/* Team Insights */}
+                {/* Column 3: Communication & Leaderboard */}
+                <div className="bento-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <AnnouncementsWidget maxItems={2} />
+                    
                     <div className="ad2-card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
                         <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Zap size={16} color="#A78BFA" /> Top Performer
+                            <Activity size={18} color="#10B981" /> Performance Insights
                         </h3>
                         {kpiList.length > 0 ? (
                             <div style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '12px', padding: '16px', textAlign: 'center', marginBottom: '20px' }}>
@@ -248,12 +178,12 @@ function AdminDashboard({
                                 <div style={{ fontSize: '0.8rem', color: '#A78BFA' }}>Score: {kpiList[0].current_score} / 100</div>
                             </div>
                         ) : (
-                            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No performance data found for this month.</div>
+                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No performance data found for this month.</div>
                         )}
 
                         <div className="leaderboard-mini custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
-                            <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Leaderboard</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                             <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Leaderboard</h4>
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {kpiList.slice(0, 3).map((profile: any, idx: number) => (
                                     <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem' }}>
                                         <span style={{ width: '18px', color: idx === 0 ? '#F59E0B' : 'rgba(255,255,255,0.3)', fontWeight: 700 }}>#{idx + 1}</span>
@@ -261,25 +191,11 @@ function AdminDashboard({
                                         <div style={{ color: '#A78BFA', fontWeight: 600 }}>{profile.current_score}</div>
                                     </div>
                                 ))}
-                            </div>
+                             </div>
                         </div>
-
-                        {/* Danger Alerts for Admin - Safety First pass */}
-                        {kpiList.filter((p: any) => p && p.grade === 'Danger Zone').length > 0 && (
-                            <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px' }}>
-                                <div style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <AlertTriangle size={12} /> CRITICAL ATTENTION
-                                </div>
-                                <div style={{ fontSize: '0.8rem', color: 'white' }}>
-                                    {kpiList.filter((p: any) => p && p.grade === 'Danger Zone').length} members in Danger Zone
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
-
             </div>
-
         </div>
     );
 }

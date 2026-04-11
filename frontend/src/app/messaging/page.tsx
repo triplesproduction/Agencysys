@@ -68,6 +68,7 @@ export default function MessagingPage() {
     const [myTasks, setMyTasks] = useState<any[]>([]);
     const [showContactPicker, setShowContactPicker] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
+    const [dbReady, setDbReady] = useState(true); // false = tables not yet created
 
     // ── Refs ───────────────────────────────────────────────────────────────────
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -82,8 +83,12 @@ export default function MessagingPage() {
         try {
             const convs = await api.getConversations(myId);
             setConversations(convs as Conversation[]);
-        } catch (e) {
+            setDbReady(true);
+        } catch (e: any) {
             console.error('loadConversations error:', e);
+            if (e?.message?.includes('schema cache') || e?.message?.includes('does not exist')) {
+                setDbReady(false);
+            }
         }
     }, [myId]);
 
@@ -234,12 +239,22 @@ export default function MessagingPage() {
     // ── Start / open a conversation ────────────────────────────────────────────
     const openConversation = async (contact: any) => {
         if (!myId) return;
+        if (!dbReady) {
+            alert('Database tables are not set up yet. Please run the SQL schema in Supabase first.');
+            return;
+        }
         setShowContactPicker(false);
-        const convId = await api.getOrCreateConversation(myId, String(contact.id));
-        setActiveConvId(convId);
-        setActiveOtherUser(contact);
-        // Refresh conversations list
-        await loadConversations();
+        try {
+            const convId = await api.getOrCreateConversation(myId, String(contact.id));
+            setActiveConvId(convId);
+            setActiveOtherUser(contact);
+            await loadConversations();
+        } catch (err: any) {
+            console.error('[Chat] openConversation failed:', err.message);
+            if (err.message?.includes('schema cache') || err.message?.includes('does not exist')) {
+                setDbReady(false);
+            }
+        }
     };
 
     const selectConversation = (conv: Conversation) => {
@@ -408,6 +423,28 @@ export default function MessagingPage() {
                     <p className="subtitle">Real-time collaboration with your team.</p>
                 </div>
             </header>
+
+            {/* DB setup banner */}
+            {!dbReady && (
+                <div style={{
+                    background: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    borderRadius: '12px',
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '0.82rem',
+                    color: '#fca5a5',
+                    flexShrink: 0,
+                }}>
+                    <span style={{ fontSize: '1rem' }}>⚠️</span>
+                    <span>
+                        <strong>Database tables not found.</strong>&nbsp;
+                        Run the messaging SQL schema in your Supabase SQL Editor to enable real-time chat.
+                    </span>
+                </div>
+            )}
 
             <div className="msg-layout">
                 {/* ── LEFT PANEL ── */}
