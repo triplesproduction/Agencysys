@@ -822,21 +822,25 @@
 .ad2-task-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
 }
 
 .ad2-task-list-item {
     display: flex;
-    gap: 16px;
+    gap: 10px;
     align-items: center;
-    padding: 8px 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.03);
     border-radius: 12px;
     transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .ad2-task-list-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-    transform: translateX(4px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .ad2-tli-icon {
@@ -860,9 +864,10 @@
 }
 
 .ad2-tli-time {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
     white-space: nowrap;
+    opacity: 0.6;
 }
 
 /* Donut */

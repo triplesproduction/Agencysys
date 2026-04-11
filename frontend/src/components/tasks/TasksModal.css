@@ -111,6 +111,70 @@
     background: rgba(255, 255, 255, 0.03);
 }
 
+/* Dropdown Styles - Unified Glassmorphism */
+.dropdown-options-container {
+    position: absolute;
+    background: rgba(20, 20, 25, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    margin-top: 8px;
+    overflow: hidden;
+    z-index: 1000 !important;
+}
+
+.options-list {
+    max-height: 250px;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.option-item {
+    padding: 12px 16px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.option-item:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: white;
+    padding-left: 20px;
+}
+
+/* Template Checkbox Styling */
+.template-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.template-checkbox-label:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.template-checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--purple-main);
+    cursor: pointer;
+}
+
 /* Assignee Avatars */
 .mobile-assignee-list {
     display: flex;
@@ -158,6 +222,32 @@
 .trello-priority-pills {
     display: flex;
     gap: 8px;
+}
+
+.template-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(139, 92, 246, 0.05);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px dashed rgba(139, 92, 246, 0.2);
+    transition: all 0.2s;
+}
+
+.template-checkbox-label:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: white;
+    border-style: solid;
+}
+
+.template-checkbox-label input {
+    accent-color: var(--purple-main);
+    width: 16px;
+    height: 16px;
 }
 
 .trello-priority-btn {

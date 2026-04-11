@@ -78,9 +78,19 @@ export default function Sidebar() {
 
     const handleLogout = (e: React.MouseEvent) => {
         e.preventDefault();
-        e.stopPropagation();
         signOut();
     };
+
+    // Auto-collapse sidebar on tasks page, expand on others
+    useEffect(() => {
+        if (pathname === '/tasks') {
+            setIsCollapsed(true);
+        } else {
+            setIsCollapsed(false);
+        }
+    }, [pathname]);
+
+
 
     useEffect(() => {
         if (typeof document !== 'undefined') {
@@ -109,17 +119,13 @@ export default function Sidebar() {
                             <Menu size={20} />
                         </button>
                         {!isCollapsed && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }}>
-                                    <img src="/logo.png" alt="Logo" style={{ width: '28px', height: '28px', minWidth: '28px' }} />
-                                </div>
-                                <span className="logo-text">TripleS <span className="logo-os">OS</span></span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <img src="/logo.png" alt="Logo" style={{ width: '44px', height: '44px', minWidth: '44px' }} />
+                                <span className="logo-text" style={{ fontSize: '1.4rem' }}>TripleS <span className="logo-os">OS</span></span>
                             </div>
                         )}
                         {isCollapsed && (
-                            <div style={{ background: 'white', padding: '4px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', margin: '8px 0' }}>
-                                <img src="/logo.png" alt="Logo" style={{ width: '28px', height: '28px' }} />
-                            </div>
+                            <img src="/logo.png" alt="Logo" style={{ width: '36px', height: '36px', margin: '8px 0' }} />
                         )}
                     </div>
                 </div>

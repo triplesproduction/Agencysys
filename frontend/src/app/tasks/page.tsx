@@ -1,80 +1,177 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, User, Shield, ShieldAlert } from 'lucide-react';
-import GlassCard from '@/components/GlassCard';
-import DeadlineIndicator from '@/components/DeadlineIndicator';
+import { 
+    Plus, User, Search, Filter, 
+    LayoutGrid, List, SlidersHorizontal, 
+    ArrowUpDown, AlertCircle
+} from 'lucide-react';
 import Button from '@/components/Button';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
+import TaskDetailDrawer from '@/components/tasks/TaskDetailDrawer';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { api } from '@/lib/api';
-import { TaskDTO } from '@/types/dto';
-import './Tasks.css';
+import { TaskDTO, EmployeeDTO } from '@/types/dto';
 
+import './Tasks.css';
+import './KanbanDrawer.css';
+
+// DND Kit
+import {
+    DndContext,
+    DragOverlay,
+    closestCorners,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragStartEvent,
+    DragEndEvent,
+    defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+
+import { KanbanColumn, SortableCard, AddColumnButton } from './KanbanComponents';
 import { useAuth } from '@/context/AuthContext';
 import { hasPermission } from '@/lib/permissions';
+
+const COLUMNS = [
+    { id: 'TODO', title: 'To Do' },
+    { id: 'IN_PROGRESS', title: 'Planned / In Progress' },
+    { id: 'IN_REVIEW', title: 'Under Review' },
+    { id: 'DONE', title: 'Completed' },
+    { id: 'BLOCKED', title: 'On Hold / Blocked' }
+];
 
 export default function TasksPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();
     const [tasks, setTasks] = useState<TaskDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [activeId, setActiveId] = useState<string | null>(null);
+    
+    // Filters
+    const [searchQuery, setSearchQuery] = useState('');
+    const [priorityFilter, setPriorityFilter] = useState('ALL');
+    const [assigneeFilter, setAssigneeFilter] = useState('ALL');
     const [userRole, setUserRole] = useState('EMPLOYEE');
+    const [employees, setEmployees] = useState<any[]>([]);
 
-    const router = useRouter();
+
     const { addNotification } = useNotifications();
 
-    const loadTasks = async () => {
-        if (!authEmployee) {
-            if (!authLoading) setLoading(false);
-            return;
-        }
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const loadInitialData = async () => {
+        if (!authEmployee) return;
         setLoading(true);
         try {
             const activeRole = authEmployee.roleId || 'EMPLOYEE';
             setUserRole(activeRole);
-            const activeEmpId = authEmployee.id;
+            
+            // Parallel load for efficiency
+            const [tasksData, employeesData] = await Promise.all([
+                api.getTasks(activeRole === 'EMPLOYEE' ? authEmployee.id : undefined, undefined, 500),
+                activeRole !== 'EMPLOYEE' ? api.getEmployees() : Promise.resolve([])
+            ]);
+            
+            const employeesList: EmployeeDTO[] = 'data' in employeesData ? (employeesData as any).data : [];
+            
+            const hydratedTasks = (tasksData || []).map(task => {
+                const assignedDocs = employeesList.filter(e => 
+                    (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
+                );
+                return {
+                    ...task,
+                    assignees: assignedDocs.map(e => ({
+                        id: e.id,
+                        firstName: e.firstName,
+                        lastName: e.lastName,
+                        profilePhoto: e.profilePhoto
+                    }))
+                };
+            });
+            setTasks(hydratedTasks);
+            if ('data' in employeesData) setEmployees((employeesData as any).data);
 
-            // Employees only fetch their own tasks
-            const data = await api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined);
-            setTasks(Array.isArray(data) ? data : []);
         } catch (err: any) {
             console.error('Failed to load tasks:', err);
-            addNotification({
-                title: 'Load Error',
-                message: err.message || 'Could not fetch tasks. Please check server connection.',
-                type: 'error'
-            });
-            setTasks([]); // Safe fallback
+            addNotification({ title: 'Load Error', message: 'Could not fetch board data.', type: 'error' });
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (!authLoading) {
-            loadTasks();
-        }
-
-        const handleLiveUpdate = (e: any) => {
-            const detail = e.detail;
-            if (detail?.type === 'TASK_ASSIGNED' || detail?.type === 'TASK_UPDATED') {
-                loadTasks(); // Live refresh!
-            }
-        };
-
-        window.addEventListener('app:live-notification', handleLiveUpdate);
-        return () => window.removeEventListener('app:live-notification', handleLiveUpdate);
+        if (!authLoading) loadInitialData();
     }, [authEmployee, authLoading]);
 
-    const handleAllocationSuccess = () => {
-        addNotification({
-            title: 'Task Allocated',
-            message: 'Task allocated successfully!',
-            type: 'TASK_ASSIGNED'
+
+    // Derived State: Filtered Tasks
+    const filteredTasks = useMemo(() => {
+        const filteredTasks = tasks.filter(task => {
+            const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesPriority = priorityFilter === 'ALL' || task.priority === priorityFilter;
+            const matchesMember = assigneeFilter === 'ALL' || 
+                                 task.assigneeId === assigneeFilter || 
+                                 (task.assigneeIds && task.assigneeIds.includes(assigneeFilter));
+            return matchesSearch && matchesPriority && matchesMember;
         });
-        loadTasks(); // Refresh board gracefully
+        return filteredTasks;
+    }, [tasks, searchQuery, priorityFilter, assigneeFilter]);
+
+
+
+    // DnD Handlers
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        setActiveId(null);
+
+        if (!over) return;
+
+        const activeTask = tasks.find(t => t.id === active.id);
+        if (!activeTask) return;
+
+        // Determine destination status
+        let newStatus = activeTask.status;
+        
+        // If dropped over a column
+        if (over.data.current?.type === 'Column') {
+            newStatus = over.data.current.status;
+        } 
+        // If dropped over another task
+        else if (over.data.current?.type === 'Task') {
+            newStatus = over.data.current.task.status;
+        }
+
+        if (newStatus !== activeTask.status) {
+            // Optimistic Update
+            setTasks(prev => prev.map(t => t.id === active.id ? { ...t, status: newStatus as any } : t));
+            
+            try {
+                await api.updateTaskStatus(active.id as string, newStatus);
+            } catch (err: any) {
+
+                // Rollback
+                loadInitialData();
+                addNotification({ title: 'Move Failed', message: err.message, type: 'error' });
+            }
+        }
     };
 
     const canCreate = hasPermission(userRole, 'CREATE_TASKS');
@@ -83,100 +180,146 @@ export default function TasksPage() {
         return <div className="page-loader"><div className="spinner"></div></div>;
     }
 
+    const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+
     return (
         <div className="tasks-page fade-in">
-            <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0' }}>
-                <div>
-                    <h1 className="greeting" style={{ margin: 0 }}>{!canCreate ? 'My Tasks' : 'Task Allocation'}</h1>
-                    <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.6 }}>{!canCreate ? 'Track and update your assigned work.' : 'Manage and assign tasks across your team.'}</p>
+            {/* Elegant Header & Toolbar */}
+            <header className="page-header" style={{ padding: '32px 0 24px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
+                    <div>
+                        <h1 className="greeting" style={{ fontSize: '2.5rem' }}>{userRole === 'EMPLOYEE' ? 'My Board' : 'Team TaskBoard'}</h1>
+                        <p className="subtitle">High-fidelity team task orchestration.</p>
+                    </div>
+                    
+                    <div className="toolbar-actions" style={{ display: 'flex', gap: '12px' }}>
+                        <div className="search-pill">
+                            <Search size={16} color="rgba(255,255,255,0.3)" />
+                            <input 
+                                placeholder="Search tasks..." 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        
+                        <div className="filter-pill">
+                            <SlidersHorizontal size={16} color="rgba(255,255,255,0.5)" />
+                            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+                                <option value="ALL">All Priorities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                        </div>
+
+                        {userRole !== 'EMPLOYEE' && (
+                            <div className="filter-pill">
+                                <User size={16} color="rgba(255,255,255,0.5)" />
+                                <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
+                                    <option value="ALL">All Members</option>
+                                    {employees.map(emp => (
+                                        <option key={emp.id} value={emp.id}>
+                                            {emp.firstName} {emp.lastName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+
+                        {canCreate && (
+                            <Button 
+                                variant="primary" 
+                                onClick={() => setIsAllocateModalOpen(true)}
+                                style={{ background: 'var(--purple-main)', border: 'none', borderRadius: '14px', height: '44px' }}
+                            >
+                                <Plus size={18} /> Allocate
+                            </Button>
+                        )}
+                    </div>
                 </div>
-                {canCreate && (
-                    <Button
-                        variant="primary"
-                        className="magnetic-btn"
-                        onClick={() => setIsAllocateModalOpen(true)}
-                        style={{ gap: '0.5rem', display: 'flex', alignItems: 'center', background: 'var(--purple-main)', border: 'none' }}
-                    >
-                        <Plus size={18} /> Allocate Task
-                    </Button>
-                )}
             </header>
 
-            <section className="kanban-board">
-                {['TODO', 'IN_PROGRESS', 'DONE'].map(status => (
-                    <div key={status} className="kanban-column">
-                        <header className="kanban-column-header">
-                            <div className="column-info">
-                                <div className={`status-dot ${status.toLowerCase()}`}></div>
-                                <h2>{status === 'IN_PROGRESS' ? 'Planned/In Progress' : status.replace('_', ' ')}</h2>
-                                <span className="column-count">{tasks.filter(t => t.status === status).length}</span>
-                            </div>
-                            {canCreate && (
-                                <button className="add-task-inline" onClick={() => setIsAllocateModalOpen(true)}>
-                                    <Plus size={16} />
-                                </button>
-                            )}
-                        </header>
+            {/* Kanban Workspace */}
+            <DndContext 
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="kanban-board">
+                    {COLUMNS.map(col => (
+                        <KanbanColumn 
+                            key={col.id} 
+                            id={col.id} 
+                            title={col.title}
+                            count={filteredTasks.filter(t => t.status === col.id).length}
+                            onAddCard={() => setIsAllocateModalOpen(true)}
+                        >
+                            <SortableContext 
+                                items={filteredTasks.filter(t => t.status === col.id).map(t => t.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {filteredTasks.filter(t => t.status === col.id).map(task => (
+                                    <SortableCard 
+                                        key={task.id} 
+                                        task={task} 
+                                        onClick={() => {
+                                            setSelectedTaskId(task.id);
+                                            setIsDrawerOpen(true);
+                                        }}
+                                    />
 
-                        <div className="kanban-cards-container custom-scrollbar">
-                            {tasks.filter(t => t.status === status).map(task => (
-                                <GlassCard
-                                    key={task.id}
-                                    className="kanban-card"
-                                    hoverable
-                                    onClick={() => router.push(`/tasks/${task.id}`)}
-                                >
-                                        <div className="card-top">
-                                            <span className={`status-badge ${
-                                                task.priority === 'HIGH' ? 'rejected' : 
-                                                task.priority === 'MEDIUM' ? 'pending' : 'approved'
-                                            }`} style={{ fontSize: '0.6rem', padding: '2px 8px' }}>
-                                                {task.priority}
-                                            </span>
-                                            <button className="card-more"><Plus size={14} style={{ transform: 'rotate(45deg)', opacity: 0.5 }} /></button>
-                                        </div>
-                                    
-                                    <h3 className="card-title">{task.title}</h3>
-                                    
-                                    {task.description && (
-                                        <p className="card-description">{task.description.length > 60 ? task.description.slice(0, 60) + '...' : task.description}</p>
-                                    )}
-
-                                    <div className="card-footer">
-                                        <div className="card-assignees">
-                                            <div className="avatar-stack">
-                                                {task.assignee?.profilePhoto ? (
-                                                    <img src={task.assignee.profilePhoto} alt="av" className="stack-avatar" />
-                                                ) : (
-                                                    <div className="stack-avatar placeholder">
-                                                        {task.assignee?.firstName?.charAt(0) || <User size={10} />}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <span className="assignee-name">{task.assignee?.firstName || 'User'}</span>
-                                        </div>
-                                        
-                                        <div className="card-meta">
-                                            <DeadlineIndicator deadline={task.dueDate} status={task.status} />
-                                        </div>
-                                    </div>
-                                </GlassCard>
-                            ))}
-                            {canCreate && (
-                                <button className="column-add-footer" onClick={() => setIsAllocateModalOpen(true)}>
-                                    <Plus size={14} /> Add Task
-                                </button>
+                                ))}
+                            </SortableContext>
+                            
+                            {filteredTasks.filter(t => t.status === col.id).length === 0 && (
+                                <div className="empty-column-state">
+                                    <AlertCircle size={20} opacity={0.2} />
+                                    <span>Empty List</span>
+                                </div>
                             )}
+                        </KanbanColumn>
+                    ))}
+                </div>
+
+                <DragOverlay dropAnimation={{
+                    sideEffects: defaultDropAnimationSideEffects({
+                        styles: {
+                            active: {
+                                opacity: '0.5',
+                            },
+                        },
+                    }),
+                }}>
+                    {activeId && activeTask ? (
+                        <div style={{ width: '340px' }}>
+                            <SortableCard task={activeTask} onClick={() => {}} />
                         </div>
-                    </div>
-                ))}
-            </section>
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
 
-            <AllocateTaskModal
+            {/* Modals & Drawers */}
+            <AllocateTaskModal 
                 isOpen={isAllocateModalOpen}
                 onClose={() => setIsAllocateModalOpen(false)}
-                onSuccess={handleAllocationSuccess}
+                onSuccess={() => {
+                    addNotification({ title: 'Success', message: 'Task allocated successfully', type: 'success' });
+                    loadInitialData();
+                }}
+
             />
+
+            <TaskDetailDrawer 
+                isOpen={isDrawerOpen}
+                onClose={() => setIsDrawerOpen(false)}
+                taskId={selectedTaskId || ''}
+                onUpdate={loadInitialData}
+                currentUserRole={userRole}
+            />
+
         </div>
     );
 }

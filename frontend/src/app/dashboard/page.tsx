@@ -7,7 +7,8 @@ import DeadlineIndicator from '@/components/DeadlineIndicator';
 import { api } from '@/lib/api';
 import { EmployeeDTO, TaskDTO, WorkHourLogDTO } from '@/types/dto';
 import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock } from 'lucide-react';
-import AdminAssignTaskModal from '@/components/tasks/AdminAssignTaskModal';
+import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
+
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import AnnouncementsWidget from '@/components/dashboard/AnnouncementsWidget';
 import RulesWidget from '@/components/dashboard/RulesWidget';
@@ -421,7 +422,7 @@ function ManagerDashboard({
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div className="ad2-tli-title">{eod.employee?.firstName} {eod.employee?.lastName}</div>
-                                            <div className="ad2-tli-time">{new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                            <div className="ad2-tli-time">{eod.submittedAt ? new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}</div>
                                         </div>
                                         <Link href={`/eod/reviews`} className="ad2-circle-btn">
                                             <ChevronRight size={14} />
@@ -433,26 +434,52 @@ function ManagerDashboard({
                     </div>
                 </div>
 
-                {/* Column 2: Recent Team Activity (KPIs) */}
-                <div className="ad2-col ad2-col-23" style={{ gridArea: 'col23' }}>
-                    <div className="ad2-card" style={{ height: '100%' }}>
+                {/* Column 2 & 3: Team Management & Activity */}
+                <div className="ad2-col ad2-col-23" style={{ gridColumn: 'span 2' }}>
+                    {/* Team Tasks Oversight */}
+                    <div className="ad2-card" style={{ flex: 1 }}>
+                        <div className="ad2-card-header">
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <CheckSquare size={18} color="#A78BFA" /> Team Tasks Overview
+                            </h3>
+                            <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {taskList.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>No active team tasks.</div>
+                            ) : (
+                                taskList.slice(0, 4).map((task: any) => (
+                                    <div key={task.id} style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{task.assignee?.firstName || 'Unassigned'} • Due {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</div>
+                                        </div>
+                                        <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', color: '#A78BFA', border: '1px solid rgba(139, 92, 246, 0.2)', fontWeight: 700 }}>{task.status}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Team Performance Feed */}
+                    <div className="ad2-card" style={{ flex: 1 }}>
                         <div className="ad2-card-header">
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Activity size={18} color="#10B981" /> Team Performance Feed
                             </h3>
                             <span className="ad2-badge">{kpiLogList.length} updates</span>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {kpiLogList.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>No recent performance logs.</div>
                             ) : (
-                                kpiLogList.map((log: any) => (
-                                    <div key={log.id} style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
+                                kpiLogList.slice(0, 4).map((log: any) => (
+                                    <div key={log.id} style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ minWidth: 0 }}>
                                             <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{log.employee?.firstName} {log.employee?.lastName}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.reason}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{log.reason}</div>
                                         </div>
-                                        <div style={{ fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444' }}>
+                                        <div style={{ fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444', fontSize: '0.85rem' }}>
                                             {log.points_change > 0 ? '+' : ''}{log.points_change}
                                         </div>
                                     </div>
@@ -704,6 +731,8 @@ export default function DashboardPage() {
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [kanbanRefresh, setKanbanRefresh] = useState(0);
 
+    const [seeding, setSeeding] = useState(false);
+
     useEffect(() => {
         async function fetchData() {
             if (!authEmployee) {
@@ -726,11 +755,10 @@ export default function DashboardPage() {
             const fetchDataAsync = async () => {
                 try {
                     setLoading(true);
-                    console.log("STARTING PARALLEL DATA FETCHING FOR ADMIN MODULES...");
-
-                    // 1. Task Fetching with log
+                    
+                    // 1. Task Fetching
                     const tasksPromise = api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined, undefined, activeRole === 'ADMIN' ? 5 : 15);
-                    // 2. KPI Fetching with log 
+                    // 2. KPI Fetching
                     const kpiPromise = api.getKpiProfile(activeEmpId);
 
                     const baseFetches: Promise<any>[] = [tasksPromise, kpiPromise];
@@ -752,7 +780,6 @@ export default function DashboardPage() {
                     
                     results.forEach((res, i) => {
                         if (res.status === 'fulfilled') {
-                            console.log(`FETCH COMPLETE [${i}]:`, res.value);
                             const val = res.value;
                             if (i === 0) setTasks(val || []);
                             if (i === 1) setKpis(val);
@@ -766,8 +793,6 @@ export default function DashboardPage() {
                                 if (i === 3) setAllKpis(val || []);
                                 if (i === 4) setRecentKpiLogs(val || []);
                             }
-                        } else {
-                            console.error(`FETCH ERROR [${i}]:`, res.reason);
                         }
                     });
 
@@ -775,8 +800,7 @@ export default function DashboardPage() {
                     console.error("CRITICAL DASHBOARD LOAD FAILURE:", err);
                     setTasks([]);
                 } finally {
-                    console.log("DASHBOARD DATA FETCHING FINISHED. STOPPING SPINNER.");
-                    setLoading(false); // ALWAYS STOP LOADING
+                    setLoading(false);
                 }
             };
 
@@ -799,6 +823,62 @@ export default function DashboardPage() {
         return () => window.removeEventListener('app:live-notification', handleLiveUpdate);
     }, [authEmployee, authLoading]);
 
+    // SEEDING LOGIC: Populate 22 Dummy Tasks
+    const handleSeedData = async () => {
+        if (!authEmployee) return;
+        setSeeding(true);
+        try {
+            const departments = ['Design', 'Development', 'Marketing', 'QA', 'Strategy'];
+            const priorities: ('LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL')[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+            
+            // Fetch employees to assign tasks to
+            const empsRes = await api.getEmployees();
+            const empIds = (empsRes.data || empsRes || []).map((e: any) => e.id);
+            if (empIds.length === 0) throw new Error("No employees found to assign tasks to.");
+
+            const seedPromises = Array.from({ length: 22 }).map((_, i) => {
+                const randomEmpId = empIds[Math.floor(Math.random() * empIds.length)];
+                const randomPriority = priorities[Math.floor(Math.random() * priorities.length)];
+                const randomHours = Math.floor(Math.random() * 20) + 1;
+                
+                return api.createTask({
+                    title: `[Seed] ${departments[i % departments.length]} Sprint Task #${i + 1}`,
+                    description: `## Task Objectives\n- Automated seed task for testing workflow efficiency.\n- Requires focus on **High Fidelity** output.\n- Verify all #H1 and #H2 tags correctly.\n\n### Deliverables\n1. Initial Research\n2. Documentation Draft\n3. Final Review`,
+                    priority: randomPriority,
+                    status: i % 4 === 0 ? 'SUBMITTED' : (i % 3 === 0 ? 'TODO' : 'IN_PROGRESS'),
+                    assigneeId: randomEmpId,
+                    managerId: authEmployee.id,
+                    expectedHours: randomHours,
+                    dueDate: new Date(Date.now() + (Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString()
+                } as any);
+            });
+
+            await Promise.all(seedPromises);
+            
+            addNotification({
+                title: 'Seeding Complete',
+                message: '22 dummy tasks have been successfully generated and assigned.',
+                type: 'SYSTEM',
+                metadata: null
+            });
+            
+            // Refresh
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('app:live-notification', { detail: { type: 'TASK_ASSIGNED' } }));
+            }
+        } catch (err: any) {
+            console.error("SEEDING FAILURE:", err);
+            addNotification({
+                title: 'Seeding Error',
+                message: err.message || 'Failed to populate dummy tasks.',
+                type: 'SYSTEM',
+                metadata: null
+            });
+        } finally {
+            setSeeding(false);
+        }
+    };
+
     // Only block if we strictly have no user found yet
     if (authLoading && !authEmployee) {
         return <div className="page-loader"><div className="spinner"></div></div>;
@@ -806,6 +886,18 @@ export default function DashboardPage() {
 
     return (
         <div className={userRole === 'ADMIN' ? '' : "dashboard-page fade-in"}>
+            {userRole === 'ADMIN' && (
+                <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 100 }}>
+                    <button 
+                        className={`ad2-btn-add ${seeding ? 'loading' : ''}`} 
+                        onClick={handleSeedData}
+                        disabled={seeding}
+                        style={{ background: 'var(--purple-main)', boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' }}
+                    >
+                        {seeding ? 'Seeding...' : <><Zap size={16} /> Seed 22 Tasks</>}
+                    </button>
+                </div>
+            )}
 
             {userRole !== 'ADMIN' && (
                 <header className="page-header">
@@ -816,7 +908,6 @@ export default function DashboardPage() {
                 </header>
             )}
 
-            {/* Conditionally Render Role Dashboard */}
             {userRole === 'ADMIN' && (
                 <AdminDashboard
                     employee={employee}
@@ -844,27 +935,24 @@ export default function DashboardPage() {
                 <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} />
             )}
 
-            <AdminAssignTaskModal
+            <AllocateTaskModal
                 isOpen={isAssignModalOpen}
                 onClose={() => setIsAssignModalOpen(false)}
-                onAssign={async (data) => {
-                    await api.createTask(data);
-
-                    addNotification({
-                        title: 'Task Assignment Created',
-                        message: `Successfully delegated '${data.title}' tracking cards to Kanban board.`,
-                        type: 'SYSTEM',
-                        metadata: null
-                    });
-
-                    setKanbanRefresh(prev => prev + 1);
-
-                    // Dispatch local live update to force the dashboard stats and task lists to refresh immediately
+                onSuccess={async () => {
+                    // Refresh dash data
                     if (typeof window !== 'undefined') {
                         window.dispatchEvent(new CustomEvent('app:live-notification', { detail: { type: 'TASK_ASSIGNED' } }));
                     }
+                    
+                    addNotification({
+                        title: 'Task Successfully Allocated',
+                        message: 'The new task tracking cards have been pushed to the Kanban board.',
+                        type: 'SYSTEM',
+                        metadata: null
+                    });
                 }}
             />
+
         </div>
     );
 }

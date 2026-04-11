@@ -51,7 +51,8 @@ export interface TaskDTO {
     id: string;
     title: string;
     description?: string;
-    assigneeId: string;
+    assigneeId?: string; // Legacy/Primary assignee
+    assigneeIds?: string[]; // Modern multi-assignee support
     creatorId: string;
     status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'BLOCKED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'MISSED_DEADLINE';
     priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -67,6 +68,13 @@ export interface TaskDTO {
         lastName: string;
         profilePhoto?: string;
     };
+    assignees?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        profilePhoto?: string;
+    }[];
+
     
     // KPI Fields
     submittedAt?: string;

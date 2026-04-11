@@ -257,20 +257,41 @@ export const api = {
             dueDate: task.dueDate || new Date().toISOString()
         })) as TaskDTO[];
     },
-    createTask: async (data: Partial<TaskDTO>) => {
+    createTask: async (payload: Partial<TaskDTO>) => {
+        // Safe mapping to handle DB schema limitations
+        const data = { ...payload };
+        if (data.assigneeIds && data.assigneeIds.length > 0) {
+            data.assigneeId = data.assigneeIds[0];
+        }
+        delete data.assigneeIds;
+
         const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
         handleSupabaseEvent(data, error, 'Create Task');
         return res as TaskDTO;
     },
+
     updateTaskStatus: async (id: string, status: string) => {
         const { data, error } = await supabase.from('tasks').update({ status }).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Task Status');
         return data as TaskDTO;
     },
-    updateTask: async (id: string, data: Partial<TaskDTO>) => {
+    updateTask: async (id: string, payload: Partial<TaskDTO>) => {
+        // Safe mapping to handle DB schema limitations
+        const data = { ...payload };
+        if (data.assigneeIds && data.assigneeIds.length > 0) {
+            data.assigneeId = data.assigneeIds[0];
+        }
+        delete data.assigneeIds;
+
         const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Task');
         return res as TaskDTO;
+    },
+
+    deleteTask: async (id: string) => {
+        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        handleSupabaseEvent(null, error, 'Delete Task');
+        return { success: true };
     },
 
     // EOD

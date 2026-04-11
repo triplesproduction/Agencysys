@@ -7,7 +7,11 @@ import Input from '../Input';
 import { X, ChevronDown, User, Calendar, Tag, FileText, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import DatePicker from '../common/DatePicker';
+import MarkdownEditor from '../common/MarkdownEditor';
+import MultiMemberPicker from '../common/MultiMemberPicker';
+import { EmployeeDTO } from '@/types/dto';
 import './TasksModal.css';
+
 
 interface AllocateTaskModalProps {
     isOpen: boolean;
@@ -30,9 +34,15 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
     const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
 
+    const [expectedHours, setExpectedHours] = useState('');
+    const [managerId, setManagerId] = useState('');
+    const [isManagerListOpen, setIsManagerListOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [isTaskListOpen, setIsTaskListOpen] = useState(false);
+    const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+
+
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,6 +64,8 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
             setTitle(''); setSelectedTaskId(''); setSelectedEmployeeIds([]);
             setPriority('MEDIUM'); setDueDate(new Date().toISOString().split('T')[0]); setInstructions('');
             setAttachments(''); setUploadedFiles([]); setErrorMsg('');
+            setExpectedHours(''); setManagerId(''); setIsManagerListOpen(false);
+
         }
     }, [isOpen]);
 
@@ -100,16 +112,20 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
             const allAttachments = [...manualLinks, ...uploadedFiles];
 
             const formData = {
-                title: title,
-                description: selectedTask?.description || 'Allocated Task',
+                title: title + (saveAsTemplate ? ' [TEMPLATE]' : ''),
+                description: selectedTask?.description || instructions || 'Allocated Task',
                 instructions,
                 assigneeIds: selectedEmployeeIds,
+                managerId: managerId || undefined,
                 priority,
+                expectedHours: expectedHours ? parseFloat(expectedHours) : undefined,
                 dueDate: new Date(dueDate).toISOString(),
-                attachments: allAttachments.length > 0 ? allAttachments : undefined
+                attachments: allAttachments.length > 0 ? allAttachments : undefined,
             };
 
+
             await api.createTask(formData as any);
+
             onSuccess();
             onClose();
         } catch (err: any) {
@@ -175,14 +191,15 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
 
                             <div className="form-row">
                                 <div className="trello-section-label">Execution Instructions</div>
-                                <textarea 
-                                    className="trello-textarea" 
-                                    rows={5} 
-                                    placeholder="Add specific instructions for this allocation..." 
+                                <MarkdownEditor 
                                     value={instructions}
-                                    onChange={(e) => setInstructions(e.target.value)}
+                                    onChange={setInstructions}
+                                    placeholder="Add specific instructions for this allocation..."
                                 />
                             </div>
+
+
+
 
                             <div className="form-row">
                                 <div className="trello-section-label">External Attachments (Links & Files)</div>
@@ -226,20 +243,13 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                         <div className="trello-sidebar">
                             <div>
                                 <div className="trello-section-label"><User size={14} /> Assign Members</div>
-                                <div className="mobile-assignee-list">
-                                    {employees.filter(e => e.role !== 'ADMIN' && e.role !== 'MANAGER').map(emp => (
-                                        <div 
-                                            key={emp.id} 
-                                            className={`trello-avatar-btn ${selectedEmployeeIds.includes(emp.id) ? 'selected' : ''}`}
-                                            onClick={() => toggleEmployee(emp.id)}
-                                            title={emp.name}
-                                        >
-                                            {emp.profilePhoto ? <img src={emp.profilePhoto} alt="av" /> : (emp.firstName?.charAt(0) || 'U')}
-                                        </div>
-                                    ))}
-                                    <div className="trello-avatar-btn" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)' }}><Plus size={16} color="rgba(255,255,255,0.2)" /></div>
-                                </div>
+                                <MultiMemberPicker 
+                                    selectedIds={selectedEmployeeIds}
+                                    members={employees as any}
+                                    onChange={setSelectedEmployeeIds}
+                                />
                             </div>
+
 
                             <div>
                                 <div className="trello-section-label"><Tag size={14} /> Priority Label</div>
@@ -257,16 +267,42 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                                 </div>
                             </div>
 
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <div className="trello-section-label">Est. Hours</div>
+                                    <input 
+                                        type="number" 
+                                        className="trello-native-input" 
+                                        value={expectedHours} 
+                                        onChange={(e) => setExpectedHours(e.target.value)}
+                                        placeholder="0.0"
+                                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', color: 'white', width: '100%' }}
+                                    />
+                                </div>
+                                <div>
+                                    <DatePicker 
+                                        label="Due Date"
+                                        value={dueDate}
+                                        onChange={(dt) => setDueDate(dt)}
+                                        placeholder="Set a deadline"
+                                    />
+                                </div>
+                            </div>
+
+
                             <div>
-                                <DatePicker 
-                                    label="Due Date"
-                                    value={dueDate}
-                                    onChange={(dt) => setDueDate(dt)}
-                                    placeholder="Set a deadline"
-                                />
+                                <label className="template-checkbox-label" style={{ marginTop: '12px', width: '100%', borderStyle: 'solid', borderColor: saveAsTemplate ? 'var(--purple-main)' : 'rgba(255,255,255,0.1)' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={saveAsTemplate}
+                                        onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                                    />
+                                    <span style={{ fontWeight: 600 }}>Save as reusable template</span>
+                                </label>
                             </div>
 
                             {errorMsg && <div style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 600, padding: '14px', background: 'rgba(239,68,68,0.08)', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.15)' }}>{errorMsg}</div>}
+
                         </div>
                     </div>
 
