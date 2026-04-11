@@ -648,4 +648,204 @@ export const api = {
         const { data: pubData } = supabase.storage.from('documents').getPublicUrl(fileName);
         return { url: pubData.publicUrl };
     },
+
+    // ── MESSAGING ────────────────────────────────────────────────────────────
+    /** Find or create a 1-to-1 conversation between two users */
+    getOrCreateConversation: async (myId: string, otherId: string): Promise<string> => {
+        // Find existing conversation where both users are participants
+        const { data: myConvs } = await supabase
+            .from('conversation_participants')
+            .select('conversationId')
+            .eq('userId', myId);
+
+        if (myConvs && myConvs.length > 0) {
+            const myConvIds = myConvs.map((r: any) => r.conversationId);
+            const { data: shared } = await supabase
+                .from('conversation_participants')
+                .select('conversationId')
+                .eq('userId', otherId)
+                .in('conversationId', myConvIds);
+
+            if (shared && shared.length > 0) {
+                return shared[0].conversationId;
+            }
+        }
+
+        // Create new conversation
+        const { data: conv, error: convError } = await supabase
+            .from('conversations')
+            .insert({})
+            .select()
+            .single();
+        if (convError) throw new Error(convError.message);
+
+        // Add both participants
+        const { error: partError } = await supabase.from('conversation_participants').insert([
+            { conversationId: conv.id, userId: myId },
+            { conversationId: conv.id, userId: otherId },
+        ]);
+        if (partError) throw new Error(partError.message);
+
+        return conv.id;
+    },
+
+    /** Get all conversations for a user, with last message and unread count */
+    getConversations: async (myId: string) => {
+        const { data: parts, error } = await supabase
+            .from('conversation_participants')
+            .select('conversationId')
+            .eq('userId', myId);
+
+        if (error || !parts || parts.length === 0) return [];
+
+        const convIds = parts.map((p: any) => p.conversationId);
+
+        // Get the other participant for each conversation
+        const { data: otherParts } = await supabase
+            .from('conversation_participants')
+            .select('conversationId, userId, employees:userId(*)')
+            .in('conversationId', convIds)
+            .neq('userId', myId);
+
+        // Get last message per conversation
+        const results = await Promise.all(
+            convIds.map(async (convId: string) => {
+                const { data: msgs } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('conversationId', convId)
+                    .order('createdAt', { ascending: false })
+                    .limit(1);
+
+                const { count: unread } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('conversationId', convId)
+                    .neq('senderId', myId)
+                    .neq('status', 'seen');
+
+                const other = otherParts?.find((p: any) => p.conversationId === convId);
+
+                return {
+                    conversationId: convId,
+                    otherUser: other?.employees || null,
+                    lastMessage: msgs?.[0] || null,
+                    unreadCount: unread || 0,
+                };
+            })
+        );
+
+        // Sort by latest message timestamp, admin pinned first
+        return results.sort((a, b) => {
+            const aIsAdmin = (a.otherUser as any)?.roleId?.toUpperCase() === 'ADMIN';
+            const bIsAdmin = (b.otherUser as any)?.roleId?.toUpperCase() === 'ADMIN';
+            if (aIsAdmin && !bIsAdmin) return -1;
+            if (!aIsAdmin && bIsAdmin) return 1;
+            const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+            const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
+    },
+
+    /** Get messages for a conversation (newest last) */
+    getMessages: async (conversationId: string, limit = 60): Promise<any[]> => {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversationId', conversationId)
+            .order('createdAt', { ascending: true })
+            .limit(limit);
+        if (error) throw new Error(error.message);
+        return data || [];
+    },
+
+    /** Send a message */
+    sendMessage: async (payload: {
+        conversationId: string;
+        senderId: string;
+        content?: string;
+        type?: 'text' | 'image';
+        mediaUrl?: string;
+        taskRef?: any;
+    }): Promise<any> => {
+        const { data, error } = await supabase
+            .from('messages')
+            .insert({
+                conversationId: payload.conversationId,
+                senderId: payload.senderId,
+                content: payload.content || null,
+                type: payload.type || 'text',
+                mediaUrl: payload.mediaUrl || null,
+                taskRef: payload.taskRef || null,
+                status: 'sent',
+            })
+            .select()
+            .single();
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    /** Mark all unread messages in a conversation as 'seen' */
+    markMessagesRead: async (conversationId: string, myId: string): Promise<void> => {
+        await supabase
+            .from('messages')
+            .update({ status: 'seen' })
+            .eq('conversationId', conversationId)
+            .neq('senderId', myId)
+            .neq('status', 'seen');
+    },
+
+    /** Upsert typing status */
+    setTypingStatus: async (userId: string, conversationId: string, isTyping: boolean): Promise<void> => {
+        await supabase
+            .from('typing_status')
+            .upsert({ userId, conversationId, isTyping, updatedAt: new Date().toISOString() }, {
+                onConflict: 'userId,conversationId',
+            });
+    },
+
+    /** Upload image to chat-media bucket */
+    uploadChatMedia: async (file: File): Promise<{ url: string }> => {
+        const ext = file.name.split('.').pop();
+        const fileName = `chat/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+        const { error } = await supabase.storage.from('chat-media').upload(fileName, file, { upsert: false });
+        if (error) throw new Error(error.message);
+        const { data: pub } = supabase.storage.from('chat-media').getPublicUrl(fileName);
+        return { url: pub.publicUrl };
+    },
+
+    /** Get total unread count for a user (for sidebar badge) */
+    getUnreadCount: async (myId: string): Promise<number> => {
+        // Get all conversations the user belongs to
+        const { data: parts } = await supabase
+            .from('conversation_participants')
+            .select('conversationId')
+            .eq('userId', myId);
+        if (!parts || parts.length === 0) return 0;
+        const convIds = parts.map((p: any) => p.conversationId);
+        const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .in('conversationId', convIds)
+            .neq('senderId', myId)
+            .neq('status', 'seen');
+        return count || 0;
+    },
+
+    // Legacy stubs (kept for backward compat if referenced anywhere)
+    getMyChats: async (myId: string) => {
+        return api.getConversations(myId);
+    },
+    sendChatMessage: async (payload: { receiverId: string; content: string }, senderId: string) => {
+        const convId = await api.getOrCreateConversation(senderId, payload.receiverId);
+        return api.sendMessage({ conversationId: convId, senderId, content: payload.content });
+    },
+    getAdminChats: async () => {
+        const { data } = await supabase
+            .from('messages')
+            .select('*, sender:senderId(*), receiver:conversationId(*)')
+            .order('createdAt', { ascending: false })
+            .limit(100);
+        return data || [];
+    },
 };
