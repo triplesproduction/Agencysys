@@ -827,7 +827,9 @@ export default function DashboardPage() {
             <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px', padding: '12px 0' }}>
                 <div>
                     <h1 className="greeting" style={{ margin: 0, fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Welcome back, {employee?.firstName || 'User'}</h1>
-                    <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.5, fontSize: '0.95rem' }}>Here's your {userRole.toLowerCase()} overview for today.</p>
+                    <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.6, fontSize: '0.95rem', fontWeight: 500 }}>
+                        {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' ? employee.designation : 'Creative Strategist'} | Overview for today
+                    </p>
                 </div>
                 
                 <div className="ad2-header-nav-pill" style={{ 
@@ -847,16 +849,15 @@ export default function DashboardPage() {
                     </div>
                     
                     <div className="ad2-header-actions" style={{ display: 'flex', gap: '8px' }}>
-                        <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }} onClick={() => window.location.href = '/messaging'}>
+                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/messaging'}>
                             <MessageCircle size={18} />
+                            {/* Chat Notification Badge */}
+                            <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#EF4444', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)' }}></span>
                         </div>
-                        <div className="ad2-icon-btn has-notification" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }} onClick={() => window.location.href = '/rulebook'}>
+                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/rulebook'}>
                             <BookOpen size={18} />
                             {/* System Update Badge */}
-                            <span style={{ position: 'absolute', top: '0', right: '0', width: '8px', height: '8px', background: '#F59E0B', borderRadius: '50%', border: '2px solid #000', boxShadow: '0 0 10px #F59E0B' }}></span>
-                        </div>
-                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px' }}>
-                            <Bell size={18} />
+                            <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#F59E0B', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)' }}></span>
                         </div>
                     </div>
 
@@ -864,7 +865,7 @@ export default function DashboardPage() {
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>{employee?.firstName} {employee?.lastName}</div>
                             <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '3px' }}>
-                                {employee?.designation || (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')}
+                                {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' ? employee.designation : (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')}
                             </div>
                         </div>
                         <img 
