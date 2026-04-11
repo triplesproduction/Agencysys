@@ -605,82 +605,81 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
             {/* Main Layout Grid */}
             <div className="ad2-bento-grid" style={{ marginTop: '16px' }}>
                 
-                {/* My Priorities (Column 1 + 2) */}
+                {/* Column 1 + 2: Task Runway & Performance Audit */}
                 <div className="ad2-col" style={{ gridColumn: 'span 2' }}>
-                    <div className="ad2-card" style={{ flex: 1, minHeight: '450px' }}>
+                    <div className="ad2-card" style={{ flex: 1, minHeight: '300px' }}>
                         <div className="ad2-card-header">
                             <h3><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
                             <Link href="/tasks" className="ad2-badge hoverable">View All</Link>
                         </div>
                         <div className="custom-scrollbar" style={{ overflowY: 'auto' }}>
                             {pendingTasks.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
-                                    <CheckSquare size={48} style={{ opacity: 0.1, marginBottom: '16px' }} />
-                                    <p style={{ fontSize: '1rem', fontWeight: 500 }}>You're all caught up!</p>
-                                    <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>No pending tasks in your runway.</p>
+                                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                                    <CheckSquare size={40} style={{ opacity: 0.1, marginBottom: '12px' }} />
+                                    <p style={{ fontSize: '0.9rem', fontWeight: 500 }}>No pending tasks.</p>
                                 </div>
                             ) : (
-                                pendingTasks.map(task => {
+                                pendingTasks.slice(0, 10).map(task => {
                                     const sc = statusStyle[task.status] || statusStyle.TODO;
                                     const pc = priorityColor[task.priority] || '#6B7280';
                                     return (
-                                        <div key={task.id} className="ad2-task-list-item" style={{ padding: '16px 20px', marginBottom: '10px' }}>
+                                        <div key={task.id} className="ad2-task-list-item" style={{ padding: '12px 16px', marginBottom: '8px' }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: 'white' }}>{task.title}</h4>
-                                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                    <span className="ad2-badge ad2-tag" style={{ background: sc.bg, color: sc.color, borderColor: 'transparent', padding: '4px 10px' }}>{task.status.replace('_', ' ')}</span>
-                                                    <span style={{ fontSize: '0.75rem', color: pc, fontWeight: 800 }}>{task.priority}</span>
-                                                    {task.dueDate && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)' }}>• {new Date(task.dueDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>}
+                                                <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem', color: 'white' }}>{task.title}</h4>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <span className="ad2-badge ad2-tag" style={{ background: sc.bg, color: sc.color, borderColor: 'transparent', padding: '2px 8px' }}>{task.status.replace('_', ' ')}</span>
+                                                    <span style={{ fontSize: '0.68rem', color: pc, fontWeight: 800 }}>{task.priority}</span>
                                                 </div>
                                             </div>
-                                            <Link href={`/tasks/${task.id}`} className="ad2-circle-btn"><ChevronRight size={16} /></Link>
+                                            <Link href={`/tasks/${task.id}`} className="ad2-circle-btn"><ChevronRight size={14} /></Link>
                                         </div>
                                     );
                                 })
                             )}
                         </div>
                     </div>
+                    {employee && <KpiAuditLedger employeeId={employee.id} />}
                 </div>
 
-                {/* Performance & Pace (Column 3) */}
+                {/* Column 3: Quick Actions & Monthly Pace */}
                 <div className="ad2-col">
-                    <div className="ad2-card" style={{ padding: '20px', marginBottom: '16px' }}>
+                    <div className="ad2-card" style={{ marginBottom: '16px' }}>
                          <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
-                            <h3><Activity size={16} color="#10B981" /> Monthly Pace</h3>
-                            <span style={{ fontSize: '0.85rem', color: '#10B981', fontWeight: 800 }}>{kpis?.total_hours_worked || 0}h / 160h</span>
+                            <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
-                        <div style={{ height: '10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <button className="ad2-btn-add primary" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/tasks'}>Kanban Board</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
+                        </div>
+                    </div>
+
+                    <div className="ad2-card" style={{ padding: '18px' }}>
+                         <div className="ad2-card-header" style={{ marginBottom: '10px' }}>
+                            <h3><Activity size={15} color="#10B981" /> Month Pace</h3>
+                            <span style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 800 }}>{kpis?.total_hours_worked || 0}h</span>
+                        </div>
+                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
                             <div style={{ 
                                 height: '100%', 
                                 width: `${Math.min(100, ((kpis?.total_hours_worked || 0) / 160) * 100)}%`, 
                                 background: 'linear-gradient(90deg, #10B981, #3B82F6)',
-                                boxShadow: '0 0 15px rgba(16, 185, 129, 0.4)',
-                                transition: 'width 1s ease-in-out'
+                                transition: 'width 1s ease'
                             }}></div>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.4 }}>Bonus eligibility threshold: 160 logged productive hours.</p>
+                        <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.3 }}>Target: 160h</p>
                     </div>
-
-                    {employee && <KpiAuditLedger employeeId={employee.id} />}
                 </div>
 
-                {/* Social & Rules (Column 4) */}
+                {/* Column 4: Communication & Rules (Stacked Right Side) */}
                 <div className="ad2-col">
-                    <div className="ad2-card" style={{ marginBottom: '16px' }}>
-                         <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
-                            <h3><Zap size={16} color="#F59E0B" /> Quick Actions</h3>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                            <button className="ad2-btn-add primary" style={{ padding: '10px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
-                            <button className="ad2-btn-add" style={{ padding: '10px' }} onClick={() => window.location.href = '/tasks'}>Kanban</button>
-                            <button className="ad2-btn-add" style={{ padding: '10px' }} onClick={() => window.location.href = '/leaves'}>My Leaves</button>
-                            <button className="ad2-btn-add" style={{ padding: '10px' }} onClick={() => window.location.href = '/rulebook'}>Rulebook</button>
-                        </div>
-                    </div>
-
-                    <AnnouncementsWidget maxItems={1} />
+                    <AnnouncementsWidget maxItems={2} />
                     <div style={{ marginTop: '16px' }}>
-                        <RulesWidget maxItems={1} />
+                        <RulesWidget maxItems={2} />
+                    </div>
+                    <div style={{ marginTop: '16px' }}>
+                        <RecentMessagesWidget maxItems={1} />
                     </div>
                 </div>
             </div>
