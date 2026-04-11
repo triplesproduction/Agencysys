@@ -61,18 +61,17 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
                     {items.map(ann => {
                         const c = typeColors[ann.type] || typeColors.ANNOUNCEMENT;
                         return (
-                            <div key={ann.id} className="ad2-task-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '16px', borderLeft: `3px solid ${c.text}` }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', width: '100%' }}>
-                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'white' }}>{ann.title}</span>
-                                    <span className="ad2-badge ad2-tag" style={{ background: c.bg, color: c.text, borderColor: c.border }}>
+                            <div key={ann.id} className="ad2-task-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '10px 12px', borderLeft: `3px solid ${c.text}`, gap: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'white' }}>{ann.title}</span>
+                                    <span style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}`, fontSize: '0.6rem', padding: '1px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 800 }}>
                                         {ann.type}
                                     </span>
                                 </div>
-                                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', margin: '0 0 10px 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                     {ann.message}
                                 </p>
-                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
-                                    {ann.author ? `${ann.author.firstName} ${ann.author.lastName} • ` : ''}
+                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500 }}>
                                     {new Date(ann.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                 </div>
                             </div>

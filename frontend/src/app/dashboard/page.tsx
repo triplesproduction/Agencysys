@@ -165,23 +165,23 @@ function AdminDashboard({
                             {kpiLogList.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No recent KPI activity.</div>
                             ) : (
-                                kpiLogList.map((log: any) => {
-                                    if (!log) return null;
-                                    return (
-                                        <div key={log.id} style={{ padding: '10px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.03)', position: 'relative' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'white' }}>{log.employee?.firstName || 'User'} {log.employee?.lastName || ''}</span>
-                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444' }}>
-                                                    {log.points_change >= 0 ? `+${log.points_change}` : log.points_change} PTS
-                                                </span>
+                                    kpiLogList.map((log: any) => {
+                                        if (!log) return null;
+                                        return (
+                                            <div key={log.id} style={{ padding: '10px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.03)', position: 'relative' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{log.employee?.firstName} {log.employee?.lastName}</span>
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444' }}>
+                                                        {log.points_change >= 0 ? `+${log.points_change}` : log.points_change} PTS
+                                                    </span>
+                                                </div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '4px' }}>{log.reason}</div>
+                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                    {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} • {log.category}
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '4px' }}>{log.reason}</div>
-                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} • {log.category}
-                                            </div>
-                                        </div>
-                                    );
-                                })
+                                        );
+                                    })
                             )}
                         </div>
                     </div>
@@ -602,8 +602,13 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                     </div>
 
                     <RecentMessagesWidget maxItems={2} />
+                </div>
 
-                    <div className="ad2-card" style={{ padding: '16px', marginTop: '8px' }}>
+                {/* Column 4: Communication & Rules (Right Side) */}
+                <div className="ad2-col">
+                    <AnnouncementsWidget maxItems={2} />
+                    
+                    <div className="ad2-card" style={{ padding: '16px', marginTop: '10px' }}>
                          <div className="ad2-card-header" style={{ marginBottom: '6px' }}>
                             <h3><Activity size={15} color="#10B981" /> Month Pace</h3>
                             <span style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 800 }}>{kpis?.total_hours_worked || 0}h</span>
@@ -618,11 +623,6 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                         </div>
                         <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.1 }}>Target: 160h</p>
                     </div>
-                </div>
-
-                {/* Column 4: Communication & Rules (Right Side) */}
-                <div className="ad2-col">
-                    <AnnouncementsWidget maxItems={2} />
                 </div>
             </div>
         </div>
