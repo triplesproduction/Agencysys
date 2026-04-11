@@ -339,13 +339,9 @@
    ADMIN DASHBOARD V2 (DRIBBBLE 4-COLUMN DESIGN)
 ====================================================================== */
 
-.admin-page-wrapper {
-    padding: 8px 4px 0 4px;
-}
-
 .admin-dash-v2 {
-    padding: 12px 12px 16px 12px;
-    height: calc(100vh - 170px);
+    padding: 0 8px 8px 8px;
+    height: calc(100vh - 160px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -520,18 +516,17 @@
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--glass-border);
     color: white;
-    padding: 8px 14px;
-    border-radius: 10px;
+    padding: 10px 20px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 600;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
     justify-content: center;
-    white-space: nowrap;
 }
 
 .ad2-btn-add:hover {
@@ -554,7 +549,7 @@
 /* BENTO GRID - Refined Transitions */
 .ad2-bento-grid {
     display: grid;
-    grid-template-columns: 1.4fr 1.5fr 1.5fr 1.4fr;
+    grid-template-columns: 1.4fr 2fr 2fr 1.4fr;
     grid-template-areas: 
         "col1 col2 col2 col4";
     gap: 16px;
@@ -588,8 +583,8 @@
 .ad2-card {
     background: rgba(15, 15, 17, 0.45);
     border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    padding: 14px;
+    border-radius: 24px;
+    padding: 16px;
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(20px);
@@ -599,7 +594,6 @@
 }
 
 .ad2-card:hover {
-    border-color: rgba(139, 92, 246, 0.3);
     background: rgba(15, 15, 17, 0.6);
 }
 
@@ -608,20 +602,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    gap: 8px;
+    gap: 12px;
     min-width: 0;
 }
 
 .ad2-card-header h3 {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: white;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     margin: 0;
     min-width: 0;
     flex: 1;
@@ -662,12 +656,12 @@
 .ad2-task-list-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
+    gap: 14px;
+    padding: 12px;
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-    margin-bottom: 6px;
+    border-radius: 14px;
+    margin-bottom: 10px;
     transition: all 0.2s;
 }
 

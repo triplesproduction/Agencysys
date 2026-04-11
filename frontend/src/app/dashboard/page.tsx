@@ -577,7 +577,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 
                 {/* Column 3: Quick Actions, Messages & Monthly Pace */}
                 <div className="ad2-col">
-                    <div className="ad2-card" style={{ marginBottom: '8px', paddingBottom: '16px' }}>
+                    <div className="ad2-card" style={{ marginBottom: '8px', padding: '20px 20px 24px 20px' }}>
                          <div className="ad2-card-header" style={{ marginBottom: '8px' }}>
                             <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
