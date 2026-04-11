@@ -747,7 +747,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <main className={userRole === 'ADMIN' ? '' : "dashboard-page fade-in"}>
+        <main className={userRole === 'ADMIN' ? 'admin-page-wrapper' : "dashboard-page fade-in"}>
 
             <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0px', padding: '4px 0' }}>
                 <div>
