@@ -862,7 +862,9 @@ export default function DashboardPage() {
                     <div className="ad2-user-pill" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '12px', borderLeft: '1px solid rgba(255,255,255,0.15)' }}>
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>{employee?.firstName} {employee?.lastName}</div>
-                            <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '3px' }}>{employee?.designation || userRole}</div>
+                            <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '3px' }}>
+                                {employee?.designation || (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')}
+                            </div>
                         </div>
                         <img 
                             src={employee?.profilePhoto && employee.profilePhoto.length > 5 ? employee.profilePhoto : `https://ui-avatars.com/api/?name=${employee?.firstName || 'User'}&background=6366f1&color=fff`} 
