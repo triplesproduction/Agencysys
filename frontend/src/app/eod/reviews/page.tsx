@@ -18,6 +18,9 @@ interface EODReport {
     employee: { id: string; firstName: string; lastName: string; department: string | null; roleId: string } | null;
     tasksCompleted: { id: string; title: string }[];
     tasksInProgress: { id: string; title: string }[];
+    workHours: number | null;
+    adminNote: string | null;
+    status: string | null;
 }
 
 const SentimentIcon = ({ sentiment }: { sentiment: string }) => {
@@ -40,6 +43,60 @@ export default function EODReviewsPage() {
     const [endDate, setEndDate] = useState('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [ratingMenuOpen, setRatingMenuOpen] = useState<string | null>(null);
+    const [isUpdating, setIsUpdating] = useState<string | null>(null);
+    const [editHours, setEditHours] = useState<string>('');
+    const [editNote, setEditNote] = useState<string>('');
+    const [workLogMap, setWorkLogMap] = useState<Record<string, any>>({});
+
+    useEffect(() => {
+        if (expandedId) {
+            const report = reports.find(r => r.id === expandedId);
+            if (report && report.employee) {
+                const date = new Date(report.reportDate).toISOString().split('T')[0];
+                api.getWorkHoursByDate(report.employee.id, date).then(log => {
+                    if (log) {
+                        setWorkLogMap(prev => ({ ...prev, [report.id]: log }));
+                        setEditHours(String(log.hoursLogged));
+                        // Try to extract note from description if it matches our pattern
+                        const desc = log.description || '';
+                        const noteMatch = desc.match(/\[Review Note: (.*?)\]/);
+                        setEditNote(noteMatch ? noteMatch[1] : (desc.includes('Admin reviewed') ? desc.split('Note: ')[1] || '' : ''));
+                    } else {
+                        setEditHours(String(report.workHours || ''));
+                        setEditNote('');
+                    }
+                });
+            }
+        }
+    }, [expandedId, reports]);
+
+    const handleReviewUpdate = async (reportId: string, status: string) => {
+        try {
+            setIsUpdating(reportId);
+            const report = reports.find(r => r.id === reportId);
+            if (!report || !report.employee) throw new Error('Report data missing.');
+
+            const hours = parseFloat(editHours);
+            if (isNaN(hours)) throw new Error('Please enter a valid number for hours.');
+
+            const reportDateStr = new Date(report.reportDate).toISOString().split('T')[0];
+
+            await api.reviewEOD(reportId, {
+                employeeId: report.employee.id,
+                date: reportDateStr,
+                workHours: hours,
+                adminNote: editNote,
+                status: status
+            });
+
+            addNotification({ type: 'SUCCESS', title: 'Review Saved', message: `Report marked as ${status}.` });
+            fetchReports(); // Refresh data
+        } catch (err: any) {
+            addNotification({ type: 'ERROR', title: 'Update Failed', message: err.message });
+        } finally {
+            setIsUpdating(null);
+        }
+    };
 
     const fetchReports = async () => {
         try {
@@ -137,7 +194,12 @@ export default function EODReviewsPage() {
                     </div>
 
                     <button 
-                        onClick={fetchReports} 
+                        onClick={() => {
+                            setSearch('');
+                            setStartDate('');
+                            setEndDate('');
+                            fetchReports();
+                        }} 
                         style={{ 
                             background: 'rgba(139,92,246,0.15)', 
                             border: '1px solid rgba(139,92,246,0.3)', 
@@ -226,6 +288,16 @@ export default function EODReviewsPage() {
                                                             <span>{report.tasksInProgress.length} in progress</span>
                                                         </div>
                                                     )}
+                                                    {/* Work Hours Header Info */}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: (workLogMap[report.id]?.description?.includes('APPROVED') || report.status === 'APPROVED') ? '#10B981' : ((workLogMap[report.id]?.description?.includes('ADJUSTED') || report.status === 'ADJUSTED') ? '#F59E0B' : 'var(--text-secondary)') }}>
+                                                        <Clock size={14} />
+                                                        <span style={{ fontWeight: 600 }}>{workLogMap[report.id]?.hoursLogged || report.workHours || 0}h logged</span>
+                                                        {(report.status || (workLogMap[report.id]?.description?.includes('Status:'))) && (
+                                                            <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.8, background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                                                                {report.status || (workLogMap[report.id]?.description?.match(/Status: (.*?)\./)?.[1] || 'reviewed')}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {/* Sentiment Rating Dropdown */}
                                                     <div style={{ position: 'relative' }}>
                                                         <div 
@@ -392,6 +464,83 @@ export default function EODReviewsPage() {
                                                                 </p>
                                                             </>
                                                         )}
+                                                    </div>
+
+                                                    {/* Admin Review Section */}
+                                                    <div style={{ gridColumn: 'span 2', marginTop: '12px', padding: '20px', background: 'rgba(139, 92, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.15)' }} onClick={e => e.stopPropagation()}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                                            <h4 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, color: 'var(--purple-light)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <User size={14} /> Admin Review & Hours Correction
+                                                            </h4>
+                                                            {(report.status || workLogMap[report.id]) && (
+                                                                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
+                                                                    Status: {report.status || (workLogMap[report.id]?.description?.includes('APPROVED') ? 'APPROVED' : (workLogMap[report.id]?.description?.includes('ADJUSTED') ? 'ADJUSTED' : 'LOGGED'))}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '20px', marginBottom: '16px' }}>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Adjusted Hours</label>
+                                                                <div style={{ position: 'relative' }}>
+                                                                    <Clock size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                                                                    <input 
+                                                                        type="number" 
+                                                                        step="0.5"
+                                                                        value={editHours}
+                                                                        onChange={e => setEditHours(e.target.value)}
+                                                                        style={{ 
+                                                                            width: '100%', 
+                                                                            background: 'rgba(0,0,0,0.2)', 
+                                                                            border: '1px solid rgba(255,255,255,0.1)', 
+                                                                            borderRadius: '10px', 
+                                                                            padding: '10px 10px 10px 36px', 
+                                                                            color: 'white',
+                                                                            fontSize: '0.9rem',
+                                                                            outline: 'none'
+                                                                        }}
+                                                                        placeholder="8.0"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Admin Note (Visible to Employee)</label>
+                                                                <textarea 
+                                                                    rows={1}
+                                                                    value={editNote}
+                                                                    onChange={e => setEditNote(e.target.value)}
+                                                                    style={{ 
+                                                                        width: '100%', 
+                                                                        background: 'rgba(0,0,0,0.2)', 
+                                                                        border: '1px solid rgba(255,255,255,0.1)', 
+                                                                        borderRadius: '10px', 
+                                                                        padding: '10px 14px', 
+                                                                        color: 'white',
+                                                                        fontSize: '0.9rem',
+                                                                        outline: 'none',
+                                                                        resize: 'none'
+                                                                    }}
+                                                                    placeholder="Reason for adjustment or general feedback..."
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                                            <button 
+                                                                onClick={() => handleReviewUpdate(report.id, 'APPROVED')}
+                                                                disabled={isUpdating === report.id}
+                                                                style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10B981', padding: '8px 16px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                            >
+                                                                {isUpdating === report.id ? 'Saving...' : 'Mark as OK'}
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleReviewUpdate(report.id, 'ADJUSTED')}
+                                                                disabled={isUpdating === report.id}
+                                                                style={{ background: 'var(--purple-main)', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)' }}
+                                                            >
+                                                                {isUpdating === report.id ? 'Saving...' : 'Update Hours & Note'}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}

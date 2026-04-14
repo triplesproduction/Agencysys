@@ -16,7 +16,7 @@ interface Message {
     receiver: { firstName: string; lastName: string; profilePhoto?: string };
 }
 
-export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: number }) {
+export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { maxItems?: number, style?: React.CSSProperties }) {
     const { employee: authEmployee, loading: authLoading } = useAuth();
     const [threads, setThreads] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -57,10 +57,10 @@ export default function RecentMessagesWidget({ maxItems = 3 }: { maxItems?: numb
     }, [authLoading, authEmployee, maxItems]);
 
     return (
-        <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="ad2-card-header">
+        <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column', ...style }}>
+            <div className="ad2-card-header" style={{ marginBottom: '8px', paddingBottom: '4px', border: 'none' }}>
                 <h3><MessageSquare size={16} color="var(--purple-main)" /> Recent Chats</h3>
-                <Link href="/messaging" className="ad2-badge" style={{ textDecoration: 'none' }}>
+                <Link href="/messaging" className="ad2-badge" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.05)', fontSize: '0.65rem' }}>
                     Open Inbox <ArrowRight size={10} style={{ marginLeft: '4px' }} />
                 </Link>
             </div>

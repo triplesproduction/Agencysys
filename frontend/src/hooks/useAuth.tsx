@@ -11,6 +11,7 @@ interface EmployeeProfile {
     roleId: string;
     firstName: string;
     lastName: string;
+    profilePhoto?: string;
 }
 
 interface AuthContextType {
@@ -35,9 +36,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const { data, error } = await supabase
                 .from('employees')
-                .select('id, email, roleId, firstName, lastName')
+                .select('id, email, roleId, firstName, first_name, lastName, last_name, profilePhoto, profile_photo')
                 .eq('id', userId)
                 .maybeSingle();
+
+            if (data) {
+                // Normalize keys
+                data.firstName = data.firstName || data.first_name;
+                data.lastName = data.lastName || data.last_name;
+                data.profilePhoto = data.profilePhoto || data.profile_photo;
+            }
 
             if (error) {
                 console.error('[Auth DEBUG] Profile fetch database error:', error.message);

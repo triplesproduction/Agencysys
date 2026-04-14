@@ -40,9 +40,9 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
     return (
         <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>
             {/* Section header */}
-            <div className="ad2-card-header">
+            <div className="ad2-card-header" style={{ marginBottom: '8px', paddingBottom: '4px', border: 'none' }}>
                 <h3><Megaphone size={16} color="#3B82F6" /> Announcements</h3>
-                <Link href="/messaging/broadcast" className="ad2-badge" style={{ textDecoration: 'none' }}>
+                <Link href="/messaging/broadcast" className="ad2-badge" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.05)', fontSize: '0.65rem' }}>
                     View all <ExternalLink size={10} style={{ marginLeft: '4px' }} />
                 </Link>
             </div>
@@ -57,11 +57,11 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
                     <span style={{ fontSize: '0.8rem' }}>No active announcements</span>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
                     {items.map(ann => {
                         const c = typeColors[ann.type] || typeColors.ANNOUNCEMENT;
                         return (
-                            <div key={ann.id} className="ad2-task-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '10px 12px', borderLeft: `3px solid ${c.text}`, gap: '4px' }}>
+                            <div key={ann.id} className="ad2-task-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '10px 12px', borderLeft: `3px solid ${c.text}`, gap: '4px', marginBottom: '0' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                     <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'white' }}>{ann.title}</span>
                                     <span style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}`, fontSize: '0.6rem', padding: '1px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 800 }}>

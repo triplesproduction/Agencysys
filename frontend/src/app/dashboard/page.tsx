@@ -64,7 +64,7 @@ function AdminDashboard({
         <div className="admin-dash-v2 fade-in">
 
             {/* Quick Stats */}
-            <div className="quick-stats" style={{ marginTop: '8px' }}>
+            <div className="quick-stats" style={{ marginTop: '32px', marginBottom: '32px' }}>
                 <GlassCard className="stat-card">
                     <div className="stat-label">Total Headcount</div>
                     <div className="stat-value">{totalEmployees || '...'}</div>
@@ -90,15 +90,15 @@ function AdminDashboard({
             {/* Main Bento Grid */}
             <div className="ad2-bento-grid">
 
-                {/* Column 1: Command Center */}
+                {/* Column 1: Command Center, EODs & Performance */}
                 <div className="ad2-col ad2-col-1">
-                    <div className="ad2-card primary-gradient">
+                    <div className="ad2-card primary-gradient" style={{ flexShrink: 0, minHeight: '220px' }}>
                         <div className="ad2-card-header" style={{ border: 'none', marginBottom: '12px' }}>
                             <h3><Activity size={18} color="var(--purple-main)" /> Command Center</h3>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <button className="ad2-btn-add primary" onClick={onAssignTaskTrigger}>
-                                <Plus size={16} /> New Task Assignment
+                                <Plus size={16} /> New Task
                             </button>
                             <button className="ad2-btn-add" onClick={onCreateEmployeeTrigger}>
                                 <Users size={16} /> Manage Employees
@@ -175,8 +175,8 @@ function AdminDashboard({
                     </div>
                 </div>
 
-                {/* Column 2: Tasks Requiring Action (spans 2 cols) */}
-                <div className="ad2-col ad2-col-2" style={{ gridColumn: 'span 2' }}>
+                {/* Column 2: Tasks Requiring Action */}
+                <div className="ad2-col ad2-col-2">
                     <div className="ad2-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                         <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
                             <h3>Action Required: Submitted Tasks</h3>
@@ -295,7 +295,7 @@ function ManagerDashboard({
 
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED').length;
     const completedTasksCount = taskList.filter((t: any) => t && (t.status === 'DONE' || t.status === 'APPROVED')).length;
-    
+
     const managerName = employee?.firstName || 'Manager';
     const managerRole = employee?.roleId || 'Team Manager';
 
@@ -526,19 +526,11 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                 </Link>
             </div>
 
-            {/* Performance Alert */}
-            {kpiGrade === 'Danger Zone' && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '16px', padding: '16px', marginTop: '16px' }}>
-                    <div style={{ color: '#EF4444', fontSize: '0.8rem', fontWeight: 800, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <AlertTriangle size={14} /> PERFORMANCE ALERT
-                    </div>
-                    <div style={{ fontSize: '0.9rem', color: 'white' }}>Your KPI score is below 60. Efficiency improvements recommended.</div>
-                </div>
-            )}
+            {/* Performance Alert removed from homepage grid as per user request — now triggers as a one-time popup */}
 
             {/* Main Layout Grid */}
             <div className="ad2-bento-grid" style={{ marginTop: '10px' }}>
-                
+
                 {/* Column 1 + 2: Task Runway & Performance Audit */}
                 <div className="ad2-col" style={{ gridColumn: 'span 2' }}>
                     <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '400px', overflow: 'hidden' }}>
@@ -577,41 +569,51 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 
                 {/* Column 3: Quick Actions, Messages & Monthly Pace */}
                 <div className="ad2-col">
-                    <div className="ad2-card" style={{ marginBottom: '8px', padding: '20px 20px 24px 20px' }}>
-                         <div className="ad2-card-header" style={{ marginBottom: '8px' }}>
-                            <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <button className="ad2-btn-add primary" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/tasks'}>Kanban Board</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '10px 12px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
-                        </div>
-                    </div>
-
-                    <RecentMessagesWidget maxItems={3} />
+                    <AnnouncementsWidget maxItems={10} />
+                    <RecentMessagesWidget maxItems={2} style={{ flex: 1 }} />
                 </div>
 
                 {/* Column 4: Communication & Rules (Right Side) */}
                 <div className="ad2-col">
-                    <AnnouncementsWidget maxItems={2} />
-                    
-                    <div className="ad2-card" style={{ padding: '22px 20px', marginTop: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '140px' }}>
-                         <div className="ad2-card-header" style={{ marginBottom: '10px' }}>
-                            <h3 style={{ fontSize: '1.05rem' }}><Activity size={18} color="#10B981" /> Month Pace</h3>
-                            <span style={{ fontSize: '1rem', color: '#10B981', fontWeight: 900 }}>{kpis?.total_hours_worked || 0}h</span>
+                    <div className="ad2-card" style={{ flexShrink: 0 }}>
+                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
+                            <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
-                        <div style={{ height: '10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
-                            <div style={{ 
-                                height: '100%', 
-                                width: `${Math.min(100, ((kpis?.total_hours_worked || 0) / 160) * 100)}%`, 
-                                background: 'linear-gradient(90deg, #10B981, #3B82F6)',
-                                transition: 'width 1s ease'
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button className="ad2-btn-add primary" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/tasks'}>Tasks Board</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
+                        </div>
+                    </div>
+
+                    <div className="ad2-card" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+                                <Activity size={16} color="#10B981" /> Month Pace
+                            </h3>
+                            <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800 }}>{Math.round(((kpis?.total_hours_worked || 0) / 160) * 100)}%</span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
+                            <span style={{ fontSize: '1.4rem', color: 'white', fontWeight: 900 }}>{kpis?.total_hours_worked || 0}h</span>
+                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)' }}>logged this month</span>
+                        </div>
+
+                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${Math.min(100, Math.max((Number(kpis?.total_hours_worked || 0) > 0 ? 2 : 0), (Number(kpis?.total_hours_worked || 0) / 160) * 100))}%`,
+                                background: 'linear-gradient(90deg, #10B981 0%, #3B82F6 100%)',
+                                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
+                                borderRadius: '10px',
+                                boxShadow: '0 0 10px rgba(16, 185, 129, 0.3)'
                             }}></div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Target: 160h</p>
-                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progress: {Math.round(((kpis?.total_hours_worked || 0) / 160) * 100)}%</span>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)' }}>
+                            <span>Target: 160h</span>
+                            <span>{160 - (kpis?.total_hours_worked || 0)}h left</span>
                         </div>
                     </div>
                 </div>
@@ -655,7 +657,7 @@ export default function DashboardPage() {
             }
 
             setLoading(true);
-            
+
             let activeRole = authEmployee.roleId || 'EMPLOYEE';
             activeRole = activeRole.toUpperCase();
             if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
@@ -669,13 +671,13 @@ export default function DashboardPage() {
             const fetchDataAsync = async () => {
                 try {
                     setLoading(true);
-                    
-                    // 1. Task Fetching
-                    const tasksPromise = api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined, undefined, activeRole === 'ADMIN' ? 5 : 15);
-                    // 2. KPI Fetching
-                    const kpiPromise = api.getKpiProfile(activeEmpId);
 
-                    const baseFetches: Promise<any>[] = [tasksPromise, kpiPromise];
+                    // Task & KPI Fetching
+                    const tasksPromise = api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined, undefined, activeRole === 'ADMIN' ? 5 : 15);
+                    const kpiPromise = api.getKpiProfile(activeEmpId);
+                    const monthlyHoursPromise = api.getMonthlyWorkHours(activeEmpId);
+
+                    const baseFetches: Promise<any>[] = [tasksPromise, kpiPromise, monthlyHoursPromise];
 
                     if (activeRole === 'ADMIN') {
                         baseFetches.push(api.getEmployeeStats());
@@ -692,25 +694,54 @@ export default function DashboardPage() {
                     }
 
                     const results = await Promise.allSettled(baseFetches);
-                    
+
+                    let fetchedKpis: any = null;
+                    let realMonthlyHours = 0;
+
                     results.forEach((res, i) => {
                         if (res.status === 'fulfilled') {
                             const val = res.value;
                             if (i === 0) setTasks(val || []);
-                            if (i === 1) setKpis(val);
+                            if (i === 1) fetchedKpis = val;
+                            if (i === 2) realMonthlyHours = val;
+
                             if (activeRole === 'ADMIN') {
-                                if (i === 2) setTotalEmployees(val?.total || 0);
-                                if (i === 3) setRecentEods(val || []);
-                                if (i === 4) setAllEmployees(val?.data || []);
-                                if (i === 5) setAllKpis(val || []);
-                                if (i === 6) setRecentKpiLogs(val || []);
+                                if (i === 3) setTotalEmployees(val?.total || 0);
+                                if (i === 4) setRecentEods(val || []);
+                                if (i === 5) setAllEmployees(val?.data || []);
+                                if (i === 6) setAllKpis(val || []);
+                                if (i === 7) setRecentKpiLogs(val || []);
                             } else if (activeRole === 'MANAGER') {
-                                if (i === 2) setRecentEods(val || []);
-                                if (i === 3) setAllKpis(val || []);
-                                if (i === 4) setRecentKpiLogs(val || []);
+                                if (i === 3) setRecentEods(val || []);
+                                if (i === 4) setAllKpis(val || []);
+                                if (i === 5) setRecentKpiLogs(val || []);
+                            } else if (activeRole === 'EMPLOYEE') {
+                                if (i === 3) setRecentLogs(val || []);
                             }
                         }
                     });
+
+                    // Update local KPI state with real calculated hours
+                    if (fetchedKpis) {
+                        const finalKpis = { ...fetchedKpis, total_hours_worked: realMonthlyHours };
+                        setKpis(finalKpis);
+
+                        // Proactive Performance Alert Popup (Login only)
+                        if (activeRole === 'EMPLOYEE' && (finalKpis.current_score ?? 0) < 50) {
+                            const sessionKey = `perf_alert_shown_${activeEmpId}`;
+                            if (!sessionStorage.getItem(sessionKey)) {
+                                addNotification({
+                                    title: 'Performance Alert',
+                                    message: `Your current KPI score is ${finalKpis.current_score}. Efficiency improvements are recommended.`,
+                                    type: 'SYSTEM',
+                                    metadata: { score: finalKpis.current_score }
+                                });
+                                sessionStorage.setItem(sessionKey, 'true');
+                            }
+                        }
+                    } else {
+                        setKpis({ total_hours_worked: realMonthlyHours });
+                    }
 
                 } catch (err) {
                     console.error("CRITICAL DASHBOARD LOAD FAILURE:", err);
@@ -756,12 +787,12 @@ export default function DashboardPage() {
                         {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' ? employee.designation : 'Creative Strategist'} | Overview for today
                     </p>
                 </div>
-                
-                <div className="ad2-header-nav-pill" style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '18px', 
-                    background: 'rgba(255, 255, 255, 0.04)', 
+
+                <div className="ad2-header-nav-pill" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '18px',
+                    background: 'rgba(255, 255, 255, 0.04)',
                     backdropFilter: 'blur(12px)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     padding: '8px 20px',
@@ -772,7 +803,7 @@ export default function DashboardPage() {
                     <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontWeight: 800, paddingRight: '12px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>
                         {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toUpperCase()}
                     </div>
-                    
+
                     <div className="ad2-header-actions" style={{ display: 'flex', gap: '8px' }}>
                         <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/messaging'}>
                             <MessageCircle size={18} />
@@ -793,20 +824,20 @@ export default function DashboardPage() {
                                 {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' ? employee.designation : (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')}
                             </div>
                         </div>
-                        <img 
-                            src={employee?.profilePhoto && employee.profilePhoto.length > 5 ? employee.profilePhoto : `https://ui-avatars.com/api/?name=${employee?.firstName || 'User'}&background=6366f1&color=fff`} 
-                            alt="Pro" 
-                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)' }} 
+                        <img
+                            src={employee?.profilePhoto && employee.profilePhoto.length > 5 ? employee.profilePhoto : `https://ui-avatars.com/api/?name=${employee?.firstName || 'User'}&background=6366f1&color=fff`}
+                            alt="Pro"
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)' }}
                         />
                     </div>
                 </div>
             </header>
 
             {userRole === 'ADMIN' && (
-                <AdminDashboard 
-                    employee={employee} 
-                    tasks={tasks} 
-                    kpis={kpis} 
+                <AdminDashboard
+                    employee={employee}
+                    tasks={tasks}
+                    kpis={kpis}
                     totalEmployees={totalEmployees}
                     onAssignTaskTrigger={() => setIsAssignModalOpen(true)}
                     onCreateEmployeeTrigger={() => setIsCreateEmployeeModalOpen(true)}
@@ -819,12 +850,12 @@ export default function DashboardPage() {
                 />
             )}
             {userRole === 'MANAGER' && (
-                <ManagerDashboard 
-                    employee={employee} 
-                    tasks={tasks} 
-                    kpis={kpis} 
-                    teamKpis={allKpis} 
-                    recentKpiLogs={recentKpiLogs} 
+                <ManagerDashboard
+                    employee={employee}
+                    tasks={tasks}
+                    kpis={kpis}
+                    teamKpis={allKpis}
+                    recentKpiLogs={recentKpiLogs}
                     recentEods={recentEods}
                 />
             )}
@@ -832,10 +863,10 @@ export default function DashboardPage() {
                 <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} />
             )}
 
-            <AllocateTaskModal 
-                isOpen={isAssignModalOpen} 
-                onClose={() => setIsAssignModalOpen(false)} 
-                onSuccess={() => { setIsAssignModalOpen(false); setKanbanRefresh(k => k + 1); }} 
+            <AllocateTaskModal
+                isOpen={isAssignModalOpen}
+                onClose={() => setIsAssignModalOpen(false)}
+                onSuccess={() => { setIsAssignModalOpen(false); setKanbanRefresh(k => k + 1); }}
             />
 
             <CreateEmployeeModal

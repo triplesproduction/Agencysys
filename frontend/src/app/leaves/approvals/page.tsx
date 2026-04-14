@@ -125,26 +125,24 @@ export default function LeaveApprovalsPage() {
     return (
         <div className="main-content fade-in" style={{ padding: '24px 24px 40px' }}>
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Header & Filters Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', gap: '24px' }}>
+                <div style={{ flexShrink: 0 }}>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <Calendar size={26} style={{ color: 'var(--purple-main)' }} /> Leave Approvals
                         {pendingCount > 0 && (
                             <span style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '20px', padding: '3px 12px', fontSize: '0.8rem', color: '#F59E0B', fontWeight: 600 }}>
-                                {pendingCount} pending
+                                {pendingCount}
                             </span>
                         )}
                     </h1>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '6px', fontSize: '0.9rem' }}>
-                        Review and manage employee time-off requests.
-                    </p>
                 </div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="input-label" style={{ margin: 0 }}>Search</label>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flex: 1, justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label className="input-label" style={{ margin: 0, fontSize: '0.75rem', opacity: 0.6 }}>Search</label>
                         <div style={{ position: 'relative' }}>
-                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                            <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                             <input
                                 type="text"
                                 placeholder="Name..."
@@ -153,25 +151,25 @@ export default function LeaveApprovalsPage() {
                                 style={{ 
                                     background: 'rgba(255,255,255,0.05)', 
                                     border: '1px solid var(--glass-border)', 
-                                    borderRadius: 'var(--radius-sm)', 
-                                    padding: '10px 14px 10px 36px', 
+                                    borderRadius: '10px', 
+                                    padding: '8px 12px 8px 34px', 
                                     color: 'white', 
                                     outline: 'none', 
-                                    width: '180px', 
-                                    fontSize: '0.85rem',
-                                    height: '42px'
+                                    width: '160px', 
+                                    fontSize: '0.82rem',
+                                    height: '40px'
                                 }}
                             />
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="input-label" style={{ margin: 0 }}>Status</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label className="input-label" style={{ margin: 0, fontSize: '0.75rem', opacity: 0.6 }}>Status</label>
                         <select
                             className="filter-select"
                             value={filterStatus} 
                             onChange={e => setFilterStatus(e.target.value)}
-                            style={{ minWidth: '150px', height: '42px' }}
+                            style={{ minWidth: '130px', height: '40px', fontSize: '0.82rem', borderRadius: '10px' }}
                         >
                             <option value="">All Status</option>
                             <option value="PENDING">Pending</option>
@@ -180,14 +178,14 @@ export default function LeaveApprovalsPage() {
                         </select>
                     </div>
                     
-                    <div style={{ width: '170px' }}>
+                    <div style={{ width: '150px' }}>
                         <DatePicker 
                             label="From"
                             value={startDate}
                             onChange={setStartDate}
                         />
                     </div>
-                    <div style={{ width: '170px' }}>
+                    <div style={{ width: '150px' }}>
                         <DatePicker 
                             label="To"
                             value={endDate}
@@ -196,24 +194,30 @@ export default function LeaveApprovalsPage() {
                     </div>
 
                     <button 
-                        onClick={fetchLeaves} 
+                        onClick={() => {
+                            setSearch('');
+                            setFilterStatus('');
+                            setStartDate('');
+                            setEndDate('');
+                            fetchLeaves();
+                        }} 
                         style={{ 
-                            background: 'rgba(139,92,246,0.15)', 
-                            border: '1px solid rgba(139,92,246,0.3)', 
-                            borderRadius: 'var(--radius-sm)', 
-                            padding: '0 16px', 
+                            background: 'rgba(139,92,246,0.1)', 
+                            border: '1px solid rgba(139,92,246,0.2)', 
+                            borderRadius: '10px', 
+                            padding: '0 14px', 
                             color: 'var(--purple-main)', 
                             cursor: 'pointer', 
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: '6px', 
-                            fontSize: '0.85rem', 
+                            fontSize: '0.82rem', 
                             fontWeight: 600,
-                            height: '42px',
+                            height: '40px',
                             transition: 'all 0.2s'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.25)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(139,92,246,0.15)'}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(139,92,246,0.1)'}
                     >
                         <RefreshCw size={14} /> Refresh
                     </button>

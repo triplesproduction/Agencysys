@@ -10,6 +10,8 @@ import { useNotifications } from '@/components/notifications/NotificationProvide
 import Link from 'next/link';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
 import DatePicker from '../common/DatePicker';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const DEPARTMENT_ROLES: Record<string, string[]> = {
     'Admin': ['Admin'],
@@ -151,36 +153,92 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     };
 
     const handleExportDossier = () => {
-        const dossier = {
-            metadata: {
-                exportedAt: new Date().toISOString(),
-                system: "TripleS OS",
-                version: "1.0-Phase1"
-            },
-            employee: {
-                id: employee.id,
-                name: `${employee.firstName} ${employee.lastName}`,
-                email: employee.email,
-                role: employee.roleId,
-                status: employee.status,
-                joinedAt: employee.joinedAt,
-                phone: employee.phone,
-                address: employee.address
-            },
-            kpis: employee.kpis || [],
-            tasksCount: employee.tasksAssigned?.length || 0,
-            recentTasks: employee.tasksAssigned?.slice(0, 5) || []
-        };
+        const doc = new jsPDF();
+        const primaryColor = [139, 92, 246]; // Purple main
+        
+        // Header
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(0, 0, 210, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.text('EMPLOYEE DOSSIER', 105, 18, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text('TRIPLE S OS • ENTERPRISE MANAGEMENT SYSTEM', 105, 28, { align: 'center' });
 
-        const blob = new Blob([JSON.stringify(dossier, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Dossier_${employee.firstName}_${employee.lastName}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Basic Info
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(16);
+        doc.text(`${employee.firstName} ${employee.lastName}`, 20, 55);
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`${employee.id} | ${employee.roleId.replace(/_/g, ' ')} | Joined on ${new Date(employee.joinedAt).toLocaleDateString()}`, 20, 62);
+
+        // Main Details Table
+        autoTable(doc, {
+            startY: 70,
+            head: [['PROPERTY', 'DETAILS']],
+            body: [
+                ['Full Name', `${employee.firstName} ${employee.lastName}`],
+                ['Email Address', employee.email],
+                ['Phone Number', employee.phone || 'N/A'],
+                ['Address', employee.address || 'N/A'],
+                ['Department', employee.department || 'Unassigned'],
+                ['Designation', employee.roleId.replace(/_/g, ' ')],
+                ['Employment Type', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
+                ['System Status', employee.status],
+                ['Total Experience', `${employee.experience || 0} Years`],
+                ['Work Pulse', employee.workLocation || 'OFFICE'],
+                ['Gender', employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'],
+                ['Birthday', employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A'],
+                ['Emergency Contact', employee.emergencyContact || 'N/A']
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
+            bodyStyles: { textColor: 50 },
+            alternateRowStyles: { fillColor: [250, 250, 252] },
+            margin: { left: 20, right: 20 }
+        });
+
+        // Tasks Section
+        const finalY = (doc as any).lastAutoTable.finalY + 20;
+        doc.setFontSize(14);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text('RECENT PROJECT ASSIGNMENTS', 20, finalY);
+
+        const taskData = (employee.tasksAssigned || []).slice(0, 15).map((t: any) => [
+            t.title,
+            new Date(t.dueDate).toLocaleDateString(),
+            t.status.replace(/_/g, ' ')
+        ]);
+
+        if (taskData.length > 0) {
+            autoTable(doc, {
+                startY: finalY + 6,
+                head: [['TASK TITLE', 'DUE DATE', 'CURRENT STATUS']],
+                body: taskData,
+                theme: 'grid',
+                headStyles: { fillColor: [80, 80, 100], textColor: 255 },
+                styles: { fontSize: 8 },
+                margin: { left: 20, right: 20 }
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text('No active project assignments found in system records.', 20, finalY + 12);
+        }
+
+        // Footer
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(`Generated on ${new Date().toLocaleString()} via TripleS OS Enterprise v1.0`, 105, 285, { align: 'center' });
+            doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
+        }
+
+        doc.save(`Dossier_${employee.firstName}_${employee.lastName}.pdf`);
     };
 
     const handleResetPassword = async () => {

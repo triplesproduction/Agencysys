@@ -22,6 +22,17 @@ const handleSupabaseEvent = (data: any, error: any, context: string) => {
     }
 };
 
+const normalizeEmployee = (emp: any): EmployeeDTO => ({
+    ...emp,
+    firstName: emp.firstName || emp.first_name || 'Unknown',
+    lastName: emp.lastName || emp.last_name || '',
+    profilePhoto: emp.profilePhoto || emp.profile_photo,
+    roleId: emp.roleId || 'EMPLOYEE',
+    designation: emp.designation || emp.roleId || 'Staff',
+    status: emp.status || 'ACTIVE',
+    department: emp.department || 'General'
+});
+
 export const api = {
     // Employees
     getEmployeeStats: async () => {
@@ -70,15 +81,7 @@ export const api = {
         handleSupabaseEvent(data, error, 'Fetch Employees');
 
         // Normalize with architect defaults
-        const normalizedData = (data || []).map((emp: any) => ({
-            ...emp,
-            firstName: emp.firstName || 'Unknown',
-            lastName: emp.lastName || '',
-            roleId: emp.roleId || 'EMPLOYEE',
-            designation: emp.designation || emp.roleId || 'Staff',
-            status: emp.status || 'ACTIVE',
-            department: emp.department || 'General'
-        }));
+        const normalizedData = (data || []).map(normalizeEmployee);
 
         return {
             data: normalizedData as EmployeeDTO[],
@@ -100,14 +103,14 @@ export const api = {
             .single();
         
         handleSupabaseEvent(data, error, 'Fetch Employee Full Profile');
-        return data as EmployeeDTO;
+        return data ? normalizeEmployee(data) : null;
     },
     createEmployee: async (data: any) => {
         console.log('[API] Create Employee Payload:', data);
         const { data: res, error } = await supabase.from('employees').insert(data).select().single();
         handleSupabaseEvent(data, error, 'Create Employee');
         console.log('[API] Create Employee Response:', res);
-        return res as EmployeeDTO;
+        return res ? normalizeEmployee(res) : null;
     },
     createEmployeeAccount: async (data: any): Promise<{ userId: string; email: string; tempPassword: string }> => {
         const { data: res, error } = await supabase.functions.invoke('create-user', {
@@ -134,15 +137,21 @@ export const api = {
     updateEmployeeStatus: async (id: string, status: string) => {
         const { data, error } = await supabase.from('employees').update({ status }).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Status');
-        return data as EmployeeDTO;
+        return data ? normalizeEmployee(data) : null;
     },
     updateEmployee: async (id: string, data: any) => {
         console.log(`[API] Update Employee (${id}) Payload:`, data);
         
-        // Directly update with camelCase keys - no mapping layer
+        // Map camelCase keys to snake_case for database compatibility
+        const mappedData = { ...data };
+        if (mappedData.profilePhoto !== undefined) {
+            mappedData.profile_photo = mappedData.profilePhoto;
+            delete mappedData.profilePhoto;
+        }
+
         const updatePromise = supabase
             .from('employees')
-            .update(data)
+            .update(mappedData)
             .eq('id', id)
             .select();
 
@@ -159,7 +168,7 @@ export const api = {
         }
 
         console.log('[API] updateEmployee Response (rows):', rows);
-        return (rows?.[0] ?? null) as EmployeeDTO;
+        return rows && rows.length > 0 ? normalizeEmployee(rows[0]) : null;
     },
     deleteEmployee: async (id: string) => {
         // We use the manage-user edge function instead of a direct table delete to ensure the auth user is also removed
@@ -300,11 +309,16 @@ export const api = {
         handleSupabaseEvent(data, error, 'Submit EOD');
         return res as EODSubmissionDTO;
     },
+    updateEOD: async (id: string, data: Partial<EODSubmissionDTO>) => {
+        const { data: res, error } = await supabase.from('eod_reports').update(data).eq('id', id).select().single();
+        handleSupabaseEvent(data, error, 'Update EOD');
+        return res as EODSubmissionDTO;
+    },
     getMyEODs: async (userId: string) => {
         if (!userId) throw new Error('Not authenticated');
         
         // Use the actual columns found in the DB (tasksCompleted/InProgress are arrays)
-        const { data, error } = await supabase.from('eod_reports').select('*').order('reportDate', { ascending: false });
+        const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', userId).order('reportDate', { ascending: false });
         
         handleSupabaseEvent(data, error, 'Fetch My EODs');
         
@@ -337,6 +351,38 @@ export const api = {
         const { data, error } = await supabase.from('eod_reports').update({ sentiment }).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Sentiment');
         return data as any;
+    },
+    reviewEOD: async (id: string, payload: { employeeId: string; date: string; workHours: number; adminNote?: string; status: string }) => {
+        // Find existing work hour log for this date and employee
+        const { data: logs } = await supabase.from('work_hours').select('*').eq('employeeId', payload.employeeId).eq('date', payload.date);
+        
+        if (logs && logs.length > 0) {
+            // Update existing
+            const note = payload.adminNote ? `[Review Note: ${payload.adminNote}]` : '';
+            const statusStr = payload.status ? ` [Status: ${payload.status}]` : '';
+            const { data, error } = await supabase.from('work_hours')
+                .update({ 
+                    hoursLogged: payload.workHours, 
+                    description: `Admin updated on ${new Date().toLocaleDateString()}. ${note}${statusStr}` 
+                })
+                .eq('id', logs[0].id)
+                .select().single();
+            handleSupabaseEvent(data, error, 'Update Work Hours via Review');
+            return data;
+        } else {
+            // Create new
+            const data = await api.addWorkHourLog({
+                employeeId: payload.employeeId,
+                date: payload.date,
+                hoursLogged: payload.workHours,
+                description: `Admin reviewed on ${new Date().toLocaleDateString()}. Status: ${payload.status}. Note: ${payload.adminNote || 'None'}`
+            });
+            return data;
+        }
+    },
+    getWorkHoursByDate: async (employeeId: string, date: string) => {
+        const { data, error } = await supabase.from('work_hours').select('*').eq('employeeId', employeeId).eq('date', date).maybeSingle();
+        return data;
     },
     getMonthlyAttendance: async (month: number, year: number) => {
         const startDate = new Date(year, month, 1).toISOString().split('T')[0];
@@ -489,11 +535,34 @@ export const api = {
         handleSupabaseEvent(data, error, 'Fetch Recent Work Hours');
         return data as WorkHourLogDTO[];
     },
+    getMonthlyWorkHours: async (employeeId: string, monthYear?: string) => {
+        // queryMonth format: YYYY-MM
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth(); // 0-indexed
+        
+        const startOfMonth = new Date(year, month, 1).toISOString().split('T')[0];
+        const nextMonthYear = month === 11 ? year + 1 : year;
+        const nextMonth = month === 11 ? 0 : month + 1;
+        const startOfNextMonth = new Date(nextMonthYear, nextMonth, 1).toISOString().split('T')[0];
+
+        // If monthYear is provided, we'd need more logic, but for "current month" we use this range:
+        const { data, error } = await supabase
+            .from('work_hours')
+            .select('hoursLogged')
+            .eq('employeeId', employeeId)
+            .gte('date', startOfMonth)
+            .lt('date', startOfNextMonth);
+        
+        handleSupabaseEvent(data, error, 'Fetch Monthly Work Hours');
+        const total = (data || []).reduce((acc: number, row: any) => acc + (parseFloat(row.hoursLogged) || 0), 0);
+        return total;
+    },
     getAllKpiProfiles: async (monthYear?: string, limit: number = 10) => {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto:profile_photo)')
             .eq('month_year', queryMonth)
             .order('current_score', { ascending: false })
             .limit(limit);
@@ -509,7 +578,7 @@ export const api = {
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
             .from('kpi_audit_logs')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto:profile_photo)')
             .order('created_at', { ascending: false })
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');

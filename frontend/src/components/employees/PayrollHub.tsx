@@ -48,6 +48,8 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
     const { addNotification } = useNotifications();
     const [finalizedRecords, setFinalizedRecords] = useState<any[]>([]);
     const [isFinalizing, setIsFinalizing] = useState(false);
+    const [selectedBreakup, setSelectedBreakup] = useState<PayrollRecord | null>(null);
+
 
     useEffect(() => {
         const fetchSavedRecords = async () => {
@@ -397,13 +399,21 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
 
                     {/* Right: Action buttons */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                        <button style={{
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            padding: '8px 16px', background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
-                            color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', fontWeight: 600,
-                            cursor: 'pointer', transition: 'all 0.2s ease',
-                        }}
+                        <button 
+                            onClick={() => {
+                                addNotification({
+                                    title: 'Generating Slips',
+                                    message: `Processing payroll slips for ${monthNames[selectedMonth]} ${selectedYear}. This may take a moment.`,
+                                    type: 'SYSTEM'
+                                });
+                            }}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                padding: '8px 16px', background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
+                                color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', fontWeight: 600,
+                                cursor: 'pointer', transition: 'all 0.2s ease',
+                            }}
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
                         >
@@ -519,7 +529,13 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                                             <div style={{ fontSize: '1rem', fontWeight: 700, color: '#10B981' }}>₹{record.netPayable.toLocaleString()}</div>
                                         </td>
                                         <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                                            <button className="secondary-button" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>View Breakup</button>
+                                            <button 
+                                                className="secondary-button" 
+                                                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                                                onClick={() => setSelectedBreakup(record)}
+                                            >
+                                                View Breakup
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -528,6 +544,134 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                     </table>
                 </div>
             </GlassCard>
+
+            {/* Breakup Modal */}
+            {selectedBreakup && typeof document !== 'undefined' && ReactDOM.createPortal(
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div 
+                        className="fade-in"
+                        style={{ background: '#0d0d1a', width: '100%', maxWidth: '520px', borderRadius: '28px', border: '1px solid rgba(139,92,246,0.25)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.9)', position: 'relative' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header Background Glow */}
+                        <div style={{ position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)', width: '300px', height: '300px', background: 'rgba(139,92,246,0.15)', filter: 'blur(60px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
+
+                        {/* Header */}
+                        <div style={{ padding: '32px 32px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'start', position: 'relative', zIndex: 1 }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                    <div style={{ padding: '6px', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '8px' }}>
+                                        <CreditCard size={18} color="var(--purple-main)" />
+                                    </div>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--purple-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Payroll Intelligence</span>
+                                </div>
+                                <h3 style={{ margin: 0, color: 'white', fontSize: '1.5rem', fontWeight: 700 }}>Earnings Breakup</h3>
+                                <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Users size={14} /> {selectedBreakup.employee.firstName} {selectedBreakup.employee.lastName} • <Calendar size={14} /> {monthNames[selectedMonth]} {selectedYear}
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedBreakup(null)}
+                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '36px', height: '36px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                            >✕</button>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative', zIndex: 1 }}>
+                            {/* Attendance Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>Working Days</div>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'white' }}>{selectedBreakup.workingDays}</div>
+                                </div>
+                                <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                                    <div style={{ fontSize: '0.65rem', color: '#10B981', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>Present</div>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10B981' }}>{selectedBreakup.daysPresent}</div>
+                                </div>
+                                <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+                                    <div style={{ fontSize: '0.65rem', color: '#F59E0B', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>Leaves</div>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F59E0B' }}>{selectedBreakup.approvedLeaves}</div>
+                                </div>
+                            </div>
+
+                            {/* Calculation Details */}
+                            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '0.95rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}><CreditCard size={14} /> Base Salary</span>
+                                    <span style={{ color: 'white', fontWeight: 600 }}>₹{selectedBreakup.baseSalary.toLocaleString()}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '0.95rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} /> Daily Rate</span>
+                                    <span style={{ color: 'white' }}>₹{(selectedBreakup.baseSalary / selectedBreakup.workingDays).toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowDownRight size={14} /> Unpaid Absences</span>
+                                    <span style={{ color: selectedBreakup.unpaidAbsences > 0 ? '#EF4444' : 'white', fontWeight: 600 }}>{selectedBreakup.unpaidAbsences} days</span>
+                                </div>
+                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '16px 0' }}></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>Total Deductions</span>
+                                    <span style={{ color: '#EF4444', fontWeight: 800, fontSize: '1.1rem' }}>- ₹{selectedBreakup.deductions.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            {/* Formula */}
+                            <div style={{ padding: '16px 20px', borderRadius: '16px', background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <FileText size={16} color="var(--purple-light)" />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--purple-light)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', letterSpacing: '0.05em' }}>Calculation Logic engaged</div>
+                                    <div style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'white', fontWeight: 500 }}>{selectedBreakup.formula}</div>
+                                </div>
+                            </div>
+
+                            {/* Final Payout */}
+                            <div style={{ 
+                                padding: '24px', 
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.18) 100%)', 
+                                borderRadius: '20px', 
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                textAlign: 'center',
+                                boxShadow: '0 12px 32px -8px rgba(16, 185, 129, 0.2)'
+                            }}>
+                                <div style={{ fontSize: '0.9rem', color: '#10B981', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Consolidated Net Payout</div>
+                                <div style={{ fontSize: '2.8rem', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>₹{selectedBreakup.netPayable.toLocaleString()}</div>
+                            </div>
+
+                            <button 
+                                onClick={() => setSelectedBreakup(null)}
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '16px', 
+                                    borderRadius: '16px', 
+                                    background: 'white', 
+                                    color: 'black', 
+                                    border: 'none', 
+                                    fontWeight: 800, 
+                                    fontSize: '1rem',
+                                    cursor: 'pointer', 
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    boxShadow: '0 12px 24px -8px rgba(255,255,255,0.3)'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 32px -8px rgba(255,255,255,0.4)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 12px 24px -8px rgba(255,255,255,0.3)'; }}
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
+
+

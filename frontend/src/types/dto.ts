@@ -93,6 +93,7 @@ export interface EODSubmissionDTO {
     inProgressText?: string | null;
     blockers?: string;
     sentiment?: 'GREAT' | 'GOOD' | 'OKAY' | 'BAD' | 'TERRIBLE';
+    workHours?: number;
     submittedAt: string; // ISO DateTime
 }
 

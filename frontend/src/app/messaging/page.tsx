@@ -97,6 +97,24 @@ export default function MessagingPage() {
         const init = async () => {
             setLoading(true);
             try {
+                // ── Direct probe: does the conversations table exist? ──────────
+                const { error: probe } = await supabase
+                    .from('conversations')
+                    .select('id')
+                    .limit(1);
+
+                if (probe) {
+                    // Table doesn't exist or access is blocked
+                    console.warn('[Chat] conversations table not ready:', probe.message);
+                    setDbReady(false);
+                    // Still load contacts so the UI shows people
+                    const empRes = await api.getEmployees({ limit: 100 });
+                    const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
+                    setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
+                    return;
+                }
+
+                setDbReady(true);
                 const [empRes, tasks] = await Promise.all([
                     api.getEmployees({ limit: 100 }),
                     api.getTasks(myId, undefined, 30),
@@ -239,10 +257,7 @@ export default function MessagingPage() {
     // ── Start / open a conversation ────────────────────────────────────────────
     const openConversation = async (contact: any) => {
         if (!myId) return;
-        if (!dbReady) {
-            alert('Database tables are not set up yet. Please run the SQL schema in Supabase first.');
-            return;
-        }
+        if (!dbReady) return; // banner already explains the issue
         setShowContactPicker(false);
         try {
             const convId = await api.getOrCreateConversation(myId, String(contact.id));

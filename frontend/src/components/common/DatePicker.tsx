@@ -241,7 +241,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
 
     return (
         <div ref={containerRef} style={{ position: 'relative', width: '100%' }} className={className}>
-            {label && <label className="input-label" style={{ display: 'block', marginBottom: '8px' }}>{label} {required && '*'}</label>}
+            {label && <label className="input-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.75rem', opacity: 0.6 }}>{label} {required && '*'}</label>}
             
             <div 
                 onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -249,7 +249,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                     background: 'rgba(0,0,0,0.2)', 
                     border: isOpen ? '1px solid var(--purple-main)' : '1px solid var(--glass-border)',
                     borderRadius: '12px',
-                    padding: '12px 16px',
+                    padding: '8px 16px',
                     color: value ? 'white' : 'rgba(255,255,255,0.3)',
                     cursor: disabled ? 'not-allowed' : 'pointer',
                     display: 'flex',
@@ -259,8 +259,8 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                     boxShadow: isOpen ? '0 0 20px rgba(139, 92, 246, 0.15)' : 'none',
                     opacity: disabled ? 0.6 : 1,
                     backdropFilter: 'blur(10px)',
-                    fontSize: '0.9rem',
-                    height: '46px',
+                    fontSize: '0.82rem',
+                    height: '40px',
                     userSelect: 'none'
                 }}
             >

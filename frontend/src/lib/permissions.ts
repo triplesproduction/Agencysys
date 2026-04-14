@@ -59,9 +59,6 @@ export function canAccessPath(role: string | undefined, path: string): boolean {
         return normalizedRole === 'ADMIN' || normalizedRole === 'MANAGER';
     }
 
-    if (path.startsWith('/messaging/broadcast')) {
-        return normalizedRole === 'ADMIN';
-    }
 
     return true; // Default access for common routes like /dashboard, /tasks (viewing), etc.
 }
