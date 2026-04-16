@@ -94,6 +94,7 @@ export interface EODSubmissionDTO {
     blockers?: string;
     sentiment?: 'GREAT' | 'GOOD' | 'OKAY' | 'BAD' | 'TERRIBLE';
     workHours?: number;
+    status?: string;
     submittedAt: string; // ISO DateTime
 }
 
