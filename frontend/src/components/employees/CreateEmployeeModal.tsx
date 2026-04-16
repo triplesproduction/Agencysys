@@ -123,8 +123,8 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     };
 
     const handleNext = () => {
-        if (step === 1 && (!formData.firstName || !formData.lastName)) {
-            setError('Please fill in required personal details.');
+        if (step === 1 && (!formData.firstName || !formData.lastName || !formData.personalEmail)) {
+            setError('Please fill in required personal details (Name and Personal Email).');
             return;
         }
         if (step === 2 && (!formData.department || !formData.joinedAt)) {
@@ -347,7 +347,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                     <input type="text" name="phone" value={formData.phone} onChange={handlePhoneChange} className="input-field" placeholder="10-digit number" />
                                     {phoneError && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '4px' }}>{phoneError}</p>}
                                 </div>
-                                <div><label className="input-label">Personal Email</label><input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleChange} className="input-field" placeholder="personal@email.com" /></div>
+                                <div><label className="input-label">Personal Email *</label><input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleChange} className="input-field" placeholder="personal@email.com" /></div>
                                 <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Home Address</label><textarea name="address" value={formData.address} onChange={handleChange} className="input-field" placeholder="Full address" rows={2} /></div>
                                 <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Emergency Contact Line</label><input name="emergencyContact" value={formData.emergencyContact} onChange={handleChange} className="input-field" placeholder="Name - Relationship - Phone" /></div>
                             </div>
