@@ -154,40 +154,46 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
 
     const handleExportDossier = () => {
         const doc = new jsPDF();
-        const primaryColor: [number, number, number] = [139, 92, 246]; // Purple main
         
-        // Header Background
-        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.rect(0, 0, 210, 50, 'F');
+        // Define Gradient Colors
+        const startColor = [139, 92, 246]; // Purple
+        const endColor = [37, 99, 235];    // Blue
         
-        doc.setTextColor(255, 255, 255);
+        // Header Background with simulated gradient (50 rectangles of 1mm height)
+        for (let i = 0; i < 50; i++) {
+            const ratio = i / 50;
+            const r = Math.round(startColor[0] * (1 - ratio) + endColor[0] * ratio);
+            const g = Math.round(startColor[1] * (1 - ratio) + endColor[1] * ratio);
+            const b = Math.round(startColor[2] * (1 - ratio) + endColor[2] * ratio);
+            doc.setFillColor(r, g, b);
+            doc.rect(0, i, 210, 1.1, 'F');
+        }
         
-        // Add Company Name & System Branding
-        doc.setFontSize(24);
-        doc.setFont('helvetica', 'bold');
-        doc.text('TripleS', 20, 22);
-        doc.setTextColor(200, 200, 255); // Lighter purple for OS
-        doc.text('OS', 52, 22);
-        
-        // Try adding the image logo
+        // Add Company Logo (Using the white logo)
         try {
-            doc.addImage('/logo.png', 'PNG', 160, 10, 30, 30);
+            doc.addImage('/white-logo.png', 'PNG', 165, 12, 28, 28);
         } catch (e) {
-            // Fallback if logo not loadable
+            console.error('Failed to load logo:', e);
         }
 
         doc.setTextColor(255, 255, 255);
+        
+        // Company Name branding
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Triple S Production', 20, 22);
+        
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text('ENTERPRISE OS • EMPLOYEE DOSSIER', 20, 32);
-        doc.text('Official System Record | Internal Use Only', 20, 38);
+        doc.text('OFFICIAL EMPLOYEE RECORD', 20, 32);
+        doc.text('Authorized Personnel Document', 20, 38);
 
         // Header Divider
         doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.5);
+        doc.setLineWidth(0.4);
         doc.line(20, 42, 190, 42);
 
-        // Basic Info Card Header
+        // Basic Info Section
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
@@ -195,60 +201,54 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 100, 100);
-        doc.text(`UID: ${employee.id}`, 20, 72);
-        doc.text(`DESIGNATION: ${employee.roleId.replace(/_/g, ' ')}`, 20, 78);
-        doc.text(`JOIN DATE: ${new Date(employee.joinedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}`, 20, 84);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Employee ID: ${employee.id}`, 20, 72);
+        doc.text(`Title: ${employee.roleId.replace(/_/g, ' ')}`, 20, 78);
+        doc.text(`Joined: ${new Date(employee.joinedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}`, 20, 84);
 
-        // Main Details Table
+        // Main Details Table (Compacted to fit 1 page)
         autoTable(doc, {
-            startY: 95,
-            head: [['RECORD FIELD', 'OFFICIAL DATA']],
+            startY: 92,
+            head: [['OFFICIAL FIELD', 'RECORDED INFORMATION']],
             body: [
                 ['Full Legal Name', `${employee.firstName} ${employee.lastName}`],
-                ['Primary Email', employee.email],
-                ['Phone Number', employee.phone || 'N/A'],
-                ['Residential Address', employee.address || 'N/A'],
-                ['Organization Unit', employee.department || 'Unassigned'],
-                ['Role Index', employee.roleId.replace(/_/g, ' ')],
-                ['Employment Model', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
+                ['Email Address', employee.email],
+                ['Phone / Contact', employee.phone || 'N/A'],
+                ['Current Residence', employee.address || 'N/A'],
+                ['Department', employee.department || 'Unassigned'],
+                ['Job Designation', employee.roleId.replace(/_/g, ' ')],
+                ['Employment Type', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
                 ['Current Status', employee.status],
-                ['Total Experience', `${employee.experience || 0} Years`],
-                ['Work Mode', employee.workLocation || 'OFFICE'],
-                ['Gender Identity', employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'],
-                ['Day of Birth', employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'],
+                ['Experience', `${employee.experience || 0} Years`],
+                ['Assigned Hub', employee.workLocation || 'OFFICE'],
+                ['Gender', employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'],
+                ['Date of Birth', employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'],
                 ['Emergency Contact', employee.emergencyContact || 'N/A']
             ],
             theme: 'striped',
-            headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold', fontSize: 11 },
-            bodyStyles: { textColor: 50, fontSize: 10, cellPadding: 6 },
-            alternateRowStyles: { fillColor: [250, 250, 252] },
+            headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+            bodyStyles: { textColor: 40, fontSize: 9.5, cellPadding: 5 },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
             margin: { left: 20, right: 20 }
         });
 
         // Summary Note
-        const finalY = (doc as any).lastAutoTable.finalY + 15;
-        doc.setFontSize(9);
-        doc.setTextColor(120, 120, 120);
+        const finalY = (doc as any).lastAutoTable.finalY + 12;
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
         doc.setFont('helvetica', 'italic');
-        const note = "This dossier is a system-generated report from TripleS OS. Any adjustments to this data must be performed by an authorized administrator through the management portal.";
-        const splitNote = doc.splitTextToSize(note, 170);
-        doc.text(splitNote, 20, finalY);
+        doc.text("Verified internal document. Issued by Triple S Production Operations.", 20, finalY);
 
-        // Footer
-        const pageCount = doc.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            // Bottom line
-            doc.setDrawColor(240, 240, 240);
-            doc.line(20, 278, 190, 278);
-            
-            doc.setFontSize(8);
-            doc.setTextColor(180, 180, 180);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Generated on ${new Date().toLocaleString()} | Official Triple S Production Document`, 20, 285);
-            doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
-        }
+        // Clean Footer
+        doc.setPage(1);
+        doc.setDrawColor(240, 240, 240);
+        doc.line(20, 278, 190, 278);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Confidential Information • Triple S Production • Generated ${new Date().toLocaleDateString()}`, 20, 285);
+        doc.text(`Authenticated Document`, 190, 285, { align: 'right' });
 
         doc.save(`Dossier_${employee.firstName}_${employee.lastName}.pdf`);
     };
