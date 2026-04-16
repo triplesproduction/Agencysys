@@ -272,7 +272,6 @@ export const api = {
         if (data.assigneeIds && data.assigneeIds.length > 0) {
             data.assigneeId = data.assigneeIds[0];
         }
-        delete data.assigneeIds;
 
         const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
         handleSupabaseEvent(data, error, 'Create Task');
@@ -290,7 +289,6 @@ export const api = {
         if (data.assigneeIds && data.assigneeIds.length > 0) {
             data.assigneeId = data.assigneeIds[0];
         }
-        delete data.assigneeIds;
 
         const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Task');
@@ -636,8 +634,14 @@ export const api = {
         handleSupabaseEvent(data, error, 'Fetch Announcements');
         return data as any[];
     },
-    createAnnouncement: async (data: { title: string; message: string; priority?: string; channel?: string; type?: string }) => {
-        const { data: res, error } = await supabase.from('announcements').insert(data).select().single();
+    createAnnouncement: async (data: { title: string; message: string; priority?: string; channel?: string; type?: string, authorId?: string }) => {
+        const payload = {
+            ...data,
+            status: 'active',
+            type: data.type || (data.priority?.toUpperCase() === 'CRITICAL' ? 'URGENT' : 'ANNOUNCEMENT'),
+            createdAt: new Date().toISOString()
+        };
+        const { data: res, error } = await supabase.from('announcements').insert(payload).select().single();
         handleSupabaseEvent(res, error, 'Create Announcement');
         return res as any;
     },

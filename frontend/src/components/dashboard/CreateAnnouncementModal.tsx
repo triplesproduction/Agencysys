@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Send, Megaphone, Target, Image as ImageIcon, Smile, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
+import { useAuth } from '@/context/AuthContext';
 
 interface CreateAnnouncementModalProps {
     isOpen: boolean;
@@ -11,6 +12,7 @@ interface CreateAnnouncementModalProps {
 
 const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = ({ isOpen, onClose, onCreated }) => {
     const { addNotification } = useNotifications();
+    const { employee } = useAuth();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [priority, setPriority] = useState<'Normal' | 'Important' | 'Critical'>('Normal');
@@ -29,7 +31,8 @@ const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = ({ isOpe
                 title: title.trim(),
                 message: content.trim(),
                 priority,
-                channel
+                channel,
+                authorId: employee?.id
             });
             addNotification({
                 title: 'Broadcast Sent',
