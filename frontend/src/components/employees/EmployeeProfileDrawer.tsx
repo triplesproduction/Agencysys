@@ -154,7 +154,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
 
     const handleExportDossier = () => {
         const doc = new jsPDF();
-        const primaryColor = [139, 92, 246]; // Purple main
+        const primaryColor: [number, number, number] = [139, 92, 246]; // Purple main
         
         // Header
         doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);

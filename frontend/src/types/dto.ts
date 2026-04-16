@@ -96,6 +96,7 @@ export interface EODSubmissionDTO {
     workHours?: number;
     work_hours?: number; // Legacy snake_case fallback
     status?: string;
+    adminNote?: string;
     submittedAt: string; // ISO DateTime
 }
 
