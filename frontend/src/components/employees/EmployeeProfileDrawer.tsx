@@ -156,85 +156,97 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         const doc = new jsPDF();
         const primaryColor: [number, number, number] = [139, 92, 246]; // Purple main
         
-        // Header
+        // Header Background
         doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.rect(0, 0, 210, 40, 'F');
+        doc.rect(0, 0, 210, 50, 'F');
         
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.text('EMPLOYEE DOSSIER', 105, 18, { align: 'center' });
-        doc.setFontSize(10);
-        doc.text('TRIPLE S OS • ENTERPRISE MANAGEMENT SYSTEM', 105, 28, { align: 'center' });
+        
+        // Add Company Name & System Branding
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TripleS', 20, 22);
+        doc.setTextColor(200, 200, 255); // Lighter purple for OS
+        doc.text('OS', 52, 22);
+        
+        // Try adding the image logo
+        try {
+            doc.addImage('/logo.png', 'PNG', 160, 10, 30, 30);
+        } catch (e) {
+            // Fallback if logo not loadable
+        }
 
-        // Basic Info
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(16);
-        doc.text(`${employee.firstName} ${employee.lastName}`, 20, 55);
+        doc.setTextColor(255, 255, 255);
         doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('ENTERPRISE OS • EMPLOYEE DOSSIER', 20, 32);
+        doc.text('Official System Record | Internal Use Only', 20, 38);
+
+        // Header Divider
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.5);
+        doc.line(20, 42, 190, 42);
+
+        // Basic Info Card Header
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${employee.firstName} ${employee.lastName}`, 20, 65);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(100, 100, 100);
-        doc.text(`${employee.id} | ${employee.roleId.replace(/_/g, ' ')} | Joined on ${new Date(employee.joinedAt).toLocaleDateString()}`, 20, 62);
+        doc.text(`UID: ${employee.id}`, 20, 72);
+        doc.text(`DESIGNATION: ${employee.roleId.replace(/_/g, ' ')}`, 20, 78);
+        doc.text(`JOIN DATE: ${new Date(employee.joinedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}`, 20, 84);
 
         // Main Details Table
         autoTable(doc, {
-            startY: 70,
-            head: [['PROPERTY', 'DETAILS']],
+            startY: 95,
+            head: [['RECORD FIELD', 'OFFICIAL DATA']],
             body: [
-                ['Full Name', `${employee.firstName} ${employee.lastName}`],
-                ['Email Address', employee.email],
+                ['Full Legal Name', `${employee.firstName} ${employee.lastName}`],
+                ['Primary Email', employee.email],
                 ['Phone Number', employee.phone || 'N/A'],
-                ['Address', employee.address || 'N/A'],
-                ['Department', employee.department || 'Unassigned'],
-                ['Designation', employee.roleId.replace(/_/g, ' ')],
-                ['Employment Type', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
-                ['System Status', employee.status],
+                ['Residential Address', employee.address || 'N/A'],
+                ['Organization Unit', employee.department || 'Unassigned'],
+                ['Role Index', employee.roleId.replace(/_/g, ' ')],
+                ['Employment Model', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
+                ['Current Status', employee.status],
                 ['Total Experience', `${employee.experience || 0} Years`],
-                ['Work Pulse', employee.workLocation || 'OFFICE'],
-                ['Gender', employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'],
-                ['Birthday', employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A'],
+                ['Work Mode', employee.workLocation || 'OFFICE'],
+                ['Gender Identity', employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'],
+                ['Day of Birth', employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'],
                 ['Emergency Contact', employee.emergencyContact || 'N/A']
             ],
             theme: 'striped',
-            headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
-            bodyStyles: { textColor: 50 },
+            headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold', fontSize: 11 },
+            bodyStyles: { textColor: 50, fontSize: 10, cellPadding: 6 },
             alternateRowStyles: { fillColor: [250, 250, 252] },
             margin: { left: 20, right: 20 }
         });
 
-        // Tasks Section
-        const finalY = (doc as any).lastAutoTable.finalY + 20;
-        doc.setFontSize(14);
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.text('RECENT PROJECT ASSIGNMENTS', 20, finalY);
-
-        const taskData = (employee.tasksAssigned || []).slice(0, 15).map((t: any) => [
-            t.title,
-            new Date(t.dueDate).toLocaleDateString(),
-            t.status.replace(/_/g, ' ')
-        ]);
-
-        if (taskData.length > 0) {
-            autoTable(doc, {
-                startY: finalY + 6,
-                head: [['TASK TITLE', 'DUE DATE', 'CURRENT STATUS']],
-                body: taskData,
-                theme: 'grid',
-                headStyles: { fillColor: [80, 80, 100], textColor: 255 },
-                styles: { fontSize: 8 },
-                margin: { left: 20, right: 20 }
-            });
-        } else {
-            doc.setFontSize(10);
-            doc.setTextColor(150, 150, 150);
-            doc.text('No active project assignments found in system records.', 20, finalY + 12);
-        }
+        // Summary Note
+        const finalY = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.setFont('helvetica', 'italic');
+        const note = "This dossier is a system-generated report from TripleS OS. Any adjustments to this data must be performed by an authorized administrator through the management portal.";
+        const splitNote = doc.splitTextToSize(note, 170);
+        doc.text(splitNote, 20, finalY);
 
         // Footer
         const pageCount = doc.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
+            // Bottom line
+            doc.setDrawColor(240, 240, 240);
+            doc.line(20, 278, 190, 278);
+            
             doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text(`Generated on ${new Date().toLocaleString()} via TripleS OS Enterprise v1.0`, 105, 285, { align: 'center' });
+            doc.setTextColor(180, 180, 180);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Generated on ${new Date().toLocaleString()} | Official Triple S Production Document`, 20, 285);
             doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
         }
 
