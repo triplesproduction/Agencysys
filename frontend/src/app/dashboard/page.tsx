@@ -56,12 +56,28 @@ function AdminDashboard({
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE').length;
     const adminName = employee?.firstName || 'Admin';
     const adminRole = employee?.designation || employee?.roleId || 'Administrator';
+    
+    // Calculate Today's Status for All Employees
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayEods = eodList.filter(e => e && e.reportDate === todayStr);
+
+    const employeeEodstatus = allEmployees.map(emp => {
+        const eod = todayEods.find(e => e.employeeId === emp.id);
+        return {
+            ...emp,
+            eodStatus: eod ? 'SUBMITTED' : 'PENDING',
+            eodId: eod?.id,
+            submittedAt: eod?.submittedAt
+        };
+    });
+
+    const pendingCount = employeeEodstatus.filter(e => e.eodStatus === 'PENDING').length;
     const avgTeamScore = kpiList.length > 0
         ? (kpiList.reduce((acc: number, curr: any) => acc + (curr.current_score || 0), 0) / kpiList.length).toFixed(1)
         : '0.0';
 
     return (
-        <div className="admin-dash-v2 fade-in">
+        <div className="admin-dash-v2 admin-scrollable-layout fade-in">
 
             {/* Quick Stats */}
             <div className="quick-stats" style={{ marginTop: '32px', marginBottom: '32px' }}>
@@ -110,30 +126,65 @@ function AdminDashboard({
                     </div>
 
                     <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <div className="ad2-card-header">
-                            <h3>Pending EODs</h3>
-                            <span className="ad2-badge">{eodList.length}</span>
+                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
+                            <h3>EOD Submission Status</h3>
+                            <span className="ad2-badge" style={{ 
+                                background: pendingCount > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                color: pendingCount > 0 ? '#F87171' : '#34D399',
+                                border: `1px solid ${pendingCount > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
+                                textTransform: 'uppercase',
+                                fontSize: '0.62rem',
+                                padding: '2px 8px'
+                            }}>{pendingCount} Pending</span>
                         </div>
-                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '200px', paddingRight: '4px' }}>
-                            {eodList.length === 0 ? (
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>No EODs submitted yet today.</p>
+                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '420px', paddingRight: '4px' }}>
+                            {employeeEodstatus.length === 0 ? (
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>No employees found.</p>
                             ) : (
-                                eodList.map((eod: any) => {
-                                    if (!eod) return null;
+                                employeeEodstatus.map((status: any) => {
+                                    const isSub = status.eodStatus === 'SUBMITTED';
                                     return (
-                                        <div key={eod.id} className="ad2-task-list-item">
-                                            <img src={eod.employee?.profilePhoto || "https://i.pravatar.cc/150"} alt="E" style={{ width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0 }} />
+                                        <div key={status.id} className="ad2-task-list-item" style={{ 
+                                            background: isSub ? 'rgba(52, 211, 153, 0.02)' : 'rgba(255, 255, 255, 0.01)',
+                                            borderColor: isSub ? 'rgba(52, 211, 153, 0.08)' : 'rgba(255, 255, 255, 0.04)',
+                                            padding: '8px 12px',
+                                            marginBottom: '6px'
+                                        }}>
+                                            <div style={{ position: 'relative' }}>
+                                                <img src={status.profilePhoto || `https://ui-avatars.com/api/?name=${status.firstName}&background=6366f1&color=fff`} alt="E" style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                {!isSub && <div style={{ position: 'absolute', bottom: 0, right: 0, width: '7px', height: '7px', background: '#F87171', borderRadius: '50%', border: '1.5px solid #0a0a0c' }}></div>}
+                                            </div>
                                             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                                                <div className="ad2-tli-title" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
-                                                    {eod.employee?.firstName ? `${eod.employee.firstName} ${eod.employee.lastName || ''}` : 'Unknown'}
+                                                <div className="ad2-tli-title" style={{ color: isSub ? 'white' : 'rgba(255,255,255,0.4)', fontSize: '0.85rem', lineHeight: 1.1 }}>
+                                                    {status.firstName} {status.lastName || ''}
                                                 </div>
-                                                <div className="ad2-tli-time">
-                                                    {eod.submittedAt ? new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Submitted'}
+                                                <div style={{ 
+                                                    color: isSub ? '#34D399' : '#F87171', 
+                                                    fontWeight: 700, 
+                                                    fontSize: '0.58rem',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.04em',
+                                                    marginTop: '1px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px'
+                                                }}>
+                                                    {isSub ? (
+                                                        <>SUBMITTED AT {status.submittedAt ? new Date(status.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TODAY'}</>
+                                                    ) : (
+                                                        <>PENDING SUBMISSION</>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <Link href={`/eod/${eod.id}`} className="ad2-circle-btn" style={{ flexShrink: 0 }}>
-                                                <ChevronRight size={14} />
-                                            </Link>
+                                            {isSub ? (
+                                                <Link href={`/eod/${status.eodId}`} className="ad2-circle-btn" style={{ flexShrink: 0, width: '24px', height: '24px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
+                                                    <ChevronRight size={12} color="#34D399" />
+                                                </Link>
+                                            ) : (
+                                                <div className="ad2-circle-btn" style={{ flexShrink: 0, width: '24px', height: '24px', cursor: 'default', opacity: 0.2, background: 'rgba(255, 255, 255, 0.05)' }}>
+                                                    <Clock size={10} />
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })

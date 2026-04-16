@@ -34,53 +34,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
         console.log(`[Auth TRACE] Fetching profile for ${userId} (${email})...`);
         try {
+            // Using select('*') is safer to avoid crashes on missing columns during transitions
             const { data, error } = await supabase
                 .from('employees')
-                .select('id, email, roleId, firstName, first_name, lastName, last_name, profilePhoto, profile_photo')
+                .select('*')
                 .eq('id', userId)
                 .maybeSingle();
 
-            if (data) {
-                // Normalize keys
-                data.firstName = data.firstName || data.first_name;
-                data.lastName = data.lastName || data.last_name;
-                data.profilePhoto = data.profilePhoto || data.profile_photo;
-            }
-
             if (error) {
                 console.error('[Auth DEBUG] Profile fetch database error:', error.message);
-                // Fallback for Admin
-                if (email?.toLowerCase().includes('admin')) {
-                    console.log('[Auth DEBUG] Using Admin fallback profile due to error');
-                    return { id: userId, email: email, roleId: 'ADMIN', firstName: 'TripleS', lastName: 'Admin' };
-                }
-                return null;
-            }
-            
-            if (!data) {
-                console.warn('[Auth DEBUG] No profile record found in database');
-                // Brand-wide fallback: try to extract something even if DB is missing
+                
+                // If it's a database error (like missing table or connection issue), 
+                // we still want to let the user in with a basic profile if they are authenticated.
                 const emailPrefix = email?.split('@')[0] || 'User';
                 return { 
                     id: userId, 
                     email: email || '', 
-                    roleId: 'EMPLOYEE', 
+                    roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE', 
                     firstName: emailPrefix, 
                     lastName: 'Member' 
                 };
             }
             
-            console.log('[Auth DEBUG] Profile successfully retrieved:', data.roleId);
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('cached_profile', JSON.stringify(data));
+            if (!data) {
+                console.warn('[Auth DEBUG] No profile record found in database for UID:', userId);
+                // Fallback: Return a basic profile so the user isn't stuck at the sync error screen
+                const emailPrefix = email?.split('@')[0] || 'User';
+                return { 
+                    id: userId, 
+                    email: email || '', 
+                    roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE', 
+                    firstName: emailPrefix, 
+                    lastName: 'Member' 
+                };
             }
-            return data as EmployeeProfile;
+            
+            // Normalize keys from all possible formats (camelCase or snake_case)
+            const profile: EmployeeProfile = {
+                id: data.id,
+                email: data.email || email || '',
+                roleId: data.roleId || data.role_id || (email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE'),
+                firstName: data.firstName || data.first_name || email?.split('@')[0] || 'User',
+                lastName: data.lastName || data.last_name || 'Member',
+                profilePhoto: data.profilePhoto || data.profile_photo
+            };
+
+            console.log('[Auth DEBUG] Profile successfully resolved. Role:', profile.roleId);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('cached_profile', JSON.stringify(profile));
+            }
+            return profile;
         } catch (err) {
             console.error('[Auth DEBUG] Unexpected profile fetch exception:', err);
-            if (email?.toLowerCase().includes('admin')) {
-                return { id: userId, email: email, roleId: 'ADMIN', firstName: 'TripleS', lastName: 'Admin' };
-            }
-            return null;
+            const emailPrefix = email?.split('@')[0] || 'User';
+            return { 
+                id: userId, 
+                email: email || '', 
+                roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE', 
+                firstName: emailPrefix, 
+                lastName: 'Member' 
+            };
         }
     };
 
