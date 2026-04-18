@@ -21,7 +21,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         // Reset the timer whenever user or employee changes
         setProfileErrorReady(false);
         if (user && !employee && !loading) {
-            const t = setTimeout(() => setProfileErrorReady(true), 3000);
+            const t = setTimeout(() => setProfileErrorReady(true), 10000); // 10s grace period
             return () => clearTimeout(t);
         }
     }, [user, employee, loading]);

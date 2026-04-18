@@ -89,6 +89,31 @@
     margin-top: 4px;
 }
 
+.icon-btn-ghost {
+    background: transparent;
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.8;
+}
+
+.icon-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    opacity: 1;
+}
+
+.icon-btn-ghost.close-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
 /* Body */
 .drawer-body {
     flex: 1;
@@ -230,12 +255,16 @@
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
-    color: rgba(255, 255, 255, 0.82);
+    color: white;
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     width: 100%;
+}
+
+.sidebar-btn svg {
+    color: white;
 }
 
 .sidebar-btn:hover {

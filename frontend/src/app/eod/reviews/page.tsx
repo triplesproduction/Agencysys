@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FileText, User, Calendar, CheckSquare, Clock, AlertTriangle, Smile, Meh, Frown, Search, RefreshCw } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 import DatePicker from '@/components/common/DatePicker';
@@ -34,8 +35,9 @@ const sentimentColor: Record<string, string> = {
     GREAT: '#10B981', GOOD: '#3B82F6', OKAY: '#F59E0B', BAD: '#EF4444', TERRIBLE: '#991B1B'
 };
 
-export default function EODReviewsPage() {
+function EODReviewsContent() {
     const { addNotification } = useNotifications();
+    const searchParams = useSearchParams();
     const [reports, setReports] = useState<EODReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -47,6 +49,19 @@ export default function EODReviewsPage() {
     const [editHours, setEditHours] = useState<string>('');
     const [editNote, setEditNote] = useState<string>('');
     const [workLogMap, setWorkLogMap] = useState<Record<string, any>>({});
+
+    // Handle deep link expansion
+    useEffect(() => {
+        const idFromUrl = searchParams.get('id');
+        if (idFromUrl && reports.length > 0) {
+            setExpandedId(idFromUrl);
+            // Optional: scroll to the element if needed
+            setTimeout(() => {
+                const el = document.getElementById(`eod-${idFromUrl}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+    }, [searchParams, reports]);
 
     useEffect(() => {
         if (expandedId) {
@@ -258,7 +273,9 @@ export default function EODReviewsPage() {
                                     const isExpanded = expandedId === report.id;
                                     const empName = report.employee ? `${report.employee.firstName} ${report.employee.lastName}` : 'Unknown Employee';
                                     return (
-                                        <GlassCard key={report.id}
+                                        <GlassCard 
+                                            key={report.id}
+                                            id={`eod-${report.id}`}
                                             style={{ padding: '0', overflow: (ratingMenuOpen === report.id || isExpanded) ? 'visible' : 'hidden', border: isExpanded ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.06)', transition: 'all 0.2s ease', cursor: 'pointer', position: 'relative', zIndex: ratingMenuOpen === report.id ? 100 : 1 }}
                                             onClick={() => setExpandedId(isExpanded ? null : report.id)}
                                         >
@@ -553,5 +570,13 @@ export default function EODReviewsPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function EODReviewsPage() {
+    return (
+        <Suspense fallback={<div className="main-content"><p>Loading reviews...</p></div>}>
+            <EODReviewsContent />
+        </Suspense>
     );
 }

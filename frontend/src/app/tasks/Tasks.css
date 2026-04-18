@@ -184,24 +184,44 @@
     margin-left: auto;
 }
 
+.card-avatar-stack {
+    display: flex;
+    align-items: center;
+}
+
 .card-avatar {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     object-fit: cover;
-    border: 1.5px solid #1f1f23;
+    border: 1.5px solid #1f2128;
     background: var(--purple-main);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
     color: white;
+    margin-right: -8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.card-avatar.placeholder {
-    background: linear-gradient(135deg, var(--purple-main), #6d28d9);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+.card-avatar:hover {
+    transform: translateY(-4px) scale(1.1);
+    z-index: 50 !important;
+    border-color: var(--purple-light);
+    margin-right: 0; /* Clear overlap on hover for clarity */
+}
+
+.card-avatar.avatar-more {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.55rem;
+    margin-right: 0;
+    margin-left: 4px;
 }
 
 .trello-date-badge {

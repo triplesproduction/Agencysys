@@ -10,6 +10,7 @@ import DatePicker from '../common/DatePicker';
 import MarkdownEditor from '../common/MarkdownEditor';
 import MultiMemberPicker from '../common/MultiMemberPicker';
 import { EmployeeDTO } from '@/types/dto';
+import { useAuth } from '@/context/AuthContext';
 import './TasksModal.css';
 
 
@@ -20,6 +21,7 @@ interface AllocateTaskModalProps {
 }
 
 export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: AllocateTaskModalProps) {
+    const { employee: authEmployee } = useAuth();
     const [tasks, setTasks] = useState<{ id: string, title: string, description?: string }[]>([]);
     const [employees, setEmployees] = useState<{ id: string, name: string, role: string, profilePhoto?: string, firstName?: string }[]>([]);
 
@@ -50,13 +52,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
             api.getTasks().then(setTasks).catch(console.error);
             api.getEmployees({ limit: 1000 }).then(data => {
                 let empArray = Array.isArray(data) ? data : (data as any).data || [];
-                setEmployees(empArray.map((e: any) => ({
-                    id: e.id,
-                    name: `${e.firstName} ${e.lastName}`,
-                    role: e.roleId,
-                    profilePhoto: e.profilePhoto,
-                    firstName: e.firstName
-                })));
+                setEmployees(empArray);
             }).catch(err => console.error('Failed to fetch employees', err));
 
             // Reset Form
@@ -112,13 +108,15 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
 
             const formData = {
                 title: title + (saveAsTemplate ? ' [TEMPLATE]' : ''),
-                description: selectedTask?.description || instructions || 'Allocated Task',
+                description: instructions || selectedTask?.description || 'Allocated Task',
                 instructions,
                 assigneeIds: selectedEmployeeIds,
                 managerId: managerId || undefined,
                 priority,
+                creatorId: authEmployee?.id, // Crucial: Set the creator
                 dueDate: new Date(dueDate).toISOString(),
                 attachments: allAttachments.length > 0 ? allAttachments : undefined,
+                status: 'TODO'
             };
 
 

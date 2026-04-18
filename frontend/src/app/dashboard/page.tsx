@@ -21,8 +21,40 @@ import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
 
 import './Dashboard.css';
 
-// ADMIN DASHBOARD (V2 - High Fidelity Dribbble Layout)
-// ---------------------------------------------------------------------------
+// Reusable component for showing multiple assignees on a task
+const TaskAssigneeStack = ({ assignees = [] }: { assignees? : any[] }) => {
+    if (!assignees || assignees.length === 0) return <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)' }}>Unassigned</span>;
+
+    return (
+        <div className="card-avatar-stack" style={{ margin: 0 }}>
+            {assignees.slice(0, 3).map((assignee, idx) => (
+                assignee.profilePhoto ? (
+                    <img 
+                        key={assignee.id} 
+                        src={assignee.profilePhoto} 
+                        className="card-avatar" 
+                        alt="" 
+                        style={{ zIndex: 10 - idx, width: '22px', height: '22px' }} 
+                    />
+                ) : (
+                    <div 
+                        key={assignee.id} 
+                        className="card-avatar" 
+                        style={{ zIndex: 10 - idx, width: '22px', height: '22px', fontSize: '0.5rem' }}
+                    >
+                        {assignee.firstName?.charAt(0) || 'U'}
+                    </div>
+                )
+            ))}
+            {assignees.length > 3 && (
+                <div className="card-avatar avatar-more" style={{ width: '22px', height: '22px', fontSize: '0.5rem', marginLeft: '4px' }}>
+                    +{assignees.length - 3}
+                </div>
+            )}
+        </div>
+    );
+};
+
 function AdminDashboard({
     employee,
     tasks = [],
@@ -177,7 +209,7 @@ function AdminDashboard({
                                                 </div>
                                             </div>
                                             {isSub ? (
-                                                <Link href={`/eod/${status.eodId}`} className="ad2-circle-btn" style={{ flexShrink: 0, width: '24px', height: '24px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
+                                                <Link href={`/eod/reviews?id=${status.eodId}`} className="ad2-circle-btn" style={{ flexShrink: 0, width: '24px', height: '24px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
                                                     <ChevronRight size={12} color="#34D399" />
                                                 </Link>
                                             ) : (
@@ -253,7 +285,7 @@ function AdminDashboard({
                                                 <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                     <span style={{ fontSize: '0.75rem', background: isSub ? '#3B82F622' : '#A78BFA22', color: isSub ? '#60A5FA' : '#A78BFA', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{task.status}</span>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Assignee: {(task.assigneeId || 'System').slice(0, 6)}</span>
+                                                    <TaskAssigneeStack assignees={task.assignees} />
                                                 </div>
                                             </div>
                                             <Link href={`/tasks/${task.id}`} style={{ textDecoration: 'none' }}>
@@ -440,7 +472,7 @@ function ManagerDashboard({
                                             <div className="ad2-tli-title">{eod.employee?.firstName} {eod.employee?.lastName}</div>
                                             <div className="ad2-tli-time">{eod.submittedAt ? new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}</div>
                                         </div>
-                                        <Link href={`/eod/reviews`} className="ad2-circle-btn">
+                                        <Link href={`/eod/reviews?id=${eod.id}`} className="ad2-circle-btn">
                                             <ChevronRight size={14} />
                                         </Link>
                                     </div>
@@ -468,7 +500,10 @@ function ManagerDashboard({
                                     <div key={task.id} style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ minWidth: 0 }}>
                                             <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
-                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{task.assignee?.firstName || 'Unassigned'} • Due {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                                                <TaskAssigneeStack assignees={task.assignees} />
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>• Due {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</span>
+                                            </div>
                                         </div>
                                         <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', color: '#A78BFA', border: '1px solid rgba(139, 92, 246, 0.2)', fontWeight: 700 }}>{task.status}</span>
                                     </div>
@@ -606,6 +641,9 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                     <span className="ad2-badge ad2-tag" style={{ background: sc.bg, color: sc.color, borderColor: 'transparent', padding: '2px 8px' }}>{task.status.replace('_', ' ')}</span>
                                                     <span style={{ fontSize: '0.68rem', color: pc, fontWeight: 800 }}>{task.priority}</span>
+                                                    <div style={{ marginLeft: '4px' }}>
+                                                        <TaskAssigneeStack assignees={task.assignees} />
+                                                    </div>
                                                 </div>
                                             </div>
                                             <Link href={`/tasks/${task.id}`} className="ad2-circle-btn"><ChevronRight size={14} /></Link>
@@ -724,16 +762,16 @@ export default function DashboardPage() {
                     setLoading(true);
 
                     // Task & KPI Fetching
-                    const tasksPromise = api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined, undefined, activeRole === 'ADMIN' ? 5 : 15);
+                    const tasksPromise = api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined, undefined, activeRole === 'ADMIN' ? 7 : 15);
                     const kpiPromise = api.getKpiProfile(activeEmpId);
                     const monthlyHoursPromise = api.getMonthlyWorkHours(activeEmpId);
+                    const employeesPromise = api.getEmployees({ limit: 100 });
 
-                    const baseFetches: Promise<any>[] = [tasksPromise, kpiPromise, monthlyHoursPromise];
+                    const baseFetches: Promise<any>[] = [tasksPromise, kpiPromise, monthlyHoursPromise, employeesPromise];
 
                     if (activeRole === 'ADMIN') {
                         baseFetches.push(api.getEmployeeStats());
                         baseFetches.push(api.getAllEODs(12));
-                        baseFetches.push(api.getEmployees({ limit: 100, excludeAdmin: true }));
                         baseFetches.push(api.getAllKpiProfiles(undefined, 6));
                         baseFetches.push(api.getAllKpiAuditLogs(10));
                     } else if (activeRole === 'MANAGER') {
@@ -748,29 +786,50 @@ export default function DashboardPage() {
 
                     let fetchedKpis: any = null;
                     let realMonthlyHours = 0;
+                    let rawTasks: TaskDTO[] = [];
+                    let employeesList: EmployeeDTO[] = [];
 
                     results.forEach((res, i) => {
                         if (res.status === 'fulfilled') {
                             const val = res.value;
-                            if (i === 0) setTasks(val || []);
+                            if (i === 0) rawTasks = val || [];
                             if (i === 1) fetchedKpis = val;
                             if (i === 2) realMonthlyHours = val;
+                            if (i === 3) employeesList = val?.data || [];
 
                             if (activeRole === 'ADMIN') {
-                                if (i === 3) setTotalEmployees(val?.total || 0);
-                                if (i === 4) setRecentEods(val || []);
-                                if (i === 5) setAllEmployees(val?.data || []);
+                                if (i === 4) setTotalEmployees(val?.total || 0);
+                                if (i === 5) setRecentEods(val || []);
                                 if (i === 6) setAllKpis(val || []);
                                 if (i === 7) setRecentKpiLogs(val || []);
                             } else if (activeRole === 'MANAGER') {
-                                if (i === 3) setRecentEods(val || []);
-                                if (i === 4) setAllKpis(val || []);
-                                if (i === 5) setRecentKpiLogs(val || []);
+                                if (i === 4) setRecentEods(val || []);
+                                if (i === 5) setAllKpis(val || []);
+                                if (i === 6) setRecentKpiLogs(val || []);
                             } else if (activeRole === 'EMPLOYEE') {
-                                if (i === 3) setRecentLogs(val || []);
+                                if (i === 4) setRecentLogs(val || []);
                             }
                         }
                     });
+
+                    // Hydrate Tasks with assignees
+                    const hydrated = rawTasks.map(task => {
+                        const assigned = employeesList.filter(e => 
+                            (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
+                        );
+                        return {
+                            ...task,
+                            assignees: assigned.length > 0 ? assigned.map(e => ({
+                                id: e.id,
+                                firstName: e.firstName,
+                                lastName: e.lastName,
+                                profilePhoto: e.profilePhoto
+                            })) : (task.assignee ? [task.assignee] : [])
+                        };
+                    });
+                    setTasks(hydrated);
+                    setAllEmployees(employeesList);
+
 
                     // Update local KPI state with real calculated hours
                     if (fetchedKpis) {

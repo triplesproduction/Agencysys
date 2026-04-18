@@ -69,6 +69,7 @@ export default function MessagingPage() {
     const [showContactPicker, setShowContactPicker] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
     const [dbReady, setDbReady] = useState(true); // false = tables not yet created
+    const [dbProbeError, setDbProbeError] = useState<string | null>(null);
 
     // ── Refs ───────────────────────────────────────────────────────────────────
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,6 +107,7 @@ export default function MessagingPage() {
                 if (probe) {
                     // Table doesn't exist or access is blocked
                     console.warn('[Chat] conversations table not ready:', probe.message);
+                    setDbProbeError(probe.message);
                     setDbReady(false);
                     // Still load contacts so the UI shows people
                     const empRes = await api.getEmployees({ limit: 100 });
@@ -115,10 +117,12 @@ export default function MessagingPage() {
                 }
 
                 setDbReady(true);
+                setDbProbeError(null);
                 const [empRes, tasks] = await Promise.all([
                     api.getEmployees({ limit: 100 }),
                     api.getTasks(myId, undefined, 30),
                 ]);
+
                 const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
                 setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
                 setMyTasks(tasks || []);
@@ -165,16 +169,25 @@ export default function MessagingPage() {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'messages',
-                    filter: `conversationId=eq.${activeConvId}`,
+                    filter: `conversation_id=eq.${activeConvId}`,
                 },
                 async (payload: any) => {
-                    const newMsg = payload.new as Message;
+                    const newMsg = payload.new;
+                    const mappedMsg = {
+                        ...newMsg,
+                        senderId: newMsg.sender_id,
+                        conversationId: newMsg.conversation_id,
+                        createdAt: newMsg.created_at,
+                        mediaUrl: newMsg.media_url,
+                        taskRef: newMsg.task_ref,
+                    } as Message;
+                    
                     setMessages((prev) => {
-                        if (prev.find((m) => m.id === newMsg.id)) return prev;
-                        return [...prev, newMsg];
+                        if (prev.find((m) => m.id === mappedMsg.id)) return prev;
+                        return [...prev, mappedMsg];
                     });
                     // Mark as read if from other user
-                    if (String(newMsg.senderId) !== myId) {
+                    if (String(mappedMsg.senderId) !== myId) {
                         await api.markMessagesRead(activeConvId, myId);
                         addNotification({
                             title: activeOtherUser ? `${activeOtherUser.firstName} ${activeOtherUser.lastName}` : 'New Message',
@@ -191,15 +204,15 @@ export default function MessagingPage() {
                     event: '*',
                     schema: 'public',
                     table: 'typing_status',
-                    filter: `conversationId=eq.${activeConvId}`,
+                    filter: `conversation_id=eq.${activeConvId}`,
                 },
                 (payload: any) => {
                     const row = payload.new;
                     // Show indicator if other user is typing
-                    if (row && String(row.userId) !== myId) {
-                        setIsTyping(row.isTyping);
+                    if (row && String(row.user_id) !== myId) {
+                        setIsTyping(row.is_typing);
                         // Auto-clear after 4s just in case
-                        if (row.isTyping) {
+                        if (row.is_typing) {
                             setTimeout(() => setIsTyping(false), 4000);
                         }
                     }
@@ -211,7 +224,7 @@ export default function MessagingPage() {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'messages',
-                    filter: `conversationId=eq.${activeConvId}`,
+                    filter: `conversation_id=eq.${activeConvId}`,
                 },
                 (payload: any) => {
                     const updated = payload.new as Message;
@@ -454,10 +467,20 @@ export default function MessagingPage() {
                     flexShrink: 0,
                 }}>
                     <span style={{ fontSize: '1rem' }}>⚠️</span>
-                    <span>
-                        <strong>Database tables not found.</strong>&nbsp;
-                        Run the messaging SQL schema in your Supabase SQL Editor to enable real-time chat.
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span>
+                            <strong>Database issue detected:</strong>&nbsp;
+                            The messaging tables cannot be accessed.
+                        </span>
+                        {dbProbeError && (
+                            <code style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                                Details: {dbProbeError}
+                            </code>
+                        )}
+                        <span style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '2px' }}>
+                            Ensure tables exist and Row Level Security is disabled.
+                        </span>
+                    </div>
                 </div>
             )}
 

@@ -147,7 +147,7 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                     baseSalary: base,
                     deductions,
                     netPayable,
-                    formula: `${base} - (${unpaidAbsences} days × ${dailyRate.toFixed(2)})`
+                    formula: `${base} - (${unpaidAbsences} days  ${dailyRate.toFixed(2)})`
                 };
             });
 
@@ -171,370 +171,223 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
         );
     }, [payrollData, search]);
 
-    const stats = useMemo(() => {
-        return {
-            totalPayout: payrollData.reduce((acc, curr) => acc + curr.netPayable, 0),
-            totalDeductions: payrollData.reduce((acc, curr) => acc + curr.deductions, 0),
-            onTimeEmployees: payrollData.filter(p => p.unpaidAbsences === 0).length
-        };
-    }, [payrollData]);
+    const stats = useMemo(() => ({
+        totalPayout: payrollData.reduce((acc, curr) => acc + curr.netPayable, 0),
+        totalDeductions: payrollData.reduce((acc, curr) => acc + curr.deductions, 0),
+        onTimeEmployees: payrollData.filter(p => p.unpaidAbsences === 0).length
+    }), [payrollData]);
 
     return (
-        <div className="payroll-hub" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Stats Dashboard */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                <GlassCard style={{ padding: '24px', background: 'rgba(139, 92, 246, 0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>Total Monthly Payout</div>
-                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>+12% vs last</div>
+        <div className="payroll-hub" style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minHeight: 0 }}>
+            {/* Redesigned Glass Stats Dashboard */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', flexShrink: 0 }}>
+                <div style={{ 
+                    position: 'relative', 
+                    padding: '20px', 
+                    background: 'var(--glass-surface)', 
+                    borderRadius: '20px', 
+                    border: '1px solid var(--glass-border)',
+                    overflow: 'hidden',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: 'var(--glass-shadow)'
+                }}>
+                    <div style={{ position: 'absolute', top: 0, right: 0, width: '60px', height: '60px', background: 'var(--purple-main)', filter: 'blur(40px)', opacity: 0.1, pointerEvents: 'none' }}></div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Total Monthly Payout</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: 'white', letterSpacing: '-0.04em' }}>{stats.totalPayout.toLocaleString()}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem', marginTop: '10px' }}>
+                        <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#34D399' }}></div>
+                        Disbursal window: {monthNames[selectedMonth]} {selectedYear}
                     </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, margin: '12px 0 4px', color: 'white' }}>₹{stats.totalPayout.toLocaleString()}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        <CreditCard size={14} /> Scheduled for {monthNames[selectedMonth]} 28th
-                    </div>
-                </GlassCard>
+                </div>
 
-                <GlassCard style={{ padding: '24px', background: 'rgba(239, 68, 68, 0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>Global Deductions</div>
-                        <div style={{ color: '#EF4444' }}><ArrowDownRight size={20} /></div>
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, margin: '12px 0 4px', color: 'white' }}>₹{stats.totalDeductions.toLocaleString()}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        <Activity size={14} /> Primarily from leave overruns
-                    </div>
-                </GlassCard>
+                <div style={{ 
+                    position: 'relative', 
+                    padding: '20px', 
+                    background: 'var(--glass-surface)', 
+                    borderRadius: '20px', 
+                    border: '1px solid var(--glass-border)',
+                    overflow: 'hidden',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: 'var(--glass-shadow)'
+                }}>
+                    <div style={{ position: 'absolute', top: 0, right: 0, width: '60px', height: '60px', background: '#EF4444', filter: 'blur(40px)', opacity: 0.1, pointerEvents: 'none' }}></div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>System Deductions</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: 'white', letterSpacing: '-0.04em' }}>{stats.totalDeductions.toLocaleString()}</div>
+                    <div style={{ color: 'rgba(248, 113, 113, 0.45)', fontSize: '0.7rem', marginTop: '10px', fontWeight: 600 }}>Primarily attendance-based</div>
+                </div>
 
-                <GlassCard style={{ padding: '24px', background: 'rgba(139, 92, 246, 0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>Perfomance Accuracy</div>
-                        <div style={{ color: 'var(--purple-main)' }}><Users size={20} /></div>
-                    </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, margin: '12px 0 4px', color: 'white' }}>{stats.onTimeEmployees}/{payrollData.length}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        <ArrowUpRight size={14} /> Full attendance this month
-                    </div>
-                </GlassCard>
+                <div style={{ 
+                    position: 'relative', 
+                    padding: '20px', 
+                    background: 'var(--glass-surface)', 
+                    borderRadius: '20px', 
+                    border: '1px solid var(--glass-border)',
+                    overflow: 'hidden',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: 'var(--glass-shadow)'
+                }}>
+                    <div style={{ position: 'absolute', top: 0, right: 0, width: '60px', height: '60px', background: '#3B82F6', filter: 'blur(40px)', opacity: 0.1, pointerEvents: 'none' }}></div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Employee Engagement</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: 'white', letterSpacing: '-0.04em' }}>{stats.onTimeEmployees}/{payrollData.length}</div>
+                    <div style={{ color: 'rgba(96, 165, 250, 0.55)', fontSize: '0.7rem', marginTop: '10px', fontWeight: 600 }}>Active cycle participation</div>
+                </div>
             </div>
 
-            <GlassCard style={{ padding: 0, overflow: 'visible' }}>
+            <div style={{ 
+                flex: 1, 
+                minHeight: 0, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                background: 'var(--glass-surface)', 
+                border: '1px solid var(--glass-border)', 
+                borderRadius: '24px', 
+                overflow: 'hidden', 
+                backdropFilter: 'blur(20px)',
+                boxShadow: 'var(--glass-shadow)'
+            }}>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '16px',
                     padding: '16px 24px',
                     borderBottom: '1px solid var(--glass-border)',
-                    flexWrap: 'wrap',
+                    flexShrink: 0
                 }}>
                     {/* Left: Search + Month picker */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)',
-                            borderRadius: '10px', padding: '8px 14px', flex: 1, maxWidth: '280px',
-                        }}>
-                            <Search size={15} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+                        <div className="emp-search" style={{ maxWidth: '280px', background: 'rgba(0,0,0,0.2)' }}>
+                            <Search size={15} />
                             <input
                                 type="text"
-                                placeholder="Search payroll records..."
+                                placeholder="Filter records..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                style={{ background: 'transparent', border: 'none', outline: 'none', color: 'white', fontSize: '0.85rem', width: '100%' }}
                             />
                         </div>
 
                         {/* Month / Year picker */}
-                        <div style={{ position: 'relative' }}>
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: '4px',
-                                background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)',
-                                borderRadius: '10px', padding: '6px 10px',
-                            }}>
-                                <button
-                                    onClick={() => {
-                                        const prev = selectedMonth === 0 ? 11 : selectedMonth - 1;
-                                        const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
-                                        setSelectedMonth(prev);
-                                        setSelectedYear(prevYear);
-                                    }}
-                                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', padding: '2px 4px', borderRadius: '6px', transition: 'all 0.15s' }}
-                                    onMouseEnter={e => (e.currentTarget.style.color = 'white')}
-                                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
-                                >
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <button
-                                    ref={pickerAnchorRef}
-                                    onClick={() => {
-                                        if (!showPicker && pickerAnchorRef.current) {
-                                            const rect = pickerAnchorRef.current.getBoundingClientRect();
-                                            setPickerPos({ top: rect.bottom + 8, left: rect.left + rect.width / 2 });
-                                            setPickerYear(selectedYear);
-                                        }
-                                        setShowPicker(v => !v);
-                                    }}
-                                    style={{ minWidth: '120px', textAlign: 'center', fontWeight: 600, fontSize: '0.875rem', color: 'white', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px', borderRadius: '6px', transition: 'background 0.15s' }}
-                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-                                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                                >
-                                    {monthNames[selectedMonth]} {selectedYear}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        const next = selectedMonth === 11 ? 0 : selectedMonth + 1;
-                                        const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
-                                        setSelectedMonth(next);
-                                        setSelectedYear(nextYear);
-                                    }}
-                                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', padding: '2px 4px', borderRadius: '6px', transition: 'all 0.15s' }}
-                                    onMouseEnter={e => (e.currentTarget.style.color = 'white')}
-                                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
-                                >
-                                    <ChevronRight size={16} />
-                                </button>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '2px',
+                            background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)',
+                            borderRadius: '12px', padding: '4px',
+                        }}>
+                            <button
+                                onClick={() => {
+                                    const prev = selectedMonth === 0 ? 11 : selectedMonth - 1;
+                                    const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+                                    setSelectedMonth(prev); setSelectedYear(prevYear);
+                                }}
+                                style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                            ><ChevronLeft size={16} /></button>
+                            <div style={{ minWidth: '100px', textAlign: 'center', fontWeight: 700, fontSize: '0.75rem', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {monthNames[selectedMonth]} {selectedYear}
                             </div>
-
-                            {/* Month/Year Quick Picker — portaled to document.body to escape backdrop-filter stacking context */}
-                            {showPicker && typeof document !== 'undefined' && ReactDOM.createPortal(
-                                <div
-                                    onClick={e => e.stopPropagation()}
-                                    style={{
-                                        position: 'fixed',
-                                        top: pickerPos.top,
-                                        left: pickerPos.left,
-                                        transform: 'translateX(-50%)',
-                                        zIndex: 99999,
-                                        background: '#0d0d1a',
-                                        border: '1px solid rgba(139,92,246,0.25)',
-                                        borderRadius: '16px', padding: '18px',
-                                        width: '260px',
-                                        boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
-                                    }}
-                                >
-                                    {/* Year */}
-                                    <div style={{ marginBottom: '14px' }}>
-                                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Select Year</div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <button
-                                                type="button"
-                                                onClick={e => { e.stopPropagation(); setPickerYear(y => Math.max(2020, y - 1)); }}
-                                                style={{
-                                                    width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
-                                                    background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)',
-                                                    color: '#a78bfa', fontSize: '1.1rem', fontWeight: 700,
-                                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    transition: 'background 0.15s',
-                                                }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.3)'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.15)'; }}
-                                            >‹</button>
-                                            <div style={{
-                                                flex: 1, textAlign: 'center', fontWeight: 800, fontSize: '1.4rem',
-                                                color: 'white', letterSpacing: '-0.02em',
-                                            }}>{pickerYear}</div>
-                                            <button
-                                                type="button"
-                                                onClick={e => { e.stopPropagation(); setPickerYear(y => Math.min(2030, y + 1)); }}
-                                                style={{
-                                                    width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
-                                                    background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)',
-                                                    color: '#a78bfa', fontSize: '1.1rem', fontWeight: 700,
-                                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    transition: 'background 0.15s',
-                                                }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.3)'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.15)'; }}
-                                            >›</button>
-                                        </div>
-                                    </div>
-
-                                    {/* Month */}
-                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Month</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                                        {monthNames.map((m, i) => {
-                                            const isSelected = i === selectedMonth && pickerYear === selectedYear;
-                                            return (
-                                                <button
-                                                    key={m}
-                                                    onClick={() => { setSelectedMonth(i); setSelectedYear(pickerYear); setShowPicker(false); }}
-                                                    style={{
-                                                        padding: '8px 4px', borderRadius: '8px',
-                                                        border: isSelected ? '1px solid var(--purple-main)' : '1px solid rgba(255,255,255,0.08)',
-                                                        cursor: 'pointer',
-                                                        fontSize: '0.8rem', fontWeight: isSelected ? 700 : 500,
-                                                        background: isSelected ? 'var(--purple-main)' : '#1a1a2e',
-                                                        color: isSelected ? 'white' : 'rgba(255,255,255,0.7)',
-                                                        transition: 'all 0.15s',
-                                                    }}
-                                                    onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(139,92,246,0.2)'; e.currentTarget.style.color = 'white'; } }}
-                                                    onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; } }}
-                                                >
-                                                    {m.slice(0, 3)}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                        <button
-                                            onClick={() => setShowPicker(false)}
-                                            style={{
-                                                width: '100%', padding: '7px',
-                                                background: '#1a1a2e',
-                                                border: '1px solid rgba(255,255,255,0.08)',
-                                                borderRadius: '8px', color: 'rgba(255,255,255,0.45)',
-                                                cursor: 'pointer', fontSize: '0.8rem',
-                                                transition: 'all 0.15s',
-                                            }}
-                                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'white'; }}
-                                            onMouseLeave={e => { e.currentTarget.style.background = '#1a1a2e'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
-                                        >Dismiss</button>
-                                    </div>
-                                </div>,
-                                        document.body
-                            )}
+                            <button
+                                onClick={() => {
+                                    const next = selectedMonth === 11 ? 0 : selectedMonth + 1;
+                                    const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
+                                    setSelectedMonth(next); setSelectedYear(nextYear);
+                                }}
+                                style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                            ><ChevronRight size={16} /></button>
                         </div>
                     </div>
 
                     {/* Right: Action buttons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                        <button 
-                            onClick={() => {
-                                addNotification({
-                                    title: 'Generating Slips',
-                                    message: `Processing payroll slips for ${monthNames[selectedMonth]} ${selectedYear}. This may take a moment.`,
-                                    type: 'SYSTEM'
-                                });
-                            }}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '8px',
-                                padding: '8px 16px', background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
-                                color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', fontWeight: 600,
-                                cursor: 'pointer', transition: 'all 0.2s ease',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'white'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
-                        >
-                            <FileText size={15} /> Generate Slips
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button className="emp-action-btn" style={{ height: '38px', padding: '0 14px', fontSize: '0.75rem' }}>
+                            <FileText size={14} /> Reports
                         </button>
-                        <button
+                        <button 
                             disabled={isFinalizing}
                             onClick={async () => {
                                 setIsFinalizing(true);
                                 try {
-                                    // Save all current records
-                                    await Promise.all(payrollData.map(record => 
-                                        api.savePayrollRecord({
-                                            ...record,
-                                            employeeId: record.employee.id,
-                                            month: selectedMonth,
-                                            year: selectedYear,
-                                            status: 'FINALIZED'
-                                        })
-                                    ));
-
-                                    addNotification({
-                                        title: 'Payroll Locked',
-                                        message: `Monthly records for ${monthNames[selectedMonth]} have been archived.`,
-                                        type: 'SYSTEM'
-                                    });
-                                    
-                                    // Refresh finalized records
+                                    await Promise.all(payrollData.map(record => api.savePayrollRecord({
+                                        ...record, employeeId: record.employee.id, month: selectedMonth, year: selectedYear, status: 'FINALIZED'
+                                    })));
+                                    addNotification({ title: 'Cycle Locked', message: 'Current month data archived.', type: 'SYSTEM' });
                                     const saved = await api.getPayrollRecords(selectedMonth, selectedYear);
                                     setFinalizedRecords(saved || []);
-                                } catch (err: any) {
-                                    alert('Failed to lock payroll: ' + err.message);
-                                } finally {
-                                    setIsFinalizing(false);
-                                }
+                                } catch (err: any) { alert('Archival failed: ' + err.message); }
+                                finally { setIsFinalizing(false); }
                             }}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '8px',
-                                padding: '8px 18px', background: 'var(--purple-main)',
-                                border: '1px solid transparent', borderRadius: '10px',
-                                color: 'white', fontSize: '0.85rem', fontWeight: 700,
-                                cursor: 'pointer', transition: 'all 0.2s ease',
-                                boxShadow: '0 4px 16px rgba(139,92,246,0.3)',
-                                opacity: isFinalizing ? 0.7 : 1
-                            }}
-                            onMouseEnter={e => { if(!isFinalizing) e.currentTarget.style.background = '#7c3aed'; }}
-                            onMouseLeave={e => { if(!isFinalizing) e.currentTarget.style.background = 'var(--purple-main)'; }}
+                            className="emp-action-btn-primary"
+                            style={{ height: '38px', padding: '0 18px', fontSize: '0.75rem' }}
                         >
-                            {isFinalizing ? 'Locking...' : 'Finalize Payroll'}
+                            {isFinalizing ? 'Locking...' : 'Lock Cycle'}
                         </button>
                     </div>
                 </div>
 
-
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
+                    <table className="emp-table" style={{ background: 'transparent', tableLayout: 'fixed' }}>
                         <thead>
-                            <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.05em' }}>
-                                <th style={{ padding: '20px 24px' }}>Employee</th>
-                                <th style={{ padding: '20px 24px' }}>Dept / Role</th>
-                                <th style={{ padding: '20px 24px' }}>Base / Stipend</th>
-                                <th style={{ padding: '20px 24px' }}>Attendance</th>
-                                <th style={{ padding: '20px 24px' }}>Deductions</th>
-                                <th style={{ padding: '20px 24px' }}>Net Payable</th>
-                                <th style={{ padding: '20px 24px', textAlign: 'right' }}>Action</th>
+                            <tr style={{ background: 'rgba(0,0,0,0.2)', position: 'sticky', top: 0, zIndex: 10 }}>
+                                <th style={{ padding: '16px 24px', width: '25%' }}>Employee</th>
+                                <th style={{ width: '15%' }}>Base</th>
+                                <th style={{ width: '20%' }}>Attendance</th>
+                                <th style={{ width: '15%' }}>Adjustments</th>
+                                <th style={{ width: '15%' }}>Payout</th>
+                                <th style={{ paddingRight: '24px', width: '10%', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} style={{ padding: '64px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                                        Calculating metrics...
+                                    <td colSpan={6} style={{ padding: '60px', textAlign: 'center' }}>
+                                        <div className="spinner-mini" style={{ margin: '0 auto 16px' }}></div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Synchronizing ledger...</div>
                                     </td>
                                 </tr>
                             ) : filteredPayroll.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>No payroll records found for this period.</td>
+                                    <td colSpan={6} style={{ padding: '60px', textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '0.85rem' }}>No records found.</td>
                                 </tr>
                             ) : (
                                 filteredPayroll.map((record) => (
-                                    <tr key={record.employee.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(139, 92, 246, 0.03)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                                        <td style={{ padding: '16px 24px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem' }}>
-                                                    {record.employee.profilePhoto ? <img src={record.employee.profilePhoto} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : record.employee.firstName.charAt(0)}
+                                    <tr key={record.employee.id} className="emp-row" style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <td style={{ padding: '12px 24px' }}>
+                                            <div className="emp-row-identity">
+                                                <div className="emp-row-avatar" style={{ borderRadius: '10px', width: '36px', height: '36px' }}>
+                                                    {record.employee.profilePhoto ? <img src={record.employee.profilePhoto} alt="" /> : record.employee.firstName.charAt(0)}
                                                 </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 600, color: 'white' }}>{record.employee.firstName} {record.employee.lastName}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{record.employee.employmentType}</div>
+                                                <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                                                    <div className="emp-row-name" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{record.employee.firstName} {record.employee.lastName}</div>
+                                                    <div className="emp-dept" style={{ fontSize: '0.7rem', marginTop: '1px', opacity: 0.6 }}>{record.employee.department}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td style={{ padding: '16px 24px' }}>
-                                            <div style={{ fontSize: '0.85rem', color: 'white' }}>{record.employee.department}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{record.employee.roleId}</div>
+                                        <td>
+                                            <div style={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>{record.baseSalary.toLocaleString()}</div>
+                                            <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>FIXED</div>
                                         </td>
-                                        <td style={{ padding: '16px 24px' }}>
-                                            <div style={{ fontWeight: 500, color: 'white' }}>₹{record.baseSalary.toLocaleString()}</div>
-                                        </td>
-                                        <td style={{ padding: '16px 24px' }}>
-                                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                                <span style={{ fontSize: '0.85rem', color: 'white' }}>{record.daysPresent}/{record.workingDays}</span>
-                                                <span style={{ fontSize: '0.75rem', color: record.approvedLeaves > 1 ? '#EF4444' : '#F59E0B' }}>({record.approvedLeaves} L)</span>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{record.daysPresent}d</div>
+                                                <div style={{ height: '3px', width: '30px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '100%', width: `${(record.daysPresent / record.workingDays) * 100}%`, background: 'var(--purple-main)' }}></div>
+                                                </div>
                                             </div>
+                                            <div style={{ fontSize: '0.65rem', color: record.approvedLeaves > 1 ? '#EF4444' : '#FBBF24', marginTop: '1px' }}>{record.approvedLeaves} Leaves</div>
                                         </td>
-                                        <td style={{ padding: '16px 24px' }}>
-                                            <div style={{ color: record.deductions > 0 ? '#EF4444' : 'var(--text-secondary)', fontWeight: 600 }}>
-                                                {record.deductions > 0 ? `- ₹${record.deductions.toLocaleString()}` : '—'}
-                                            </div>
+                                        <td>
+                                            {record.deductions > 0 ? (
+                                                <div style={{ color: '#EF4444', fontWeight: 600, fontSize: '0.85rem' }}>-{record.deductions.toLocaleString()}</div>
+                                            ) : (
+                                                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.8rem' }}>None</span>
+                                            )}
                                         </td>
-                                        <td style={{ padding: '16px 24px' }}>
-                                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#10B981' }}>₹{record.netPayable.toLocaleString()}</div>
+                                        <td>
+                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10B981' }}>{record.netPayable.toLocaleString()}</div>
                                         </td>
-                                        <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                                        <td style={{ textAlign: 'right', paddingRight: '24px' }}>
                                             <button 
-                                                className="secondary-button" 
-                                                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                                                className="emp-menu-btn"
                                                 onClick={() => setSelectedBreakup(record)}
+                                                style={{ width: '30px', height: '30px' }}
                                             >
-                                                View Breakup
+                                                <ArrowUpRight size={14} />
                                             </button>
                                         </td>
                                     </tr>
@@ -543,127 +396,125 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                         </tbody>
                     </table>
                 </div>
-            </GlassCard>
-
-            {/* Breakup Modal */}
+                     {/* Breakup Drawer Portaled */}
             {selectedBreakup && typeof document !== 'undefined' && ReactDOM.createPortal(
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', zIndex: 100000, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.2s' }} onClick={() => setSelectedBreakup(null)}>
                     <div 
-                        className="fade-in"
-                        style={{ background: '#0d0d1a', width: '100%', maxWidth: '520px', borderRadius: '28px', border: '1px solid rgba(139,92,246,0.25)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.9)', position: 'relative' }}
+                        className="slide-left"
+                        style={{ 
+                            background: 'rgba(10, 10, 12, 0.95)', 
+                            width: '100%', 
+                            maxWidth: '440px', 
+                            height: '100%', 
+                            borderLeft: '1px solid var(--glass-border)', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            boxShadow: '-40px 0 80px rgba(0,0,0,0.6)', 
+                            overflow: 'hidden',
+                            backdropFilter: 'blur(25px)'
+                        }}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* Header Background Glow */}
-                        <div style={{ position: 'absolute', top: '-100px', left: '50%', transform: 'translateX(-50%)', width: '300px', height: '300px', background: 'rgba(139,92,246,0.15)', filter: 'blur(60px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
-
-                        {/* Header */}
-                        <div style={{ padding: '32px 32px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'start', position: 'relative', zIndex: 1 }}>
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    <div style={{ padding: '6px', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '8px' }}>
-                                        <CreditCard size={18} color="var(--purple-main)" />
-                                    </div>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--purple-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Payroll Intelligence</span>
+                        <div style={{ padding: '36px 32px 28px', borderBottom: '1px solid var(--glass-border)', position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '180px', height: '180px', background: 'var(--purple-main)', filter: 'blur(70px)', opacity: 0.15 }}></div>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-accent)', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                                    <Activity size={13} /> Secure Audit Trail
                                 </div>
-                                <h3 style={{ margin: 0, color: 'white', fontSize: '1.5rem', fontWeight: 700 }}>Earnings Breakup</h3>
-                                <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Users size={14} /> {selectedBreakup.employee.firstName} {selectedBreakup.employee.lastName} • <Calendar size={14} /> {monthNames[selectedMonth]} {selectedYear}
-                                </p>
+                                <button onClick={() => setSelectedBreakup(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}></button>
                             </div>
-                            <button 
-                                onClick={() => setSelectedBreakup(null)}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', width: '36px', height: '36px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-                            >✕</button>
+
+                            <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'white', margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Financial Snapshot</h2>
+                            <p style={{ color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontSize: '0.8rem', fontWeight: 500 }}>Ledger archive for {monthNames[selectedMonth]} {selectedYear}</p>
+
+                            <div style={{ 
+                                marginTop: '28px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '14px', 
+                                background: 'rgba(255,255,255,0.03)', 
+                                padding: '16px', 
+                                borderRadius: '18px', 
+                                border: '1px solid var(--glass-border)',
+                                boxShadow: 'inset 0 0 20px rgba(255,255,255,0.02)'
+                            }}>
+                                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, boxShadow: '0 8px 16px -4px rgba(0,0,0,0.4)', flexShrink: 0 }}>
+                                    {selectedBreakup.employee.profilePhoto ? <img src={selectedBreakup.employee.profilePhoto} style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }} /> : selectedBreakup.employee.firstName.charAt(0)}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedBreakup.employee.firstName} {selectedBreakup.employee.lastName}</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '1px', fontWeight: 600 }}>{selectedBreakup.employee.designation || 'Specialist'}</div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Content */}
-                        <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative', zIndex: 1 }}>
-                            {/* Attendance Row */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>Working Days</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'white' }}>{selectedBreakup.workingDays}</div>
+                        <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
+                                <div style={{ textAlign: 'center', padding: '14px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                    <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '4px', letterSpacing: '0.08em' }}>Cycle</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white' }}>{selectedBreakup.workingDays}d</div>
                                 </div>
-                                <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
-                                    <div style={{ fontSize: '0.65rem', color: '#10B981', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>Present</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10B981' }}>{selectedBreakup.daysPresent}</div>
+                                <div style={{ textAlign: 'center', padding: '14px 6px', background: 'rgba(52, 211, 153, 0.04)', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.12)' }}>
+                                    <div style={{ fontSize: '0.55rem', color: '#10B981', textTransform: 'uppercase', fontWeight: 800, marginBottom: '4px', opacity: 0.8 }}>Present</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#10B981' }}>{selectedBreakup.daysPresent}d</div>
                                 </div>
-                                <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
-                                    <div style={{ fontSize: '0.65rem', color: '#F59E0B', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 600 }}>Leaves</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F59E0B' }}>{selectedBreakup.approvedLeaves}</div>
+                                <div style={{ textAlign: 'center', padding: '14px 6px', background: 'rgba(247, 185, 36, 0.04)', borderRadius: '16px', border: '1px solid rgba(247, 185, 36, 0.12)' }}>
+                                    <div style={{ fontSize: '0.55rem', color: '#FBBF24', textTransform: 'uppercase', fontWeight: 800, marginBottom: '4px', opacity: 0.8 }}>Leaves</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#FBBF24' }}>{selectedBreakup.approvedLeaves}d</div>
                                 </div>
                             </div>
 
-                            {/* Calculation Details */}
-                            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '0.95rem' }}>
-                                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}><CreditCard size={14} /> Base Salary</span>
-                                    <span style={{ color: 'white', fontWeight: 600 }}>₹{selectedBreakup.baseSalary.toLocaleString()}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '0.95rem' }}>
-                                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} /> Daily Rate</span>
-                                    <span style={{ color: 'white' }}>₹{(selectedBreakup.baseSalary / selectedBreakup.workingDays).toFixed(2)}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowDownRight size={14} /> Unpaid Absences</span>
-                                    <span style={{ color: selectedBreakup.unpaidAbsences > 0 ? '#EF4444' : 'white', fontWeight: 600 }}>{selectedBreakup.unpaidAbsences} days</span>
-                                </div>
-                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '16px 0' }}></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>Total Deductions</span>
-                                    <span style={{ color: '#EF4444', fontWeight: 800, fontSize: '1.1rem' }}>- ₹{selectedBreakup.deductions.toLocaleString()}</span>
-                                </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {[
+                                    { l: 'Base Compensation Rate', v: `${selectedBreakup.baseSalary.toLocaleString()}` },
+                                    { l: 'Effective Daily Yield', v: `${(selectedBreakup.baseSalary / selectedBreakup.workingDays).toFixed(2)}` },
+                                    { l: 'Loss of Pay Adjustments', v: selectedBreakup.unpaidAbsences > 0 ? `-${selectedBreakup.deductions.toLocaleString()}` : '', c: selectedBreakup.unpaidAbsences > 0 ? '#EF4444' : 'rgba(255,255,255,0.15)' }
+                                ].map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', fontWeight: 500 }}>{item.l}</span>
+                                        <span style={{ color: item.c || 'white', fontWeight: 800, fontSize: '0.9rem' }}>{item.v}</span>
+                                    </div>
+                                ))}
                             </div>
 
-                            {/* Formula */}
-                            <div style={{ padding: '16px 20px', borderRadius: '16px', background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <FileText size={16} color="var(--purple-light)" />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '0.65rem', color: 'var(--purple-light)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px', letterSpacing: '0.05em' }}>Calculation Logic engaged</div>
-                                    <div style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'white', fontWeight: 500 }}>{selectedBreakup.formula}</div>
-                                </div>
-                            </div>
-
-                            {/* Final Payout */}
                             <div style={{ 
-                                padding: '24px', 
-                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.18) 100%)', 
-                                borderRadius: '20px', 
-                                border: '1px solid rgba(16, 185, 129, 0.25)',
-                                textAlign: 'center',
-                                boxShadow: '0 12px 32px -8px rgba(16, 185, 129, 0.2)'
+                                marginTop: '28px', 
+                                padding: '18px', 
+                                borderRadius: '16px', 
+                                background: 'rgba(124, 58, 237, 0.04)', 
+                                border: '1px dashed rgba(139, 92, 246, 0.2)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
                             }}>
-                                <div style={{ fontSize: '0.9rem', color: '#10B981', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Consolidated Net Payout</div>
-                                <div style={{ fontSize: '2.8rem', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>₹{selectedBreakup.netPayable.toLocaleString()}</div>
+                                <div style={{ fontSize: '0.6rem', color: 'var(--purple-accent)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.12em' }}>Algorithmic Derivation</div>
+                                <div style={{ fontFamily: '"Roboto Mono", monospace', fontSize: '0.9rem', color: 'white', fontWeight: 640, background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>{selectedBreakup.formula}</div>
                             </div>
+                        </div>
 
-                            <button 
-                                onClick={() => setSelectedBreakup(null)}
-                                style={{ 
-                                    width: '100%', 
-                                    padding: '16px', 
-                                    borderRadius: '16px', 
-                                    background: 'white', 
-                                    color: 'black', 
-                                    border: 'none', 
-                                    fontWeight: 800, 
-                                    fontSize: '1rem',
-                                    cursor: 'pointer', 
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    boxShadow: '0 12px 24px -8px rgba(255,255,255,0.3)'
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 32px -8px rgba(255,255,255,0.4)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 12px 24px -8px rgba(255,255,255,0.3)'; }}
-                            >
-                                Done
+                        <div style={{ padding: '28px 32px 36px', borderTop: '1px solid var(--glass-border)', background: 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.04) 100%)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                                <div>
+                                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Net Disbursement Amount</div>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', letterSpacing: '-0.04em', lineHeight: 1 }}>{selectedBreakup.netPayable.toLocaleString()}</div>
+                                </div>
+                                <div style={{ 
+                                    padding: '6px 14px', 
+                                    background: 'rgba(16, 185, 129, 0.1)', 
+                                    color: '#10B981', 
+                                    borderRadius: '10px', 
+                                    fontSize: '0.7rem', 
+                                    fontWeight: 900, 
+                                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                                    letterSpacing: '0.02em',
+                                    boxShadow: '0 4px 12px -4px rgba(16, 185, 129, 0.3)'
+                                }}>
+                                    READY
+                                </div>
+                            </div>
+                            <button className="emp-action-btn-primary" style={{ width: '100%', height: '52px', borderRadius: '16px', fontSize: '0.95rem', fontWeight: 800, boxShadow: '0 12px 24px -10px var(--shadow-purple)' }} onClick={() => setSelectedBreakup(null)}>
+                                Close Review View
                             </button>
                         </div>
                     </div>

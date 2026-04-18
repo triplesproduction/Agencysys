@@ -36,27 +36,33 @@ const RolePermissions: Record<Role, Action[]> = {
     ]
 };
 
+export function getResolvedRole(role: string | undefined): Role {
+    if (!role) return 'EMPLOYEE';
+    const r = role.toUpperCase();
+    if (r.includes('ADMIN')) return 'ADMIN';
+    if (r.includes('MANAGER')) return 'MANAGER';
+    return 'EMPLOYEE';
+}
+
 export function hasPermission(role: string | undefined, action: Action): boolean {
-    if (!role) return false;
-    const normalizedRole = role.toUpperCase() as Role;
-    const permissions = RolePermissions[normalizedRole] || [];
+    const resolvedRole = getResolvedRole(role);
+    const permissions = RolePermissions[resolvedRole] || [];
     return permissions.includes(action);
 }
 
 export function canAccessPath(role: string | undefined, path: string): boolean {
-    if (!role) return false;
-    const normalizedRole = role.toUpperCase();
+    const resolvedRole = getResolvedRole(role);
 
     // Admin has access to everything
-    if (normalizedRole === 'ADMIN') return true;
+    if (resolvedRole === 'ADMIN') return true;
 
     // Restrictions for Manager/Employee
     if (path.startsWith('/employees') || path.startsWith('/logs/system') || path.startsWith('/permissions')) {
-        return normalizedRole === 'ADMIN';
+        return resolvedRole === 'ADMIN';
     }
 
     if (path.startsWith('/leaves/approvals') || path.startsWith('/eod/reviews')) {
-        return normalizedRole === 'ADMIN' || normalizedRole === 'MANAGER';
+        return resolvedRole === 'ADMIN' || resolvedRole === 'MANAGER';
     }
 
 

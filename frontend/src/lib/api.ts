@@ -272,10 +272,14 @@ export const api = {
         if (data.assigneeIds && data.assigneeIds.length > 0) {
             data.assigneeId = data.assigneeIds[0];
         }
+        
+        // Remove virtual fields that don't exist in the DB schema
+        delete data.assigneeIds;
+        delete data.assignees;
 
         const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
         handleSupabaseEvent(data, error, 'Create Task');
-        return res as TaskDTO;
+        return { ...payload, ...res } as TaskDTO;
     },
 
     updateTaskStatus: async (id: string, status: string) => {
@@ -290,9 +294,13 @@ export const api = {
             data.assigneeId = data.assigneeIds[0];
         }
 
+        // Remove virtual fields that don't exist in the DB schema
+        delete data.assigneeIds;
+        delete data.assignees;
+
         const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Task');
-        return res as TaskDTO;
+        return { ...payload, ...res } as TaskDTO;
     },
 
     deleteTask: async (id: string) => {
@@ -560,7 +568,7 @@ export const api = {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto:profile_photo)')
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
             .eq('month_year', queryMonth)
             .order('current_score', { ascending: false })
             .limit(limit);
@@ -576,7 +584,7 @@ export const api = {
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
             .from('kpi_audit_logs')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto:profile_photo)')
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
             .order('created_at', { ascending: false })
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
@@ -693,25 +701,24 @@ export const api = {
         return { url: pubData.publicUrl };
     },
 
-    // ── MESSAGING ────────────────────────────────────────────────────────────
     /** Find or create a 1-to-1 conversation between two users */
     getOrCreateConversation: async (myId: string, otherId: string): Promise<string> => {
         // Find existing conversation where both users are participants
         const { data: myConvs } = await supabase
             .from('conversation_participants')
-            .select('conversationId')
-            .eq('userId', myId);
+            .select('conversation_id')
+            .eq('user_id', myId);
 
         if (myConvs && myConvs.length > 0) {
-            const myConvIds = myConvs.map((r: any) => r.conversationId);
+            const myConvIds = myConvs.map((r: any) => r.conversation_id);
             const { data: shared } = await supabase
                 .from('conversation_participants')
-                .select('conversationId')
-                .eq('userId', otherId)
-                .in('conversationId', myConvIds);
+                .select('conversation_id')
+                .eq('user_id', otherId)
+                .in('conversation_id', myConvIds);
 
             if (shared && shared.length > 0) {
-                return shared[0].conversationId;
+                return shared[0].conversation_id;
             }
         }
 
@@ -725,8 +732,8 @@ export const api = {
 
         // Add both participants
         const { error: partError } = await supabase.from('conversation_participants').insert([
-            { conversationId: conv.id, userId: myId },
-            { conversationId: conv.id, userId: otherId },
+            { conversation_id: conv.id, user_id: myId },
+            { conversation_id: conv.id, user_id: otherId },
         ]);
         if (partError) throw new Error(partError.message);
 
@@ -737,8 +744,8 @@ export const api = {
     getConversations: async (myId: string) => {
         const { data: parts, error } = await supabase
             .from('conversation_participants')
-            .select('conversationId')
-            .eq('userId', myId);
+            .select('conversation_id')
+            .eq('user_id', myId);
 
         if (error) {
             console.error('[Chat] getConversations error (check RLS policies):', error.message);
@@ -746,19 +753,19 @@ export const api = {
         }
         if (!parts || parts.length === 0) return [];
 
-        const convIds = parts.map((p: any) => p.conversationId);
+        const convIds = parts.map((p: any) => p.conversation_id);
 
         // Get all other participants (their userId only)
         const { data: otherParts, error: otherErr } = await supabase
             .from('conversation_participants')
-            .select('conversationId, userId')
-            .in('conversationId', convIds)
-            .neq('userId', myId);
+            .select('conversation_id, user_id')
+            .in('conversation_id', convIds)
+            .neq('user_id', myId);
 
         if (otherErr) console.error('[Chat] otherParts error:', otherErr.message);
 
         // Collect unique other userIds and fetch employee data in one query
-        const otherUserIds = Array.from(new Set((otherParts || []).map((p: any) => p.userId)));
+        const otherUserIds = Array.from(new Set((otherParts || []).map((p: any) => p.user_id)));
         let employeeMap: Record<string, any> = {};
 
         if (otherUserIds.length > 0) {
@@ -775,24 +782,28 @@ export const api = {
                 const { data: msgs } = await supabase
                     .from('messages')
                     .select('*')
-                    .eq('conversationId', convId)
-                    .order('createdAt', { ascending: false })
+                    .eq('conversation_id', convId)
+                    .order('created_at', { ascending: false })
                     .limit(1);
 
                 const { count: unread } = await supabase
                     .from('messages')
                     .select('*', { count: 'exact', head: true })
-                    .eq('conversationId', convId)
-                    .neq('senderId', myId)
+                    .eq('conversation_id', convId)
+                    .neq('sender_id', myId)
                     .neq('status', 'seen');
 
-                const other = (otherParts || []).find((p: any) => p.conversationId === convId);
-                const otherEmployee = other ? employeeMap[other.userId] : null;
+                const other = (otherParts || []).find((p: any) => p.conversation_id === convId);
+                const otherEmployee = other ? employeeMap[other.user_id] : null;
 
                 return {
                     conversationId: convId,
                     otherUser: otherEmployee || null,
-                    lastMessage: msgs?.[0] || null,
+                    lastMessage: msgs?.[0] ? {
+                        ...msgs[0],
+                        createdAt: msgs[0].created_at,
+                        senderId: msgs[0].sender_id
+                    } : null,
                     unreadCount: unread || 0,
                 };
             })
@@ -815,11 +826,17 @@ export const api = {
         const { data, error } = await supabase
             .from('messages')
             .select('*')
-            .eq('conversationId', conversationId)
-            .order('createdAt', { ascending: true })
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true })
             .limit(limit);
         if (error) throw new Error(error.message);
-        return data || [];
+        return (data || []).map(m => ({
+            ...m,
+            createdAt: m.created_at,
+            senderId: m.sender_id,
+            mediaUrl: m.media_url,
+            taskRef: m.task_ref
+        }));
     },
 
     /** Send a message */
@@ -834,18 +851,22 @@ export const api = {
         const { data, error } = await supabase
             .from('messages')
             .insert({
-                conversationId: payload.conversationId,
-                senderId: payload.senderId,
+                conversation_id: payload.conversationId,
+                sender_id: payload.senderId,
                 content: payload.content || null,
                 type: payload.type || 'text',
-                mediaUrl: payload.mediaUrl || null,
-                taskRef: payload.taskRef || null,
-                status: 'sent',
+                media_url: payload.mediaUrl || null,
+                task_ref: payload.taskRef || null,
+                status: 'sent'
             })
             .select()
             .single();
         if (error) throw new Error(error.message);
-        return data;
+        return {
+            ...data,
+            createdAt: data.created_at,
+            senderId: data.sender_id
+        };
     },
 
     /** Mark all unread messages in a conversation as 'seen' */
@@ -853,8 +874,8 @@ export const api = {
         await supabase
             .from('messages')
             .update({ status: 'seen' })
-            .eq('conversationId', conversationId)
-            .neq('senderId', myId)
+            .eq('conversation_id', conversationId)
+            .neq('sender_id', myId)
             .neq('status', 'seen');
     },
 
@@ -862,8 +883,13 @@ export const api = {
     setTypingStatus: async (userId: string, conversationId: string, isTyping: boolean): Promise<void> => {
         await supabase
             .from('typing_status')
-            .upsert({ userId, conversationId, isTyping, updatedAt: new Date().toISOString() }, {
-                onConflict: 'userId,conversationId',
+            .upsert({ 
+                user_id: userId, 
+                conversation_id: conversationId, 
+                is_typing: isTyping, 
+                updated_at: new Date().toISOString() 
+            }, {
+                onConflict: 'user_id,conversation_id',
             });
     },
 
@@ -882,15 +908,15 @@ export const api = {
         // Get all conversations the user belongs to
         const { data: parts } = await supabase
             .from('conversation_participants')
-            .select('conversationId')
-            .eq('userId', myId);
+            .select('conversation_id')
+            .eq('user_id', myId);
         if (!parts || parts.length === 0) return 0;
-        const convIds = parts.map((p: any) => p.conversationId);
+        const convIds = parts.map((p: any) => p.conversation_id);
         const { count } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
-            .in('conversationId', convIds)
-            .neq('senderId', myId)
+            .in('conversation_id', convIds)
+            .neq('sender_id', myId)
             .neq('status', 'seen');
         return count || 0;
     },

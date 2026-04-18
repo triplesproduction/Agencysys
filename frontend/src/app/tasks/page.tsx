@@ -39,7 +39,7 @@ import {
 
 import { KanbanColumn, SortableCard, AddColumnButton } from './KanbanComponents';
 import { useAuth } from '@/context/AuthContext';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermission, getResolvedRole } from '@/lib/permissions';
 
 const COLUMNS = [
     { id: 'TODO', title: 'To Do' },
@@ -77,16 +77,16 @@ export default function TasksPage() {
         if (!authEmployee) return;
         setLoading(true);
         try {
-            const activeRole = authEmployee.roleId || 'EMPLOYEE';
+            const activeRole = getResolvedRole(authEmployee.roleId);
             setUserRole(activeRole);
             
             // Parallel load for efficiency
             const [tasksData, employeesData] = await Promise.all([
                 api.getTasks(activeRole === 'EMPLOYEE' ? authEmployee.id : undefined, undefined, 500),
-                activeRole !== 'EMPLOYEE' ? api.getEmployees() : Promise.resolve([])
+                api.getEmployees()
             ]);
             
-            const employeesList: EmployeeDTO[] = 'data' in employeesData ? (employeesData as any).data : [];
+            const employeesList: EmployeeDTO[] = employeesData.data || [];
             
             const hydratedTasks = (tasksData || []).map(task => {
                 const assignedDocs = employeesList.filter(e => 
@@ -94,16 +94,16 @@ export default function TasksPage() {
                 );
                 return {
                     ...task,
-                    assignees: assignedDocs.map(e => ({
+                    assignees: assignedDocs.length > 0 ? assignedDocs.map(e => ({
                         id: e.id,
                         firstName: e.firstName,
                         lastName: e.lastName,
                         profilePhoto: e.profilePhoto
-                    }))
+                    })) : (task.assignee ? [task.assignee] : [])
                 };
             });
             setTasks(hydratedTasks);
-            if ('data' in employeesData) setEmployees((employeesData as any).data);
+            setEmployees(employeesList);
 
         } catch (err: any) {
             console.error('Failed to load tasks:', err);

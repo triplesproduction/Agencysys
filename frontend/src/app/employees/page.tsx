@@ -356,7 +356,7 @@ export default function EmployeesPage() {
                     </div>
                 </div>
             ) : (
-                <div className="fade-in" style={{ marginTop: '8px' }}>
+                <div className="fade-in" style={{ flex: 1, minHeight: 0, marginTop: '8px', display: 'flex', flexDirection: 'column' }}>
                     <PayrollHub employees={employees} />
                 </div>
             )}

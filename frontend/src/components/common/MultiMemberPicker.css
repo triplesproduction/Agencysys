@@ -176,3 +176,52 @@
     margin-left: auto;
     color: var(--purple-main);
 }
+
+.picker-footer {
+    padding: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.picker-done-btn {
+    background: var(--purple-main);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picker-done-btn:hover {
+    background: #7c3aed;
+    transform: translateY(-1px);
+}
+
+.no-members-found {
+    padding: 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.85rem;
+}
+
+.search-icon-inline {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+}
+
+.picker-search-container {
+    position: relative;
+    padding: 12px;
+}
+
+.picker-search-input {
+    padding-left: 32px !important;
+}

@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         let timeoutId: NodeJS.Timeout;
-        const INACTIVITY_LIMIT = 120000; // 120 seconds
+        const INACTIVITY_LIMIT = 3600000; // 60 minutes (business standard)
 
         const triggerLogout = () => {
             console.log(`[Auth Inactivity] User inactive for ${INACTIVITY_LIMIT/1000}s. Triggering logout protocol...`);

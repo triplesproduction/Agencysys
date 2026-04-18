@@ -78,11 +78,26 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
         
         // Optimistic UI
         const prevTask = { ...task };
-        setTask({ ...task, [field]: value });
+        const updatedTask = { ...task, [field]: value };
+        
+        // Ensure that if we are updating assigneeIds, we keep the UI in sync
+        if (field === 'assigneeIds' && Array.isArray(value)) {
+            // Re-fetch hydrated assignees logic if possible, or just optimistic mapping
+            const assigned = employees.filter(e => value.includes(e.id));
+            updatedTask.assignees = assigned.map(e => ({
+                id: e.id,
+                firstName: e.firstName,
+                lastName: e.lastName,
+                profilePhoto: e.profilePhoto
+            }));
+        }
+
+        setTask(updatedTask);
         
         try {
             const updated = await api.updateTask(task.id, { [field]: value });
-            setTask(updated);
+            // Merge with local state to preserve virtual fields if needed (handled in api.ts now)
+            setTask(prev => ({ ...prev, ...updated }));
             if (onUpdate) onUpdate();
         } catch (err: any) {
             setTask(prevTask); // Rollback
@@ -90,7 +105,23 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
         }
     };
 
-    const isManagerOrAdmin = currentUserRole === 'MANAGER' || currentUserRole === 'ADMIN';
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !task) return;
+
+        try {
+            addNotification({ title: 'Uploading...', message: 'Sending file to secure storage.', type: 'info' });
+            const res = await api.uploadFile(file);
+            const currentAttachments = task.attachments || [];
+            await handleUpdateField('attachments', [...currentAttachments, res.url]);
+            addNotification({ title: 'Success', message: 'Attachment added successfully.', type: 'success' });
+        } catch (err: any) {
+            addNotification({ title: 'Upload Failed', message: err.message, type: 'error' });
+        }
+    };
+
+    const normalizedRole = currentUserRole?.toUpperCase() || 'EMPLOYEE';
+    const isManagerOrAdmin = normalizedRole.includes('ADMIN') || normalizedRole.includes('MANAGER');
 
     return (
         <div className={`kanban-drawer-overlay ${isOpen ? 'active' : ''}`} onClick={onClose}>
@@ -100,8 +131,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                 <header className="drawer-header">
                     <div className="header-top">
                         <div className="task-identifier">
-                            <CheckSquare size={16} color="var(--purple-main)" />
-                            <span>T-ITEM-{task?.id.slice(0, 5).toUpperCase()}</span>
+                            <CheckSquare size={16} color="white" />
+                            <span>T-ITEM-{task?.id?.slice?.(0, 5).toUpperCase() || '...'}</span>
                         </div>
                         <div className="header-actions">
                             <button className="icon-btn-ghost"><MoreVertical size={18} /></button>
@@ -189,7 +220,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                 {/* Description */}
                                 <section className="drawer-section">
                                     <div className="section-header">
-                                        <FileText size={18} color="rgba(255,255,255,0.4)" />
+                                        <FileText size={18} color="white" />
                                         <h3>Description</h3>
                                     </div>
                                     <MarkdownEditor 
@@ -243,7 +274,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             <div className="tab-pane active fade-in">
                                 <section className="drawer-section">
                                     <div className="section-header">
-                                        <MessageSquare size={18} color="rgba(255,255,255,0.4)" />
+                                        <MessageSquare size={18} color="white" />
                                         <h3>Comments</h3>
                                     </div>
                                     <div className="comment-feed custom-scrollbar">
@@ -272,7 +303,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             <div className="tab-pane active fade-in">
                                 <section className="drawer-section">
                                     <div className="section-header">
-                                        <Activity size={18} color="rgba(255,255,255,0.4)" />
+                                        <Activity size={18} color="white" />
                                         <h3>Task History</h3>
                                     </div>
                                     <div className="activity-feed">
@@ -307,6 +338,11 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             }}>
                                 <User size={14} /> Join
                             </button>
+                            {task?.status === 'IN_PROGRESS' && (
+                                <button className="sidebar-btn primary" onClick={() => handleUpdateField('status', 'IN_REVIEW')}>
+                                    <ChevronRight size={14} /> Submit for Review
+                                </button>
+                            )}
                         </div>
                         
                         <div className="sidebar-group">
@@ -322,7 +358,17 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                 <CheckSquare size={14} /> Checklist
                             </button>
                             <button className="sidebar-btn"><Clock size={14} /> Dates</button>
-                            <button className="sidebar-btn"><Plus size={14} /> Attachment</button>
+                            <button className="sidebar-btn" onClick={() => {
+                                document.getElementById('drawer-file-upload')?.click();
+                            }}>
+                                <Plus size={14} /> Attachment
+                            </button>
+                            <input 
+                                type="file" 
+                                id="drawer-file-upload" 
+                                style={{ display: 'none' }} 
+                                onChange={handleFileUpload}
+                            />
                         </div>
                         
                         <div className="sidebar-group">

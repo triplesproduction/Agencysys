@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import Link from 'next/link';
+import { getResolvedRole } from '@/lib/permissions';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
 import DatePicker from '../common/DatePicker';
 import jsPDF from 'jspdf';
@@ -27,7 +28,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     const { addNotification } = useNotifications();
     
     // Auth & Permissions (Rename to avoid shadow prop)
-    const isAdminUser = authProfile?.roleId?.toUpperCase() === 'ADMIN';
+    const isAdminUser = getResolvedRole(authProfile?.roleId) === 'ADMIN';
     const isEditingOwnProfile = String(authProfile?.id) === String(employee.id);
     
     const [activeTab, setActiveTab] = useState('OVERVIEW');
@@ -154,101 +155,114 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
 
     const handleExportDossier = () => {
         const doc = new jsPDF();
+        const pageWidth = 210;
+        const pageHeight = 297;
         
-        // Define Gradient Colors
-        const startColor = [139, 92, 246]; // Purple
+        // --- DARK THEME CANVAS ---
+        doc.setFillColor(18, 18, 20); // Deep Anthracite
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        
+        // --- GRADIENT BRANDING HEADER ---
+        const startColor = [124, 58, 237]; // Purple
         const endColor = [37, 99, 235];    // Blue
-        
-        // Header Background with simulated gradient (50 rectangles of 1mm height)
-        for (let i = 0; i < 50; i++) {
-            const ratio = i / 50;
+        for (let i = 0; i < 45; i++) {
+            const ratio = i / 45;
             const r = Math.round(startColor[0] * (1 - ratio) + endColor[0] * ratio);
             const g = Math.round(startColor[1] * (1 - ratio) + endColor[1] * ratio);
             const b = Math.round(startColor[2] * (1 - ratio) + endColor[2] * ratio);
             doc.setFillColor(r, g, b);
-            doc.rect(0, i, 210, 1.1, 'F');
+            doc.rect(0, i, pageWidth, 1.1, 'F');
         }
         
-        // Add Company Logo (Using the white logo)
+        // Logo Integration
         try {
-            doc.addImage('/white-logo.png', 'PNG', 165, 12, 28, 28);
-        } catch (e) {
-            console.error('Failed to load logo:', e);
-        }
+            doc.addImage('/white-logo.png', 'PNG', 165, 10, 28, 28);
+        } catch (e) {}
 
+        // Identity Branding
         doc.setTextColor(255, 255, 255);
-        
-        // Company Name branding
-        doc.setFontSize(22);
+        doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
-        doc.text('Triple S Production', 20, 22);
+        doc.text('Triple S Production', 20, 20);
         
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('OFFICIAL EMPLOYEE RECORD', 20, 32);
-        doc.text('Authorized Personnel Document', 20, 38);
+        doc.setTextColor(200, 200, 200);
+        doc.text('PROFESSIONAL DOSSIER ARCHIVE', 20, 28);
+        doc.text('System Authenticated Record', 20, 33);
 
         // Header Divider
         doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.4);
-        doc.line(20, 42, 190, 42);
+        doc.setLineWidth(0.3);
+        doc.line(20, 38, 190, 38);
 
-        // Basic Info Section
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(18);
+        // --- EMPLOYEE IDENTITY BLOCK ---
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${employee.firstName} ${employee.lastName}`, 20, 65);
+        doc.text(`${employee.firstName.toUpperCase()} ${employee.lastName.toUpperCase()}`, 20, 65);
         
         doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 80, 80);
-        doc.text(`Employee ID: ${employee.id}`, 20, 72);
-        doc.text(`Title: ${employee.roleId.replace(/_/g, ' ')}`, 20, 78);
-        doc.text(`Joined: ${new Date(employee.joinedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}`, 20, 84);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(139, 92, 246);
+        doc.text(employee.designation?.toUpperCase() || employee.roleId.replace(/_/g, ' '), 20, 73);
 
-        // Main Details Table (Compacted to fit 1 page)
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(140, 140, 140);
+        doc.text(`UID: ${employee.id}  •  Member since ${new Date(employee.joinedAt).getFullYear()}`, 20, 80);
+
+        // --- DATA MATRIX (DARK TABLE) ---
         autoTable(doc, {
-            startY: 92,
-            head: [['OFFICIAL FIELD', 'RECORDED INFORMATION']],
+            startY: 90,
+            head: [['PARAMETER', 'VERIFIED INFORMATION']],
             body: [
-                ['Full Legal Name', `${employee.firstName} ${employee.lastName}`],
                 ['Email Address', employee.email],
-                ['Phone / Contact', employee.phone || 'N/A'],
+                ['Phone Contact', employee.phone || 'N/A'],
                 ['Current Residence', employee.address || 'N/A'],
                 ['Department', employee.department || 'Unassigned'],
-                ['Job Designation', employee.roleId.replace(/_/g, ' ')],
-                ['Employment Type', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
-                ['Current Status', employee.status],
-                ['Experience', `${employee.experience || 0} Years`],
-                ['Assigned Hub', employee.workLocation || 'OFFICE'],
-                ['Gender', employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : 'N/A'],
-                ['Date of Birth', employee.dob ? new Date(employee.dob).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'],
-                ['Emergency Contact', employee.emergencyContact || 'N/A']
+                ['Employment Model', employee.employmentType?.replace(/_/g, ' ') || 'FULL TIME'],
+                ['Status', employee.status],
+                ['Professional Exp', `${employee.experience || 0} Years`],
+                ['Primary Hub', employee.workLocation || 'OFFICE'],
+                ['Gender', employee.gender?.toUpperCase() || 'N/A'],
+                ['Emergency Hash', employee.emergencyContact || 'N/A']
             ],
-            theme: 'striped',
-            headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 10 },
-            bodyStyles: { textColor: 40, fontSize: 9.5, cellPadding: 5 },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
+            theme: 'plain',
+            styles: {
+                fillColor: [24, 24, 27],
+                textColor: [240, 240, 240],
+                fontSize: 9,
+                cellPadding: 6,
+                lineColor: [40, 40, 45],
+                lineWidth: 0.1
+            },
+            headStyles: {
+                fillColor: [30, 30, 35],
+                textColor: [139, 92, 246],
+                fontStyle: 'bold',
+                fontSize: 8,
+                letterSpacing: 0.05
+            },
+            alternateRowStyles: {
+                fillColor: [20, 20, 22]
+            },
             margin: { left: 20, right: 20 }
         });
 
-        // Summary Note
-        const finalY = (doc as any).lastAutoTable.finalY + 12;
+        // --- AUTHENTICATION FOOTER ---
+        const finalY = (doc as any).lastAutoTable.finalY + 20;
         doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
-        doc.setFont('helvetica', 'italic');
-        doc.text("Verified internal document. Issued by Triple S Production Operations.", 20, finalY);
-
-        // Clean Footer
-        doc.setPage(1);
-        doc.setDrawColor(240, 240, 240);
-        doc.line(20, 278, 190, 278);
-        
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
+        doc.setTextColor(80, 80, 85);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Confidential Information • Triple S Production • Generated ${new Date().toLocaleDateString()}`, 20, 285);
-        doc.text(`Authenticated Document`, 190, 285, { align: 'right' });
+        doc.text("SECURITY CLASSIFIED", 20, finalY);
+        doc.text("This document is a verified system extract. Any unauthorized alteration voids the digital signature.", 20, finalY + 5);
+
+        // Footer Metadata
+        doc.setDrawColor(40, 40, 45);
+        doc.line(20, 275, 190, 275);
+        doc.text(`PLATFORM PROTOCOL: 0.9.1 • GENERATED ${new Date().toLocaleString().toUpperCase()}`, 20, 282);
+        doc.text(`PAGE 01 / 01`, 190, 282, { align: 'right' });
 
         doc.save(`Dossier_${employee.firstName}_${employee.lastName}.pdf`);
     };
