@@ -67,6 +67,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: rgba(15, 15, 20, 0.6); /* Added background to prevent shadow artifact */
+    backdrop-filter: blur(10px);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .column-info {
@@ -274,6 +282,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: rgba(15, 15, 20, 0.6);
+    backdrop-filter: blur(10px);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .column-more {

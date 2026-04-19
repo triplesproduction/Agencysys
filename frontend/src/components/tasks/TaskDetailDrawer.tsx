@@ -228,16 +228,29 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                     </div>
                                     <MarkdownEditor 
                                         value={(() => {
-                                            const desc = task?.description || '';
+                                            let desc = task?.description || '';
+                                            // Strip Virtual Team marker
+                                            desc = desc.replace(/<!-- TEAM:\[.*?\] -->/, '').trim();
+                                            // Only show part before checklist
                                             const parts = desc.split('## Execution Checklist');
                                             return parts[0].trim();
                                         })()}
                                         onChange={(val) => {
                                             if (!task) return;
-                                            const desc = task.description || '';
+                                            let desc = task.description || '';
+                                            // Preserve Virtual Team marker
+                                            const teamMarkerMatch = desc.match(/<!-- TEAM:\[.*?\] -->/);
+                                            const teamMarker = teamMarkerMatch ? teamMarkerMatch[0] : '';
+                                            
                                             const parts = desc.split('## Execution Checklist');
                                             const checklistPart = parts.length > 1 ? '## Execution Checklist' + parts[1] : '';
-                                            setTask({ ...task, description: val + (checklistPart ? '\n\n' + checklistPart : '') });
+                                            
+                                            // Construct new description while keeping the hidden parts
+                                            let newDesc = val;
+                                            if (checklistPart) newDesc += '\n\n' + checklistPart.trim();
+                                            if (teamMarker) newDesc += '\n\n' + teamMarker;
+                                            
+                                            setTask({ ...task, description: newDesc });
                                         }}
                                         onBlur={() => handleUpdateField('description', task?.description || '')}
                                         readOnly={!isManagerOrAdmin}
@@ -340,7 +353,23 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                                 className="btn-add-item" 
                                                 onClick={() => {
                                                     const newItem = `- [ ] New Checklist Item`;
-                                                    const newDesc = desc ? (desc.includes('## Execution Checklist') ? `${desc}\n${newItem}` : `${desc}\n\n## Execution Checklist\n${newItem}`) : `## Execution Checklist\n${newItem}`;
+                                                    let desc = task?.description || '';
+                                                    let newDesc = '';
+                                                    
+                                                    if (desc.includes('## Execution Checklist')) {
+                                                        // Split by checklist marker but preserve everything else
+                                                        const parts = desc.split('## Execution Checklist');
+                                                        newDesc = parts[0] + '## Execution Checklist' + parts[1] + '\n' + newItem;
+                                                    } else {
+                                                        // Handle case with TEAM marker
+                                                        const teamMatch = desc.match(/<!-- TEAM:\[.*?\] -->/);
+                                                        if (teamMatch) {
+                                                            const baseDesc = desc.replace(teamMatch[0], '').trim();
+                                                            newDesc = baseDesc + '\n\n## Execution Checklist\n' + newItem + '\n\n' + teamMatch[0];
+                                                        } else {
+                                                            newDesc = desc + '\n\n## Execution Checklist\n' + newItem;
+                                                        }
+                                                    }
                                                     handleUpdateField('description', newDesc);
                                                 }}
                                             >

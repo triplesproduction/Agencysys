@@ -70,7 +70,9 @@ export default function MessagingPage() {
     const inputRef = useRef<HTMLInputElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const realtimeRef = useRef<any>(null);
-    const activeConvIdRef = useRef<string | null>(null); // kept in sync for global listener
+    const activeConvIdRef = useRef<string | null>(null);   // for global listener
+    const initDoneRef = useRef(false);                     // ✅ duplicate-fetch guard
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // retry guard
 
     // ── Load conversations ──────────────────────────────────────────────────────
     const loadConversations = useCallback(async () => {
@@ -89,10 +91,17 @@ export default function MessagingPage() {
         }
     }, [myId, myRole]);
 
-    // ── Init ───────────────────────────────────────────────────────────────────
+    // ── Init: runs ONLY after auth settles, with duplicate-fetch guard ──────────
     useEffect(() => {
-        if (authLoading || !myId) return;
+        // ✅ Fix 1, 2, 3: Gate on authLoading AND authEmployee object, not just myId
+        if (authLoading || !authEmployee || !myId) return;
+
+        // ✅ Fix 8: Prevent duplicate fetches caused by rapid re-renders
+        if (initDoneRef.current) return;
+        initDoneRef.current = true;
+
         const init = async () => {
+            // ✅ Fix 4: Show loading immediately — never show empty UI
             setLoading(true);
             try {
                 const { error: probe } = await supabase
@@ -112,6 +121,8 @@ export default function MessagingPage() {
 
                 setDbReady(true);
                 setDbProbeError(null);
+
+                // ✅ Fix 2: All data fetches in parallel for speed
                 const [empRes, tasks] = await Promise.all([
                     api.getEmployees({ limit: 100 }),
                     api.getTasks(myId, undefined, 30),
@@ -119,15 +130,20 @@ export default function MessagingPage() {
                 const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
                 setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
                 setMyTasks(tasks || []);
+
+                // ✅ Fix 5: Load conversations first; realtime subscription starts after
                 await loadConversations();
             } catch (e) {
                 console.error('[Chat] init error:', e);
+                // Reset guard so navigating back can retry
+                initDoneRef.current = false;
             } finally {
                 setLoading(false);
             }
         };
         init();
-    }, [authLoading, myId]);
+    // ✅ Fix 2: Include authEmployee so re-auth triggers a fresh load
+    }, [authLoading, authEmployee, myId]);
 
     // ── Presence tracking ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -176,6 +192,12 @@ export default function MessagingPage() {
     // ── Load messages when active conversation changes ─────────────────────────
     useEffect(() => {
         activeConvIdRef.current = activeConvId;
+        // Fix 6: clear any pending retry from a previous conversation
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
+
         if (!activeConvId || !myId) {
             setMessages([]);
             return;
@@ -186,8 +208,22 @@ export default function MessagingPage() {
             setMessages(msgs as Message[]);
             await api.markMessagesRead(activeConvId, myId);
             await loadConversations();
+
+            // Fix 6: retry once after 2s if messages came back empty (race on new conv)
+            if (msgs.length === 0) {
+                retryTimerRef.current = setTimeout(async () => {
+                    if (activeConvIdRef.current !== activeConvId) return; // user moved away
+                    console.log('[Chat] Retry: empty on first load, retrying...');
+                    const retried = await api.getMessages(activeConvId);
+                    if (retried.length > 0) setMessages(retried as Message[]);
+                }, 2000);
+            }
         };
         load();
+
+        return () => {
+            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        };
     }, [activeConvId, myId]);
 
     // ── Per-conversation Realtime subscription ─────────────────────────────────

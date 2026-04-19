@@ -258,26 +258,50 @@ export const api = {
         handleSupabaseEvent(data, error, 'Fetch Tasks');
         
         // Normalize with architect defaults
-        return (data || []).map((task: any) => ({
-            ...task,
-            status: task.status || 'TODO',
-            priority: task.priority || 'MEDIUM',
-            title: task.title || 'Untitled Task',
-            dueDate: task.dueDate || new Date().toISOString()
-        })) as TaskDTO[];
+        return (data || []).map((task: any) => {
+            // Virtual Team Decoding
+            let assigneeIds = task.assigneeIds || [];
+            if (task.description && task.description.includes('<!-- TEAM:[')) {
+                const match = task.description.match(/<!-- TEAM:\[(.*?)\] -->/);
+                if (match && match[1]) {
+                    assigneeIds = match[1].split(',').filter(Boolean);
+                }
+            } else if (task.assigneeId && assigneeIds.length === 0) {
+                assigneeIds = [task.assigneeId];
+            }
+
+            return {
+                ...task,
+                status: task.status || 'TODO',
+                priority: task.priority || 'MEDIUM',
+                title: task.title || 'Untitled Task',
+                dueDate: task.dueDate || new Date().toISOString(),
+                assigneeIds: Array.from(new Set(assigneeIds)) // Dedupe
+            };
+        }) as TaskDTO[];
     },
     createTask: async (payload: Partial<TaskDTO>) => {
-        // Safe mapping - ensure both single and multi-assignee fields are synced if possible
         const data = { ...payload };
-        if (data.assigneeIds && data.assigneeIds.length > 0 && !data.assigneeId) {
-            data.assigneeId = data.assigneeIds[0];
-        }
         
-        // Remove virtual fields
+        // Virtual Team Encoding
+        if (data.assigneeIds && data.assigneeIds.length > 0) {
+            data.assigneeId = data.assigneeIds[0];
+            const teamMarker = `<!-- TEAM:[${data.assigneeIds.join(',')}] -->`;
+            // Append or replace
+            if (data.description) {
+                data.description = data.description.replace(/<!-- TEAM:\[.*?\] -->/, '') + teamMarker;
+            } else {
+                data.description = teamMarker;
+            }
+        }
+
+        // Remove virtual fields to prevent Supabase errors
         delete data.assignees;
+        delete (data as any).assigneeIds;
+        delete (data as any).assigneeNames;
 
         const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
-        handleSupabaseEvent(data, error, 'Create Task');
+        handleSupabaseEvent(res, error, 'Create Task');
         return { ...payload, ...res } as TaskDTO;
     },
 
@@ -287,17 +311,32 @@ export const api = {
         return data as TaskDTO;
     },
     updateTask: async (id: string, payload: Partial<TaskDTO>) => {
-        // Safe mapping - ensure both single and multi-assignee fields are synced if possible
         const data = { ...payload };
-        if (data.assigneeIds && data.assigneeIds.length > 0 && !data.assigneeId) {
-            data.assigneeId = data.assigneeIds[0];
+
+        // If we are updating assigneeIds but NOT description, we need the current description
+        if (data.assigneeIds && !data.description) {
+            const { data: current } = await supabase.from('tasks').select('description').eq('id', id).single();
+            data.description = current?.description || '';
         }
 
-        // Remove virtual fields
+        // Virtual Team Encoding
+        if (data.assigneeIds) {
+            if (data.assigneeIds.length > 0) data.assigneeId = data.assigneeIds[0];
+            const teamMarker = `<!-- TEAM:[${data.assigneeIds.join(',')}] -->`;
+            if (data.description) {
+                data.description = data.description.replace(/<!-- TEAM:\[.*?\] -->/, '') + teamMarker;
+            } else {
+                data.description = teamMarker;
+            }
+        }
+
+        // Remove virtual fields to prevent Supabase errors
         delete data.assignees;
+        delete (data as any).assigneeIds;
+        delete (data as any).assigneeNames;
 
         const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
-        handleSupabaseEvent(data, error, 'Update Task');
+        handleSupabaseEvent(res, error, 'Update Task');
         return { ...payload, ...res } as TaskDTO;
     },
 
