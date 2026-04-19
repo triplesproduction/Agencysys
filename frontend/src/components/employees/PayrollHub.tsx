@@ -522,6 +522,7 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                 document.body
             )}
         </div>
+        </div>
     );
 }
 

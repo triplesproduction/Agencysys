@@ -241,8 +241,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                 fillColor: [30, 30, 35],
                 textColor: [139, 92, 246],
                 fontStyle: 'bold',
-                fontSize: 8,
-                letterSpacing: 0.05
+                fontSize: 8
             },
             alternateRowStyles: {
                 fillColor: [20, 20, 22]

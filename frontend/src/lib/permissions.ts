@@ -58,11 +58,11 @@ export function canAccessPath(role: string | undefined, path: string): boolean {
 
     // Restrictions for Manager/Employee
     if (path.startsWith('/employees') || path.startsWith('/logs/system') || path.startsWith('/permissions')) {
-        return resolvedRole === 'ADMIN';
+        return false;
     }
 
     if (path.startsWith('/leaves/approvals') || path.startsWith('/eod/reviews')) {
-        return resolvedRole === 'ADMIN' || resolvedRole === 'MANAGER';
+        return resolvedRole === 'MANAGER';
     }
 
 
