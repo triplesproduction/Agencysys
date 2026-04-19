@@ -81,8 +81,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
         const updatedTask = { ...task, [field]: value };
         
         // Ensure that if we are updating assigneeIds, we keep the UI in sync
+        // If we are updating assignees, keep the UI in sync
         if (field === 'assigneeIds' && Array.isArray(value)) {
-            // Re-fetch hydrated assignees logic if possible, or just optimistic mapping
             const assigned = employees.filter(e => value.includes(e.id));
             updatedTask.assignees = assigned.map(e => ({
                 id: e.id,
@@ -90,6 +90,9 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                 lastName: e.lastName,
                 profilePhoto: e.profilePhoto
             }));
+            updatedTask.assigneeIds = value;
+            // Also update legacy assigneeId for compatibility (first one)
+            if (value.length > 0) updatedTask.assigneeId = value[0];
         }
 
         setTask(updatedTask);
@@ -135,8 +138,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             <span>T-ITEM-{task?.id?.slice?.(0, 5).toUpperCase() || '...'}</span>
                         </div>
                         <div className="header-actions">
-                            <button className="icon-btn-ghost"><MoreVertical size={18} /></button>
-                            <button className="icon-btn-ghost close-btn" onClick={onClose}><X size={20} /></button>
+                            <button type="button" className="icon-btn-ghost"><MoreVertical size={18} /></button>
+                            <button type="button" className="icon-btn-ghost close-btn" onClick={onClose}><X size={20} /></button>
                         </div>
                     </div>
                     
@@ -163,10 +166,10 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                         
                         {/* Tab Headers */}
                         <div className="drawer-tabs">
-                            <button className={`tab-link ${activeTab === 'DETAILS' ? 'active' : ''}`} onClick={() => setActiveTab('DETAILS')}>Task Details</button>
-                            <button className={`tab-link ${activeTab === 'CHECKLIST' ? 'active' : ''}`} onClick={() => setActiveTab('CHECKLIST')}>Checklist</button>
-                            <button className={`tab-link ${activeTab === 'COMMENTS' ? 'active' : ''}`} onClick={() => setActiveTab('COMMENTS')}>Comments</button>
-                            <button className={`tab-link ${activeTab === 'ACTIVITY' ? 'active' : ''}`} onClick={() => setActiveTab('ACTIVITY')}>History</button>
+                            <button type="button" className={`tab-link ${activeTab === 'DETAILS' ? 'active' : ''}`} onClick={() => setActiveTab('DETAILS')}>Task Details</button>
+                            <button type="button" className={`tab-link ${activeTab === 'CHECKLIST' ? 'active' : ''}`} onClick={() => setActiveTab('CHECKLIST')}>Checklist</button>
+                            <button type="button" className={`tab-link ${activeTab === 'COMMENTS' ? 'active' : ''}`} onClick={() => setActiveTab('COMMENTS')}>Comments</button>
+                            <button type="button" className={`tab-link ${activeTab === 'ACTIVITY' ? 'active' : ''}`} onClick={() => setActiveTab('ACTIVITY')}>History</button>
                         </div>
 
                         {activeTab === 'DETAILS' && (
@@ -224,16 +227,53 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                         <h3>Description</h3>
                                     </div>
                                     <MarkdownEditor 
-                                        value={task?.description || ''}
-                                        onChange={(val) => setTask(task ? { ...task, description: val } : null)}
+                                        value={(() => {
+                                            const desc = task?.description || '';
+                                            const parts = desc.split('## Execution Checklist');
+                                            return parts[0].trim();
+                                        })()}
+                                        onChange={(val) => {
+                                            if (!task) return;
+                                            const desc = task.description || '';
+                                            const parts = desc.split('## Execution Checklist');
+                                            const checklistPart = parts.length > 1 ? '## Execution Checklist' + parts[1] : '';
+                                            setTask({ ...task, description: val + (checklistPart ? '\n\n' + checklistPart : '') });
+                                        }}
                                         onBlur={() => handleUpdateField('description', task?.description || '')}
                                         readOnly={!isManagerOrAdmin}
                                     />
                                 </section>
 
+                                {/* Attachments Display */}
+                                {task?.attachments && task.attachments.length > 0 && (
+                                    <section className="drawer-section">
+                                        <div className="section-header">
+                                            <Paperclip size={18} color="white" />
+                                            <h3>Attachments</h3>
+                                        </div>
+                                        <div className="attachments-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {task.attachments.map((url, idx) => {
+                                                const filename = url.split('/').pop() || `Attachment ${idx + 1}`;
+                                                return (
+                                                    <a 
+                                                        key={idx} 
+                                                        href={url} 
+                                                        target="_blank" 
+                                                        rel="noreferrer" 
+                                                        className="attachment-item"
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none' }}
+                                                    >
+                                                        <FileText size={18} color="var(--purple-main)" />
+                                                        <span style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>{filename}</span>
+                                                    </a>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                )}
 
                                 {/* Manager Assessment */}
-                                {isManagerOrAdmin && task && (
+                                {(isManagerOrAdmin || task?.status === 'DONE') && task && (
                                      <section className="drawer-section premium-outline">
                                         <div className="section-header">
                                             <Star size={18} color="#f59e0b" />
@@ -244,31 +284,73 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                             initialRating={task.quality_rating}
                                             onRate={(val) => setTask({ ...task, quality_rating: val })}
                                         />
-                                        <div className="helper-text">Ratings affect employee KPI scores and monthly reports.</div>
+                                        <div className="helper-text">{isManagerOrAdmin ? "Ratings affect employee KPI scores and monthly reports." : "Final performance rating from management."}</div>
                                      </section>
                                 )}
                             </div>
                         )}
 
-                        {activeTab === 'CHECKLIST' && (
-                            <div className="tab-pane active fade-in">
-                                <section className="drawer-section">
-                                    <div className="section-header">
-                                        <CheckSquare size={18} color="var(--purple-main)" />
-                                        <h3>Execution Checklist</h3>
-                                        <div className="progress-bar-container">
-                                            <div className="progress-bar-fill" style={{ width: '40%' }}></div>
+                        {activeTab === 'CHECKLIST' && (() => {
+                            const desc = task?.description || '';
+                            const lines = desc.split('\n');
+                            const parsedChecklist = [];
+                            for (let i = 0; i < lines.length; i++) {
+                                const match = lines[i].match(/^- \[([ xX])\] (.*)/);
+                                if (match) {
+                                    parsedChecklist.push({ lineIndex: i, text: match[2], checked: match[1] !== ' ' });
+                                }
+                            }
+                            const completedCount = parsedChecklist.filter(i => i.checked).length;
+                            const progressPercent = parsedChecklist.length > 0 ? (completedCount / parsedChecklist.length) * 100 : 0;
+
+                            return (
+                                <div className="tab-pane active fade-in">
+                                    <section className="drawer-section">
+                                        <div className="section-header">
+                                            <CheckSquare size={18} color="var(--purple-main)" />
+                                            <h3>Execution Checklist</h3>
+                                            <div className="progress-bar-container">
+                                                <div className="progress-bar-fill" style={{ width: `${progressPercent}%`, background: 'var(--purple-main)', height: '100%' }}></div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="checklist-items">
-                                        <div className="check-item"><input type="checkbox" defaultChecked /> Initial Research</div>
-                                        <div className="check-item"><input type="checkbox" defaultChecked /> Draft Prototype</div>
-                                        <div className="check-item"><input type="checkbox" /> Final Implementation</div>
-                                        <button className="btn-add-item"><Plus size={14} /> Add an item</button>
-                                    </div>
-                                </section>
-                            </div>
-                        )}
+                                        <div className="checklist-items">
+                                            {parsedChecklist.map((item, idx) => (
+                                                <div key={idx} className="check-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={item.checked} 
+                                                        onChange={(e) => {
+                                                            const newChecked = e.target.checked;
+                                                            lines[item.lineIndex] = `- [${newChecked ? 'x' : ' '}] ${item.text}`;
+                                                            handleUpdateField('description', lines.join('\n'));
+                                                        }}
+                                                    /> 
+                                                    <span style={{ textDecoration: item.checked ? 'line-through' : 'none', color: item.checked ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.9)' }}>
+                                                        {item.text}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                            {parsedChecklist.length === 0 && (
+                                                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', padding: '10px 0' }}>
+                                                    No checklist items found. Switch to the Task Details tab to add markdown checkboxes ( - [ ] Item ).
+                                                </div>
+                                            )}
+                                            <button 
+                                                type="button" 
+                                                className="btn-add-item" 
+                                                onClick={() => {
+                                                    const newItem = `- [ ] New Checklist Item`;
+                                                    const newDesc = desc ? (desc.includes('## Execution Checklist') ? `${desc}\n${newItem}` : `${desc}\n\n## Execution Checklist\n${newItem}`) : `## Execution Checklist\n${newItem}`;
+                                                    handleUpdateField('description', newDesc);
+                                                }}
+                                            >
+                                                <Plus size={14} /> Add an item
+                                            </button>
+                                        </div>
+                                    </section>
+                                </div>
+                            );
+                        })()}
 
                         {activeTab === 'COMMENTS' && (
                             <div className="tab-pane active fade-in">
@@ -278,12 +360,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                         <h3>Comments</h3>
                                     </div>
                                     <div className="comment-feed custom-scrollbar">
-                                        <div className="comment-item">
-                                            <div className="avatar-small">S</div>
-                                            <div className="comment-content">
-                                                <div className="comment-user">Saurav Gupta <span>Yesterday at 4:12 PM</span></div>
-                                                <p>I've pushed the initial design specs. Please review.</p>
-                                            </div>
+                                        <div className="no-comments" style={{ padding: '20px 0', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', textAlign: 'center' }}>
+                                            No comments yet.
                                         </div>
                                     </div>
                                     <div className="comment-input-area">
@@ -329,9 +407,9 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                     <aside className="drawer-sidebar">
                         <div className="sidebar-group">
                             <label className="sidebar-label">SUGGESTED</label>
-                            <button className="sidebar-btn" onClick={() => {
+                            <button type="button" className="sidebar-btn" onClick={() => {
                                 if (!authEmployee?.id) return;
-                                const currentIds = task?.assigneeIds || [];
+                                const currentIds = task?.assigneeIds || (task?.assigneeId ? [task.assigneeId] : []);
                                 if (!currentIds.includes(authEmployee.id)) {
                                     handleUpdateField('assigneeIds', [...currentIds, authEmployee.id]);
                                 }
@@ -339,7 +417,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                 <User size={14} /> Join
                             </button>
                             {task?.status === 'IN_PROGRESS' && (
-                                <button className="sidebar-btn primary" onClick={() => handleUpdateField('status', 'IN_REVIEW')}>
+                                <button type="button" className="sidebar-btn primary" onClick={() => handleUpdateField('status', 'IN_REVIEW')}>
                                     <ChevronRight size={14} /> Submit for Review
                                 </button>
                             )}
@@ -347,18 +425,30 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                         
                         <div className="sidebar-group">
                             <label className="sidebar-label">ADD TO CARD</label>
-                            <button className="sidebar-btn" onClick={() => {
-                                // Scroll to or focus assignees picker if needed, but here we just scroll
+                            <button type="button" className="sidebar-btn" onClick={() => {
                                 document.querySelector('.multi-picker-container')?.scrollIntoView({ behavior: 'smooth' });
                             }}>
                                 <User size={14} /> Members
                             </button>
-                            <button className="sidebar-btn"><Filter size={14} /> Labels</button>
-                            <button className="sidebar-btn" onClick={() => setActiveTab('CHECKLIST')}>
+                            <button type="button" className="sidebar-btn"><Filter size={14} /> Labels</button>
+                            <button type="button" className="sidebar-btn" onClick={() => setActiveTab('CHECKLIST')}>
                                 <CheckSquare size={14} /> Checklist
                             </button>
-                            <button className="sidebar-btn"><Clock size={14} /> Dates</button>
-                            <button className="sidebar-btn" onClick={() => {
+                            <div className="sidebar-btn sidebar-date-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <Clock size={14} />
+                                <span style={{ marginLeft: '8px' }}>Dates &nbsp;</span>
+                                <input 
+                                    type="date" 
+                                    style={{ position: 'absolute', opacity: 0, top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer', width: '100%' }}
+                                    value={task?.dueDate ? task.dueDate.split('T')[0] : ''}
+                                    onChange={(e) => {
+                                        if(e.target.value) {
+                                            handleUpdateField('dueDate', new Date(e.target.value).toISOString());
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <button type="button" className="sidebar-btn" onClick={() => {
                                 document.getElementById('drawer-file-upload')?.click();
                             }}>
                                 <Plus size={14} /> Attachment
@@ -373,13 +463,13 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                         
                         <div className="sidebar-group">
                             <label className="sidebar-label">ACTIONS</label>
-                            <button className="sidebar-btn" onClick={() => handleUpdateField('status', 'DONE')}>
+                            <button type="button" className="sidebar-btn" onClick={() => handleUpdateField('status', 'DONE')}>
                                 <ChevronRight size={14} /> Complete
                             </button>
-                            <button className="sidebar-btn" onClick={() => handleUpdateField('status', 'BLOCKED')}>
+                            <button type="button" className="sidebar-btn" onClick={() => handleUpdateField('status', 'BLOCKED')}>
                                 <Clock size={14} /> Hold
                             </button>
-                            <button className="sidebar-btn danger" onClick={async () => {
+                            <button type="button" className="sidebar-btn danger" onClick={async () => {
                                 if (!taskId) return;
                                 if (confirm('Are you sure you want to delete this task?')) {
                                     try {

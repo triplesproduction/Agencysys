@@ -267,14 +267,13 @@ export const api = {
         })) as TaskDTO[];
     },
     createTask: async (payload: Partial<TaskDTO>) => {
-        // Safe mapping to handle DB schema limitations
+        // Safe mapping - ensure both single and multi-assignee fields are synced if possible
         const data = { ...payload };
-        if (data.assigneeIds && data.assigneeIds.length > 0) {
+        if (data.assigneeIds && data.assigneeIds.length > 0 && !data.assigneeId) {
             data.assigneeId = data.assigneeIds[0];
         }
         
-        // Remove virtual fields that don't exist in the DB schema
-        delete data.assigneeIds;
+        // Remove virtual fields
         delete data.assignees;
 
         const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
@@ -288,14 +287,13 @@ export const api = {
         return data as TaskDTO;
     },
     updateTask: async (id: string, payload: Partial<TaskDTO>) => {
-        // Safe mapping to handle DB schema limitations
+        // Safe mapping - ensure both single and multi-assignee fields are synced if possible
         const data = { ...payload };
-        if (data.assigneeIds && data.assigneeIds.length > 0) {
+        if (data.assigneeIds && data.assigneeIds.length > 0 && !data.assigneeId) {
             data.assigneeId = data.assigneeIds[0];
         }
 
-        // Remove virtual fields that don't exist in the DB schema
-        delete data.assigneeIds;
+        // Remove virtual fields
         delete data.assignees;
 
         const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
@@ -741,19 +739,36 @@ export const api = {
     },
 
     /** Get all conversations for a user, with last message and unread count */
-    getConversations: async (myId: string) => {
-        const { data: parts, error } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('user_id', myId);
+    getConversations: async (myId: string, role?: string) => {
+        const isAdmin = ['ADMIN', 'MANAGER'].includes((role || '').toUpperCase());
+        console.log('[Chat] getConversations called, isAdmin:', isAdmin, 'myId:', myId);
 
-        if (error) {
-            console.error('[Chat] getConversations error (check RLS policies):', error.message);
-            return [];
+        let convIds: string[] = [];
+
+        if (isAdmin) {
+            // Admin fetches ALL conversations without restriction
+            const { data: allConvs, error: allErr } = await supabase
+                .from('conversations')
+                .select('id');
+            if (allErr) {
+                console.error('[Chat] admin getConversations error:', allErr.message);
+                return [];
+            }
+            convIds = (allConvs || []).map((c: any) => c.id);
+        } else {
+            const { data: parts, error } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id')
+                .eq('user_id', myId);
+            if (error) {
+                console.error('[Chat] getConversations error (check RLS policies):', error.message);
+                return [];
+            }
+            if (!parts || parts.length === 0) return [];
+            convIds = parts.map((p: any) => p.conversation_id);
         }
-        if (!parts || parts.length === 0) return [];
 
-        const convIds = parts.map((p: any) => p.conversation_id);
+        if (convIds.length === 0) return [];
 
         // Get all other participants (their userId only)
         const { data: otherParts, error: otherErr } = await supabase
@@ -771,7 +786,7 @@ export const api = {
         if (otherUserIds.length > 0) {
             const { data: emps } = await supabase
                 .from('employees')
-                .select('*')
+                .select('id, firstName, lastName, profilePhoto, designation, roleId')
                 .in('id', otherUserIds);
             (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
         }
@@ -809,7 +824,7 @@ export const api = {
             })
         );
 
-        // Sort by latest message timestamp, admin pinned first
+        // Sort by latest message timestamp
         return results.sort((a, b) => {
             const aIsAdmin = (a.otherUser as any)?.roleId?.toUpperCase() === 'ADMIN';
             const bIsAdmin = (b.otherUser as any)?.roleId?.toUpperCase() === 'ADMIN';
@@ -821,21 +836,40 @@ export const api = {
         });
     },
 
-    /** Get messages for a conversation (newest last) */
-    getMessages: async (conversationId: string, limit = 60): Promise<any[]> => {
+    /** Get messages for a conversation (newest last, with sender name) */
+    getMessages: async (conversationId: string, limit = 50): Promise<any[]> => {
+        console.log('[Chat] getMessages for conv:', conversationId, 'limit:', limit);
         const { data, error } = await supabase
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: true })
             .limit(limit);
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error('[Chat] getMessages error:', error.message);
+            throw new Error(error.message);
+        }
+
+        // Enrich with sender names
+        const senderIds = Array.from(new Set((data || []).map((m: any) => m.sender_id)));
+        let senderMap: Record<string, any> = {};
+        if (senderIds.length > 0) {
+            const { data: emps } = await supabase
+                .from('employees')
+                .select('id, firstName, lastName, profilePhoto')
+                .in('id', senderIds);
+            (emps || []).forEach((e: any) => { senderMap[e.id] = e; });
+        }
+
+        console.log('[Chat] getMessages fetched:', data?.length, 'messages');
         return (data || []).map(m => ({
             ...m,
             createdAt: m.created_at,
             senderId: m.sender_id,
             mediaUrl: m.media_url,
-            taskRef: m.task_ref
+            taskRef: m.task_ref,
+            senderName: senderMap[m.sender_id] ? `${senderMap[m.sender_id].firstName} ${senderMap[m.sender_id].lastName}` : null,
+            senderPhoto: senderMap[m.sender_id]?.profilePhoto || null,
         }));
     },
 
@@ -897,9 +931,14 @@ export const api = {
     uploadChatMedia: async (file: File): Promise<{ url: string }> => {
         const ext = file.name.split('.').pop();
         const fileName = `chat/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+        console.log('[Chat] uploadChatMedia: uploading', fileName, 'size:', file.size);
         const { error } = await supabase.storage.from('chat-media').upload(fileName, file, { upsert: false });
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error('[Chat] uploadChatMedia FAILED:', error.message);
+            throw new Error(`Image upload failed: ${error.message}. Ensure the 'chat-media' bucket exists in Supabase Storage with public access.`);
+        }
         const { data: pub } = supabase.storage.from('chat-media').getPublicUrl(fileName);
+        console.log('[Chat] uploadChatMedia SUCCESS. URL:', pub.publicUrl);
         return { url: pub.publicUrl };
     },
 

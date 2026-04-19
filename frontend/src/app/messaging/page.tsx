@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, AtSign, Smile, ChevronDown } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, AtSign, ChevronDown } from 'lucide-react';
 import './Messaging.css';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -26,30 +27,22 @@ interface Message {
     taskRef?: any;
     status: 'sent' | 'delivered' | 'seen';
     createdAt: string;
+    senderName?: string;
+    senderPhoto?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-const formatLastSeen = (iso: string) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHrs = Math.floor(diffMins / 60);
-    if (diffHrs < 24) return `${diffHrs}h ago`;
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function MessagingPage() {
+    const router = useRouter();
     const { employee: authEmployee, loading: authLoading } = useAuth();
     const { addNotification } = useNotifications();
     const myId = authEmployee?.id ? String(authEmployee.id) : null;
-    const isAdmin = ['ADMIN', 'MANAGER'].includes(String(authEmployee?.roleId || '').toUpperCase());
+    const myRole = String(authEmployee?.roleId || '');
+    const isAdmin = ['ADMIN', 'MANAGER'].includes(myRole.toUpperCase());
 
     // ── State ──────────────────────────────────────────────────────────────────
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -59,17 +52,17 @@ export default function MessagingPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [messageInput, setMessageInput] = useState('');
-    const [isTyping, setIsTyping] = useState(false); // other user typing
+    const [isTyping, setIsTyping] = useState(false);
     const [imagePreview, setImagePreview] = useState<{ file: File; url: string } | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
     const [myTasks, setMyTasks] = useState<any[]>([]);
-    const [showContactPicker, setShowContactPicker] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
-    const [dbReady, setDbReady] = useState(true); // false = tables not yet created
+    const [dbReady, setDbReady] = useState(true);
     const [dbProbeError, setDbProbeError] = useState<string | null>(null);
+    const [onlineUsers, setOnlineUsers] = useState<Record<string, any>>({});
 
     // ── Refs ───────────────────────────────────────────────────────────────────
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,39 +70,40 @@ export default function MessagingPage() {
     const inputRef = useRef<HTMLInputElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const realtimeRef = useRef<any>(null);
+    const activeConvIdRef = useRef<string | null>(null); // kept in sync for global listener
 
-    // ── Load conversations & contacts ──────────────────────────────────────────
+    // ── Load conversations ──────────────────────────────────────────────────────
     const loadConversations = useCallback(async () => {
         if (!myId) return;
         try {
-            const convs = await api.getConversations(myId);
+            console.log('[Chat] loadConversations myId:', myId, 'role:', myRole);
+            const convs = await api.getConversations(myId, myRole);
+            console.log('[Chat] conversations loaded:', convs.length);
             setConversations(convs as Conversation[]);
             setDbReady(true);
         } catch (e: any) {
-            console.error('loadConversations error:', e);
+            console.error('[Chat] loadConversations error:', e);
             if (e?.message?.includes('schema cache') || e?.message?.includes('does not exist')) {
                 setDbReady(false);
             }
         }
-    }, [myId]);
+    }, [myId, myRole]);
 
+    // ── Init ───────────────────────────────────────────────────────────────────
     useEffect(() => {
         if (authLoading || !myId) return;
         const init = async () => {
             setLoading(true);
             try {
-                // ── Direct probe: does the conversations table exist? ──────────
                 const { error: probe } = await supabase
                     .from('conversations')
                     .select('id')
                     .limit(1);
 
                 if (probe) {
-                    // Table doesn't exist or access is blocked
                     console.warn('[Chat] conversations table not ready:', probe.message);
                     setDbProbeError(probe.message);
                     setDbReady(false);
-                    // Still load contacts so the UI shows people
                     const empRes = await api.getEmployees({ limit: 100 });
                     const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
                     setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
@@ -122,13 +116,12 @@ export default function MessagingPage() {
                     api.getEmployees({ limit: 100 }),
                     api.getTasks(myId, undefined, 30),
                 ]);
-
                 const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
                 setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
                 setMyTasks(tasks || []);
                 await loadConversations();
             } catch (e) {
-                console.error('init error:', e);
+                console.error('[Chat] init error:', e);
             } finally {
                 setLoading(false);
             }
@@ -136,61 +129,98 @@ export default function MessagingPage() {
         init();
     }, [authLoading, myId]);
 
-    // ── Load messages when conversation changes ────────────────────────────────
+    // ── Presence tracking ──────────────────────────────────────────────────────
     useEffect(() => {
+        if (!myId) return;
+        const channel = supabase.channel('online-users', {
+            config: { presence: { key: myId } },
+        });
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                setOnlineUsers(channel.presenceState());
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ online_at: new Date().toISOString() });
+                }
+            });
+        return () => { supabase.removeChannel(channel); };
+    }, [myId]);
+
+    // ── GLOBAL realtime listener: notifications for messages in other convs ─────
+    useEffect(() => {
+        if (!myId) return;
+        const globalChannel = supabase
+            .channel('global-messages')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages' },
+                async (payload: any) => {
+                    const newMsg = payload.new;
+                    console.log('[Chat] Global realtime INSERT:', newMsg);
+                    if (String(newMsg.sender_id) === myId) return;
+                    // If user is already viewing this conversation, skip (handled locally)
+                    if (newMsg.conversation_id === activeConvIdRef.current) return;
+                    await loadConversations();
+                    addNotification({
+                        title: 'New Message',
+                        message: newMsg.content || '📷 Image',
+                        type: 'REMINDER',
+                    });
+                }
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(globalChannel); };
+    }, [myId]);
+
+    // ── Load messages when active conversation changes ─────────────────────────
+    useEffect(() => {
+        activeConvIdRef.current = activeConvId;
         if (!activeConvId || !myId) {
             setMessages([]);
             return;
         }
         const load = async () => {
+            console.log('[Chat] Loading messages for conv:', activeConvId);
             const msgs = await api.getMessages(activeConvId);
             setMessages(msgs as Message[]);
             await api.markMessagesRead(activeConvId, myId);
-            // Refresh unread counts
             await loadConversations();
         };
         load();
     }, [activeConvId, myId]);
 
-    // ── Supabase Realtime subscription ─────────────────────────────────────────
+    // ── Per-conversation Realtime subscription ─────────────────────────────────
     useEffect(() => {
         if (!activeConvId || !myId) return;
-
-        // Cleanup previous subscription
-        if (realtimeRef.current) {
-            supabase.removeChannel(realtimeRef.current);
-        }
+        if (realtimeRef.current) supabase.removeChannel(realtimeRef.current);
 
         const channel = supabase
             .channel(`conv-${activeConvId}`)
             .on(
                 'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${activeConvId}`,
-                },
+                { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${activeConvId}` },
                 async (payload: any) => {
                     const newMsg = payload.new;
-                    const mappedMsg = {
+                    console.log('[Chat] Realtime INSERT in active conv:', newMsg);
+                    const mappedMsg: Message = {
                         ...newMsg,
                         senderId: newMsg.sender_id,
                         conversationId: newMsg.conversation_id,
                         createdAt: newMsg.created_at,
                         mediaUrl: newMsg.media_url,
                         taskRef: newMsg.task_ref,
-                    } as Message;
-                    
+                    };
                     setMessages((prev) => {
                         if (prev.find((m) => m.id === mappedMsg.id)) return prev;
                         return [...prev, mappedMsg];
                     });
-                    // Mark as read if from other user
                     if (String(mappedMsg.senderId) !== myId) {
                         await api.markMessagesRead(activeConvId, myId);
                         addNotification({
-                            title: activeOtherUser ? `${activeOtherUser.firstName} ${activeOtherUser.lastName}` : 'New Message',
+                            title: activeOtherUser
+                                ? `${activeOtherUser.firstName} ${activeOtherUser.lastName}`
+                                : 'New Message',
                             message: newMsg.content || '📷 Image',
                             type: 'REMINDER',
                         });
@@ -200,32 +230,18 @@ export default function MessagingPage() {
             )
             .on(
                 'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'typing_status',
-                    filter: `conversation_id=eq.${activeConvId}`,
-                },
+                { event: '*', schema: 'public', table: 'typing_status', filter: `conversation_id=eq.${activeConvId}` },
                 (payload: any) => {
                     const row = payload.new;
-                    // Show indicator if other user is typing
                     if (row && String(row.user_id) !== myId) {
                         setIsTyping(row.is_typing);
-                        // Auto-clear after 4s just in case
-                        if (row.is_typing) {
-                            setTimeout(() => setIsTyping(false), 4000);
-                        }
+                        if (row.is_typing) setTimeout(() => setIsTyping(false), 4000);
                     }
                 }
             )
             .on(
                 'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${activeConvId}`,
-                },
+                { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${activeConvId}` },
                 (payload: any) => {
                     const updated = payload.new as Message;
                     setMessages((prev) =>
@@ -236,9 +252,7 @@ export default function MessagingPage() {
             .subscribe();
 
         realtimeRef.current = channel;
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [activeConvId, myId]);
 
     // ── Auto-scroll ────────────────────────────────────────────────────────────
@@ -246,19 +260,12 @@ export default function MessagingPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
-    // ── Typing indicator logic ─────────────────────────────────────────────────
+    // ── Typing indicator ───────────────────────────────────────────────────────
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         setMessageInput(val);
-
-        // @ trigger
-        if (val.endsWith('@')) {
-            setShowTaskDropdown(true);
-        } else if (!val.includes('@')) {
-            setShowTaskDropdown(false);
-        }
-
-        // Typing status
+        if (val.endsWith('@')) setShowTaskDropdown(true);
+        else if (!val.includes('@')) setShowTaskDropdown(false);
         if (!activeConvId || !myId) return;
         api.setTypingStatus(myId, activeConvId, true).catch(() => {});
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -267,11 +274,9 @@ export default function MessagingPage() {
         }, 2500);
     };
 
-    // ── Start / open a conversation ────────────────────────────────────────────
+    // ── Open / create conversation ─────────────────────────────────────────────
     const openConversation = async (contact: any) => {
-        if (!myId) return;
-        if (!dbReady) return; // banner already explains the issue
-        setShowContactPicker(false);
+        if (!myId || !dbReady) return;
         try {
             const convId = await api.getOrCreateConversation(myId, String(contact.id));
             setActiveConvId(convId);
@@ -285,12 +290,13 @@ export default function MessagingPage() {
         }
     };
 
-    const selectConversation = (conv: Conversation) => {
-        setActiveConvId(conv.conversationId);
-        setActiveOtherUser(conv.otherUser);
+    // ── Send message ───────────────────────────────────────────────────────────
+    /** Extract taskId from @[Task:id|title] syntax */
+    const extractTaggedTaskId = (text: string): string | null => {
+        const match = text.match(/@\[Task:([^|]+)\|/);
+        return match ? match[1] : null;
     };
 
-    // ── Send message ───────────────────────────────────────────────────────────
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (!activeConvId || !myId || isSending) return;
@@ -300,18 +306,22 @@ export default function MessagingPage() {
             try {
                 setIsSending(true);
                 setIsUploading(true);
+                console.log('[Chat] Uploading image...');
                 const { url } = await api.uploadChatMedia(imagePreview.file);
+                console.log('[Chat] Image uploaded:', url);
+                const taggedTaskId = extractTaggedTaskId(messageInput);
                 await api.sendMessage({
                     conversationId: activeConvId,
                     senderId: myId,
                     type: 'image',
                     mediaUrl: url,
                     content: messageInput.trim() || undefined,
+                    taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
                 });
                 setImagePreview(null);
                 setMessageInput('');
             } catch (err: any) {
-                alert('Image upload failed: ' + err.message);
+                console.error('[Chat] Image send failed:', err.message);
             } finally {
                 setIsSending(false);
                 setIsUploading(false);
@@ -322,29 +332,37 @@ export default function MessagingPage() {
         const text = messageInput.trim();
         if (!text) return;
 
+        const taggedTaskId = extractTaggedTaskId(text);
         try {
             setIsSending(true);
             setMessageInput('');
-            await api.sendMessage({ conversationId: activeConvId, senderId: myId, content: text, type: 'text' });
+            console.log('[Chat] Sending message, taskRef:', taggedTaskId);
+            await api.sendMessage({
+                conversationId: activeConvId,
+                senderId: myId,
+                content: text,
+                type: 'text',
+                taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
+            });
             if (myId && activeConvId) api.setTypingStatus(myId, activeConvId, false).catch(() => {});
         } catch (err: any) {
             setMessageInput(text);
-            alert('Failed to send: ' + err.message);
+            console.error('[Chat] Send failed:', err.message);
         } finally {
             setIsSending(false);
         }
     };
 
-    // ── Image picker ───────────────────────────────────────────────────────────
+    // ── Image file picker ──────────────────────────────────────────────────────
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
-            alert('Only JPG and PNG images are allowed.');
+            console.warn('[Chat] File type rejected:', file.type);
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            alert('Maximum image size is 5MB.');
+            console.warn('[Chat] File too large:', file.size);
             return;
         }
         const url = URL.createObjectURL(file);
@@ -355,12 +373,12 @@ export default function MessagingPage() {
     // ── Task tagging ───────────────────────────────────────────────────────────
     const insertTaskTag = (task: any) => {
         const beforeAt = messageInput.slice(0, messageInput.lastIndexOf('@'));
-        setMessageInput(`${beforeAt}[Task: ${task.title}] `);
+        setMessageInput(`${beforeAt}@[Task:${task.id}|${task.title}] `);
         setShowTaskDropdown(false);
         inputRef.current?.focus();
     };
 
-    // ── Unified contact list: all members, with conv data merged in ─────────────
+    // ── Unified contact list ───────────────────────────────────────────────────
     const unifiedList = allContacts
         .map((contact) => {
             const conv = conversations.find((cv) => String(cv.otherUser?.id) === String(contact.id));
@@ -384,18 +402,16 @@ export default function MessagingPage() {
             );
         })
         .sort((a, b) => {
-            // Admin first
             const aAdmin = String(a.contact.roleId || '').toUpperCase() === 'ADMIN';
             const bAdmin = String(b.contact.roleId || '').toUpperCase() === 'ADMIN';
             if (aAdmin && !bAdmin) return -1;
             if (!aAdmin && bAdmin) return 1;
-            // Then by last message time
             const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
             const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
             return bTime - aTime;
         });
 
-    // ── Render message content ─────────────────────────────────────────────────
+    // ── Render message content (task tags are clickable) ───────────────────────
     const renderContent = (msg: Message) => {
         if (msg.type === 'image' && msg.mediaUrl) {
             return (
@@ -405,24 +421,36 @@ export default function MessagingPage() {
                 </div>
             );
         }
-        // Task tag rendering
-        const taskTagRegex = /\[Task: ([^\]]+)\]/g;
-        const parts = msg.content?.split(taskTagRegex) || [];
-        if (parts.length <= 1) return <span>{msg.content}</span>;
-
-        return (
-            <>
-                {parts.map((part, i) =>
-                    i % 2 === 1 ? (
-                        <span key={i} className="task-tag">
-                            <AtSign size={10} /> {part}
-                        </span>
-                    ) : (
-                        <span key={i}>{part}</span>
-                    )
-                )}
-            </>
-        );
+        // Parse @[Task:id|title] tags into clickable chips
+        const taskTagRegex = /@\[Task:([^|]+)\|([^\]]+)\]/g;
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match;
+        const content = msg.content || '';
+        while ((match = taskTagRegex.exec(content)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push(<span key={`txt-${lastIndex}`}>{content.slice(lastIndex, match.index)}</span>);
+            }
+            const taskId = match[1];
+            const taskTitle = match[2];
+            parts.push(
+                <span
+                    key={`task-${match.index}`}
+                    className="task-tag"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => router.push(`/tasks/${taskId}`)}
+                    title={`Open task: ${taskTitle}`}
+                >
+                    <AtSign size={10} /> {taskTitle}
+                </span>
+            );
+            lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < content.length) {
+            parts.push(<span key={`end-${lastIndex}`}>{content.slice(lastIndex)}</span>);
+        }
+        if (parts.length === 0) return <span>{content}</span>;
+        return <>{parts}</>;
     };
 
     // ── Status tick ────────────────────────────────────────────────────────────
@@ -432,7 +460,7 @@ export default function MessagingPage() {
         return <Check size={13} className="tick-sent" />;
     };
 
-    // ── Loading screen ──────────────────────────────────────────────────────────
+    // ── Loading state ──────────────────────────────────────────────────────────
     if (authLoading) {
         return (
             <div className="msg-loading">
@@ -478,7 +506,7 @@ export default function MessagingPage() {
                             </code>
                         )}
                         <span style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '2px' }}>
-                            Ensure tables exist and Row Level Security is disabled.
+                            Run the SQL migration script and ensure Row Level Security is disabled.
                         </span>
                     </div>
                 </div>
@@ -487,7 +515,6 @@ export default function MessagingPage() {
             <div className="msg-layout">
                 {/* ── LEFT PANEL ── */}
                 <aside className="msg-sidebar">
-                    {/* Search */}
                     <div className="msg-sidebar-search">
                         <Search size={16} className="msg-search-icon" />
                         <input
@@ -498,11 +525,10 @@ export default function MessagingPage() {
                         />
                     </div>
 
-                    {/* Unified contact + conversation list */}
                     <div className="msg-conv-list">
                         {loading && (
                             <div className="msg-list-loading">
-                                {[1,2,3,4].map(i => <div key={i} className="msg-skeleton" />)}
+                                {[1, 2, 3, 4].map(i => <div key={i} className="msg-skeleton" />)}
                             </div>
                         )}
 
@@ -513,13 +539,12 @@ export default function MessagingPage() {
                         {!loading && unifiedList.map(({ contact, conversationId, lastMessage, unreadCount }) => {
                             const isActive = conversationId === activeConvId;
                             const isAdminUser = String(contact.roleId || '').toUpperCase() === 'ADMIN';
+                            const isOnline = !!onlineUsers[String(contact.id)];
 
                             return (
                                 <div
                                     key={contact.id}
-                                    className={`msg-conv-item ${
-                                        isActive ? 'active' : ''
-                                    } ${isAdminUser ? 'admin-pinned' : ''}`}
+                                    className={`msg-conv-item ${isActive ? 'active' : ''} ${isAdminUser ? 'admin-pinned' : ''}`}
                                     onClick={async () => {
                                         if (conversationId) {
                                             setActiveConvId(conversationId);
@@ -537,7 +562,7 @@ export default function MessagingPage() {
                                                 contact.firstName?.charAt(0).toUpperCase() || '?'
                                             )}
                                         </div>
-                                        <div className="msg-online-dot" />
+                                        {isOnline && <div className="msg-online-dot" />}
                                     </div>
 
                                     <div className="msg-conv-info">
@@ -595,19 +620,19 @@ export default function MessagingPage() {
                                             activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
                                         )}
                                     </div>
-                                    <div className="msg-online-dot" />
+                                    {onlineUsers[String(activeOtherUser?.id)] && (
+                                        <div className="msg-online-dot" />
+                                    )}
                                 </div>
                                 <div className="msg-chat-header-info">
                                     <div className="msg-chat-header-name">
                                         {activeOtherUser?.firstName} {activeOtherUser?.lastName}
                                     </div>
                                     <div className="msg-chat-header-sub">
-                                        {String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
-                                            <span style={{ color: '#a78bfa' }}>Admin · Online</span>
-                                        ) : isAdmin ? (
+                                        {onlineUsers[String(activeOtherUser?.id)] ? (
                                             <span style={{ color: '#10B981' }}>Online</span>
                                         ) : (
-                                            <span style={{ color: '#10B981' }}>Online</span>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Offline</span>
                                         )}
                                     </div>
                                 </div>
@@ -635,8 +660,8 @@ export default function MessagingPage() {
                                         <div key={msg.id} className={`msg-row ${isMine ? 'sent' : 'received'}`}>
                                             {!isMine && (
                                                 <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
-                                                    {activeOtherUser?.profilePhoto ? (
-                                                        <img src={activeOtherUser.profilePhoto} alt="" />
+                                                    {(msg.senderPhoto || activeOtherUser?.profilePhoto) ? (
+                                                        <img src={msg.senderPhoto || activeOtherUser.profilePhoto} alt="" />
                                                     ) : (
                                                         activeOtherUser?.firstName?.charAt(0) || '?'
                                                     )}
@@ -697,10 +722,10 @@ export default function MessagingPage() {
                                 </div>
                             )}
 
-                            {/* Task dropdown */}
+                            {/* Task @ dropdown */}
                             {showTaskDropdown && (
                                 <div className="msg-task-dropdown">
-                                    <div className="msg-task-dropdown-header">📌 Your Tasks</div>
+                                    <div className="msg-task-dropdown-header">📌 Tag a Task</div>
                                     {myTasks.length === 0 && (
                                         <div className="msg-empty-note">No tasks found.</div>
                                     )}
@@ -741,7 +766,7 @@ export default function MessagingPage() {
                                         ref={inputRef}
                                         type="text"
                                         className="msg-input"
-                                        placeholder={imagePreview ? 'Add a caption...' : 'Type a message...'}
+                                        placeholder={imagePreview ? 'Add a caption...' : 'Type a message... (@task)'}
                                         value={messageInput}
                                         onChange={handleInputChange}
                                         onKeyDown={(e) => {
@@ -787,7 +812,7 @@ export default function MessagingPage() {
                 </main>
             </div>
 
-            {/* Expanded image lightbox */}
+            {/* Lightbox */}
             {expandedImage && (
                 <div className="msg-lightbox" onClick={() => setExpandedImage(null)}>
                     <button className="msg-lightbox-close" onClick={() => setExpandedImage(null)}>

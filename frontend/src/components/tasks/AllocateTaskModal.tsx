@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import GlassCard from '../GlassCard';
 import Button from '../Button';
 import Input from '../Input';
-import { X, ChevronDown, User, Calendar, Tag, FileText, Plus } from 'lucide-react';
+import { X, ChevronDown, User, Calendar, Tag, FileText, Plus, CheckSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import DatePicker from '../common/DatePicker';
 import MarkdownEditor from '../common/MarkdownEditor';
@@ -35,6 +35,10 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
     const [attachments, setAttachments] = useState('');
     const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    
+    // Checklist State
+    const [checklistItems, setChecklistItems] = useState<string[]>([]);
+    const [newChecklistItem, setNewChecklistItem] = useState('');
 
     const [managerId, setManagerId] = useState('');
     const [isManagerListOpen, setIsManagerListOpen] = useState(false);
@@ -60,6 +64,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
             setPriority('MEDIUM'); setDueDate(new Date().toISOString().split('T')[0]); setInstructions('');
             setAttachments(''); setUploadedFiles([]); setErrorMsg('');
             setManagerId(''); setIsManagerListOpen(false);
+            setChecklistItems([]); setNewChecklistItem('');
 
         }
     }, [isOpen]);
@@ -106,9 +111,15 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
             const manualLinks = attachments ? attachments.split(',').map(url => url.trim()).filter(Boolean) : [];
             const allAttachments = [...manualLinks, ...uploadedFiles];
 
+            let finalDescription = instructions || selectedTask?.description || 'Allocated Task';
+            if (checklistItems.length > 0) {
+                const checklistMarkdown = `\n\n## Execution Checklist\n` + checklistItems.map(item => `- [ ] ${item}`).join('\n');
+                finalDescription += checklistMarkdown;
+            }
+
             const formData = {
                 title: title + (saveAsTemplate ? ' [TEMPLATE]' : ''),
-                description: instructions || selectedTask?.description || 'Allocated Task',
+                description: finalDescription,
                 instructions,
                 assigneeIds: selectedEmployeeIds,
                 managerId: managerId || undefined,
@@ -181,7 +192,10 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                             <div className="form-row">
                                 <div className="trello-section-label">Task Context / Scope</div>
                                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: '0.88rem', lineHeight: 1.6 }}>
-                                    {selectedTaskId ? tasks.find(t => t.id === selectedTaskId)?.description : 'Selecting a task template will auto-populate additional context and scope definitions here.'}
+                                    {(() => {
+                                        const desc = selectedTaskId ? tasks.find(t => t.id === selectedTaskId)?.description || '' : 'Selecting a task template will auto-populate additional context and scope definitions here.';
+                                        return desc.split('## Execution Checklist')[0].trim();
+                                    })()}
                                 </div>
                             </div>
 
@@ -192,6 +206,42 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                                     onChange={setInstructions}
                                     placeholder="Add specific instructions for this allocation..."
                                 />
+                            </div>
+
+                            <div className="form-row">
+                                <div className="trello-section-label"><CheckSquare size={14} /> Execution Checklist (Optional)</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {checklistItems.map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '8px' }}>
+                                            <div style={{ width: '14px', height: '14px', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '3px' }}></div>
+                                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', flex: 1 }}>{item}</span>
+                                            <button type="button" onClick={() => setChecklistItems(prev => prev.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><X size={14}/></button>
+                                        </div>
+                                    ))}
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <Input 
+                                            placeholder="Add a checklist item + Enter..." 
+                                            value={newChecklistItem}
+                                            onChange={(e) => setNewChecklistItem(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if(e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    if(newChecklistItem.trim()) {
+                                                        setChecklistItems(prev => [...prev, newChecklistItem.trim()]);
+                                                        setNewChecklistItem('');
+                                                    }
+                                                }
+                                            }}
+                                            style={{ background: 'rgba(0,0,0,0.2)', flex: 1 }}
+                                        />
+                                        <Button type="button" variant="glass" onClick={() => {
+                                            if(newChecklistItem.trim()) {
+                                                setChecklistItems(prev => [...prev, newChecklistItem.trim()]);
+                                                setNewChecklistItem('');
+                                            }
+                                        }}>Add</Button>
+                                    </div>
+                                </div>
                             </div>
 
 

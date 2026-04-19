@@ -55,7 +55,7 @@ export default function MultiMemberPicker({ selectedIds, members, onChange, labe
                         )}
                         <span className="tag-name">{member.firstName}</span>
                         {!readOnly && (
-                            <button className="tag-remove" onClick={(e) => { e.stopPropagation(); toggleMember(member.id); }}>
+                            <button type="button" className="tag-remove" onClick={(e) => { e.stopPropagation(); toggleMember(member.id); }}>
                                 <X size={12} />
                             </button>
                         )}
