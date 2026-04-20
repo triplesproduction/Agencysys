@@ -27,23 +27,22 @@ export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { max
 
             try {
                 const myId = authEmployee.id;
+                // getConversations returns { conversationId, otherUser, lastMessage, unreadCount }[]
                 const response: any = await api.getMyChats(myId);
-                const messages: Message[] = Array.isArray(response) ? response : (response?.data || []);
+                const convs = Array.isArray(response) ? response : [];
 
-                const conversationMap = new Map<string, Message>();
-
-                messages.forEach(msg => {
-                    const partnerId = String(msg.senderId) === String(myId) ? String(msg.receiverId) : String(msg.senderId);
-                    const existing = conversationMap.get(partnerId);
-                    if (!existing || new Date(msg.sentAt) > new Date(existing.sentAt)) {
-                        conversationMap.set(partnerId, msg);
-                    }
-                });
-
-
-                const lastMessages = Array.from(conversationMap.values())
-                    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
-                    .slice(0, maxItems);
+                const lastMessages = convs
+                    .filter(c => c.lastMessage) // Only conversations with messages
+                    .sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime())
+                    .slice(0, maxItems)
+                    .map(c => ({
+                        id: c.lastMessage.id,
+                        content: c.lastMessage.content,
+                        senderId: c.lastMessage.sender_id || c.lastMessage.senderId,
+                        sentAt: c.lastMessage.createdAt,
+                        partner: c.otherUser,
+                        unread: c.unreadCount
+                    }));
 
                 setThreads(lastMessages);
             } catch (err) {
@@ -76,10 +75,9 @@ export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { max
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {threads.map(msg => {
+                        const name = msg.partner ? `${msg.partner.firstName} ${msg.partner.lastName}` : 'Unknown';
+                        const photo = msg.partner?.profilePhoto;
                         const isMine = String(msg.senderId) === authEmployee?.id;
-                        const partner = isMine ? msg.receiver : msg.sender;
-                        const name = partner ? `${partner.firstName} ${partner.lastName}` : 'Unknown';
-                        const photo = partner?.profilePhoto;
 
                         return (
                             <Link key={msg.id} href="/messaging" style={{ textDecoration: 'none' }}>
@@ -107,9 +105,14 @@ export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { max
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'white' }}>{name}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'white' }}>{name}</span>
+                                                {msg.unread > 0 && (
+                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--purple-main)' }}></span>
+                                                )}
+                                            </div>
                                             <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
-                                                {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
                                             </span>
                                         </div>
                                         <p style={{

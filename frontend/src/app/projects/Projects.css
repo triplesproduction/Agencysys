@@ -302,69 +302,98 @@
 .status-on_hold { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
 .status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
 
-/* --- WIZARD ALIGNMENT --- */
+/* --- WIZARD / LAUNCH MODAL --- */
 .wizard-overlay {
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(12px);
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(16px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 1100;
 }
 
 .wizard-card {
-    background: #0f0f15 !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: var(--project-card-radius) !important;
-    width: 100%;
-    max-width: 600px; /* Aligned to cards */
-    padding: var(--project-spacing-md) !important;
+    background: #0D0D12;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 32px;
+    width: 800px; /* Enterprise Scale */
+    max-width: 95vw;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
-    gap: var(--project-spacing-md);
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 92, 246, 0.1);
+    position: relative;
+    overflow: hidden;
 }
 
 .wizard-header {
+    padding: 40px 48px 24px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
 }
 
 .wizard-title h2 {
-    font-size: 1.5rem;
+    font-size: 2.2rem;
     font-weight: 800;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
+    color: white;
     margin: 0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.step-nav {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.step-indicator {
+    height: 4px;
+    width: 60px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-indicator.active {
+    background: rgba(139, 92, 246, 0.3);
+}
+
+.step-indicator.complete {
+    background: var(--purple-main);
 }
 
 .wizard-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--project-spacing-md);
+    padding: 0 48px 48px;
+    flex: 1;
 }
 
 .wizard-field-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .wizard-label {
     font-size: 0.65rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.12em;
+    color: var(--purple-main);
+    opacity: 0.9;
 }
 
 .wizard-input {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 18px;
     color: white;
-    font-size: 0.95rem;
+    font-size: 1rem;
+    width: 100%;
     outline: none;
     transition: all 0.2s;
 }
@@ -372,11 +401,195 @@
 .wizard-input:focus {
     background: rgba(255, 255, 255, 0.06);
     border-color: var(--purple-main);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
 }
 
 .wizard-footer {
+    padding: 24px 33px 33px;
+    background: rgba(0, 0, 0, 0.4);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.wizard-btn-prev {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    padding: 12px 24px !important;
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+    transition: all 0.2s !important;
+}
+
+.wizard-btn-prev:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: white !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* --- TACTICAL TASK CARDS (STEP 2) --- */
+.tactical-task-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tactical-task-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(124, 58, 237, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.wizard-add-task-btn {
+    width: 100%;
+    padding: 20px;
+    border-radius: 24px;
+    border: 2px dashed rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.01);
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.wizard-add-task-btn:hover {
+    background: rgba(124, 58, 237, 0.05);
+    border-color: var(--purple-main);
+    color: white;
+}
+
+.card-remove-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    color: rgba(255, 255, 255, 0.2);
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.card-remove-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.task-card-header {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.task-card-body {
+    display: grid;
+    grid-template-columns: 1fr 140px;
+    gap: 12px;
+    align-items: center;
+}
+
+.priority-tab-group {
+    display: flex;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.p-tab {
+    flex: 1;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 6px 0;
+    border-radius: 7px;
+    color: rgba(255, 255, 255, 0.3);
+    transition: all 0.2s;
+}
+
+.p-tab.active.low { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.p-tab.active.medium { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+.p-tab.active.high { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+.wizard-select {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 10px !important;
+    color: white !important;
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    outline: none !important;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px !important;
+}
+
+.wizard-select:focus {
+    border-color: var(--purple-main) !important;
+    background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.summary-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.summary-card h5 {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+}
+
+.summary-card .val {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+}
+
+/* Strict Date Picker Customization */
+.wizard-input[type="date"] {
+    color-scheme: dark;
+    position: relative;
+}
+
+.wizard-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.8) sepia(1) saturate(10) hue-rotate(240deg); /* Purple Glow */
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.wizard-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+    transform: scale(1.1);
 }

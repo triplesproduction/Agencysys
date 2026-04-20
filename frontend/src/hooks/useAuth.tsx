@@ -9,6 +9,7 @@ interface EmployeeProfile {
     id: string;
     email: string;
     roleId: string;
+    designation?: string;
     firstName: string;
     lastName: string;
     profilePhoto?: string;
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 id: data.id,
                 email: data.email || email || '',
                 roleId: data.roleId || data.role_id || (email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE'),
+                designation: data.designation,
                 firstName: data.firstName || data.first_name || email?.split('@')[0] || 'User',
                 lastName: data.lastName || data.last_name || 'Member',
                 profilePhoto: data.profilePhoto || data.profile_photo

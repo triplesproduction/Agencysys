@@ -92,21 +92,21 @@
 
 .picker-dropdown {
     position: absolute;
-    top: calc(100% + 4px);
+    bottom: calc(100% + 8px); /* Open upwards */
     left: 0;
     width: 280px;
     background: #1a1a20;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.5); /* Shadow adjusted for upward position */
     z-index: 100;
-    max-height: 300px;
+    max-height: 260px;
     overflow-y: auto;
-    animation: slideDown 0.2s ease-out;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 

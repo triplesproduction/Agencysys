@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Button from '../Button';
 import { 
-    X, Briefcase, Plus, Trash2, Zap
+    X, Briefcase, Plus, Trash2, Zap, Target, Users, Calendar, ShieldCheck, Flag
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import MultiMemberPicker from '../common/MultiMemberPicker';
+import DatePicker from '../common/DatePicker';
 import { EmployeeDTO } from '@/types/dto';
 
 interface CreateProjectModalProps {
@@ -16,20 +17,25 @@ interface CreateProjectModalProps {
     onSuccess: (projectId: string) => void;
 }
 
+type TaskEntry = {
+    title: string;
+    assigneeId?: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+};
+
 export default function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
     const { employee: authEmployee } = useAuth();
     const [step, setStep] = useState(1);
     
-    // Step 1: Project Data
+    // Step 1: Project Identity
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [priority, setPriority] = useState('MEDIUM');
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [deadline, setDeadline] = useState('');
     const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
     
-    // Step 2: Task Backlog
-    const [tasks, setTasks] = useState<{title: string, assigneeId?: string}[]>([]);
+    // Step 2: Tactical Breakdown
+    const [tasks, setTasks] = useState<TaskEntry[]>([]);
     
     // Helpers
     const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
@@ -45,11 +51,10 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             setStep(1);
             setName('');
             setDescription('');
-            setPriority('MEDIUM');
             setStartDate(new Date().toISOString().split('T')[0]);
             setDeadline('');
             setSelectedMemberIds(authEmployee ? [authEmployee.id] : []);
-            setTasks([{ title: '', assigneeId: authEmployee?.id }]);
+            setTasks([{ title: '', assigneeId: authEmployee?.id, priority: 'MEDIUM' }]);
             setErrorMsg('');
         }
     }, [isOpen, authEmployee]);
@@ -63,13 +68,13 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
     if (!isOpen) return null;
 
-    const handleAddTaskRow = () => setTasks([...tasks, { title: '', assigneeId: authEmployee?.id }]);
+    const handleAddTaskRow = () => setTasks([...tasks, { title: '', assigneeId: authEmployee?.id, priority: 'MEDIUM' }]);
     const handleRemoveTaskRow = (idx: number) => {
         const newTasks = [...tasks];
         newTasks.splice(idx, 1);
         setTasks(newTasks);
     };
-    const updateTaskRow = (idx: number, field: string, val: string) => {
+    const updateTaskRow = (idx: number, field: keyof TaskEntry, val: string) => {
         const newTasks = [...tasks];
         (newTasks[idx] as any)[field] = val;
         setTasks(newTasks);
@@ -84,7 +89,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             const project = await api.createProject({
                 name,
                 description,
-                priority,
+                priority: 'MEDIUM',
                 startDate,
                 deadline,
                 status: tasks.length > 0 ? 'ACTIVE' : 'PLANNING',
@@ -102,6 +107,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                     projectId: project.id,
                     assigneeId: t.assigneeId,
                     status: 'TODO',
+                    priority: t.priority,
                     dueDate: new Date(deadline || Date.now()).toISOString(),
                     creatorId: authEmployee?.id
                 })));
@@ -110,11 +116,13 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             onSuccess(project.id);
             onClose();
         } catch (err: any) {
-            setErrorMsg(err.message || 'System failed to launch project.');
+            setErrorMsg(err.message || 'System failed to launch project initiative.');
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    const validTasksCount = tasks.filter(t => t.title.trim() !== '').length;
 
     return (
         <div className="wizard-overlay fade-in">
@@ -122,13 +130,10 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                 
                 {/* Header */}
                 <div className="wizard-header">
-                    <div className="wizard-title">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ background: 'var(--purple-main)', padding: '8px', borderRadius: '8px' }}>
-                                <Briefcase size={18} color="white" />
-                            </div>
+                    <div>
+                        <div className="wizard-title">
                             <h2>
-                                {step === 1 ? 'Initiation' : step === 2 ? 'Backlog' : 'Activation'}
+                                {step === 1 ? 'Project Identity' : step === 2 ? 'Tactical Breakdown' : 'Activation Overview'}
                             </h2>
                         </div>
                         <div className="step-nav">
@@ -141,58 +146,42 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                 </div>
 
                 {/* Body */}
-                <div className="wizard-body custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+                <div className="wizard-body custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '65vh' }}>
                     
                     {step === 1 && (
-                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                             <div className="wizard-field-group">
-                                <label className="wizard-label">Project Identity</label>
+                                <label className="wizard-label">Initiative Details</label>
                                 <input 
                                     className="wizard-input" 
-                                    placeholder="Title (e.g. Q4 Growth Cycle)" 
+                                    placeholder="Initiative Title (e.g. Q4 Market Expansion)" 
                                     value={name}
                                     autoFocus
                                     onChange={(e) => setName(e.target.value)}
-                                    style={{ fontSize: '1.1rem', fontWeight: 700 }}
+                                    style={{ fontSize: '1.25rem', fontWeight: 800, padding: '18px 24px' }}
                                 />
                                 <textarea 
                                     className="wizard-input"
-                                    placeholder="Strategic roadmap..."
+                                    placeholder="High-level strategic roadmap and objectives..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    style={{ minHeight: '80px', resize: 'none' }}
+                                    style={{ minHeight: '120px', resize: 'none', lineHeight: 1.6, padding: '20px 24px' }}
                                 />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                 <div className="wizard-field-group">
-                                    <label className="wizard-label">Kickoff</label>
-                                    <input type="date" className="wizard-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                                    <label className="wizard-label"><Calendar size={12} style={{ marginRight: 6 }} /> Kickoff Date</label>
+                                    <DatePicker value={startDate} onChange={setStartDate} />
                                 </div>
                                 <div className="wizard-field-group">
-                                    <label className="wizard-label">Deadline</label>
-                                    <input type="date" className="wizard-input" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                                    <label className="wizard-label"><Target size={12} style={{ marginRight: 6 }} /> Deadline</label>
+                                    <DatePicker value={deadline} onChange={setDeadline} />
                                 </div>
                             </div>
 
                             <div className="wizard-field-group">
-                                <label className="wizard-label">Priority Level</label>
-                                <div style={{ display: 'flex', gap: '12px' }}>
-                                    {['LOW', 'MEDIUM', 'HIGH'].map(p => (
-                                        <button 
-                                            key={p} 
-                                            className={`trello-priority-btn ${p.toLowerCase()} ${priority === p ? 'active' : ''}`}
-                                            onClick={() => setPriority(p)}
-                                            style={{ flex: 1, height: '44px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800 }}
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="wizard-field-group">
-                                <label className="wizard-label">Portfolio Team</label>
+                                <label className="wizard-label"><Users size={12} style={{ marginRight: 6 }} /> Core Specialist Team</label>
                                 <MultiMemberPicker 
                                     selectedIds={selectedMemberIds}
                                     members={employees as any}
@@ -203,99 +192,150 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                     )}
 
                     {step === 2 && (
-                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Tactical Units</h3>
-                                <Button variant="glass" onClick={handleAddTaskRow} icon={<Plus size={16} />}>Add Unit</Button>
+                                <div className="wizard-field-group">
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Mission Backlog</h3>
+                                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', margin: 0 }}>Identify and configure initial deployment units.</p>
+                                </div>
                             </div>
                             
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                 {tasks.map((t, idx) => (
-                                    <div key={idx} className="premium-task-item" style={{ gridTemplateColumns: '1fr 160px 40px', gap: '12px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
-                                        <input 
-                                            className="wizard-input" 
-                                            placeholder="Unit Objective..." 
-                                            value={t.title}
-                                            onChange={(e) => updateTaskRow(idx, 'title', e.target.value)}
-                                            style={{ border: 'none', background: 'transparent' }}
-                                        />
-                                        <select 
-                                            className="wizard-input"
-                                            value={t.assigneeId}
-                                            onChange={(e) => updateTaskRow(idx, 'assigneeId', e.target.value)}
-                                            style={{ border: 'none', background: 'rgba(255,255,255,0.03)', fontSize: '0.8rem' }}
-                                        >
-                                            <option value="">Lead...</option>
-                                            {employees.filter(e => selectedMemberIds.includes(e.id)).map(e => (
-                                                <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
-                                            ))}
-                                        </select>
-                                        <button className="icon-btn-ghost danger" onClick={() => handleRemoveTaskRow(idx)}><Trash2 size={16} /></button>
+                                    <div key={idx} className="tactical-task-card slide-up" style={{ animationDelay: `${idx * 0.05}s` }}>
+                                        <button className="card-remove-btn" onClick={() => handleRemoveTaskRow(idx)}><Trash2 size={16} /></button>
+                                        
+                                        <div className="task-card-header">
+                                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '16px' }}>
+                                                <Target size={18} color="var(--purple-main)" />
+                                            </div>
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <input 
+                                                    className="wizard-input" 
+                                                    placeholder="Tactical Unit Objective (e.g. Design System Specs)" 
+                                                    value={t.title}
+                                                    onChange={(e) => updateTaskRow(idx, 'title', e.target.value)}
+                                                    style={{ border: 'none', background: 'transparent', padding: '0', fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.02em' }}
+                                                />
+                                                <textarea 
+                                                    className="wizard-input"
+                                                    placeholder="Operational instructions and scope definition..."
+                                                    value={t.description || ''}
+                                                    onChange={(e) => updateTaskRow(idx, 'description', e.target.value)}
+                                                    style={{ border: 'none', background: 'transparent', padding: '0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', minHeight: '40px', resize: 'none' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="task-card-body" style={{ marginTop: '12px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <div className="priority-tab-group" style={{ width: '220px' }}>
+                                                {['LOW', 'MEDIUM', 'HIGH'].map(p => (
+                                                    <button 
+                                                        key={p}
+                                                        className={`p-tab ${p.toLowerCase()} ${t.priority === p ? 'active' : ''}`}
+                                                        onClick={() => updateTaskRow(idx, 'priority', p)}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <select 
+                                                    className="wizard-select"
+                                                    value={t.assigneeId}
+                                                    style={{ width: '100%', height: '44px' }}
+                                                    onChange={(e) => updateTaskRow(idx, 'assigneeId', e.target.value)}
+                                                >
+                                                    <option value="">Select Specialist...</option>
+                                                    {employees.filter(e => selectedMemberIds.includes(e.id)).map(e => (
+                                                        <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
+
+                                <button className="wizard-add-task-btn" onClick={handleAddTaskRow}>
+                                    <Plus size={20} /> Add Tactical Unit
+                                </button>
                             </div>
                         </div>
                     )}
 
                     {step === 3 && (
-                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                                <div className="project-card" style={{ gap: '4px' }}>
-                                    <span className="wizard-label">Timeline</span>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{duration}d</div>
+                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                            <div className="summary-grid">
+                                <div className="summary-card">
+                                    <h5>Mission Length</h5>
+                                    <div className="val">{duration}d</div>
                                 </div>
-                                <div className="project-card" style={{ gap: '4px' }}>
-                                    <span className="wizard-label">Units</span>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{tasks.filter(t => t.title).length}</div>
+                                <div className="summary-card">
+                                    <h5>Tactical Count</h5>
+                                    <div className="val">{validTasksCount}</div>
                                 </div>
-                                <div className="project-card" style={{ gap: '4px' }}>
-                                    <span className="wizard-label">Force</span>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedMemberIds.length}</div>
+                                <div className="summary-card">
+                                    <h5>Force Active</h5>
+                                    <div className="val">{selectedMemberIds.length}</div>
                                 </div>
                             </div>
 
-                            <div className="project-card" style={{ padding: '20px !important', background: 'rgba(139, 92, 246, 0.03) !important', borderColor: 'rgba(139, 92, 246, 0.1) !important' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    <Zap size={14} color="var(--purple-main)" />
-                                    <span style={{ fontWeight: 800, textTransform: 'uppercase', color: 'var(--purple-main)', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Deployment Summary</span>
+                            <div style={{ background: 'rgba(20, 20, 25, 0.6)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '24px', padding: '32px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                    <ShieldCheck size={20} color="var(--purple-main)" />
+                                    <span style={{ fontWeight: 800, textTransform: 'uppercase', color: 'var(--purple-main)', fontSize: '0.75rem', letterSpacing: '0.1em' }}>Strategic Deployment Audit</span>
                                 </div>
-                                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '4px' }}>{name}</h4>
-                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', lineHeight: 1.5 }}>{description || 'No strategic overview provided.'}</p>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <h4 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{name}</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.95rem', lineHeight: 1.7, margin: 0 }}>{description || 'No strategic overview provided for this initiative.'}</p>
+                                </div>
+
+                                <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                    <div>
+                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>Operational Saturation</div>
+                                        <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{validTasksCount > 2 ? 'High Precision' : 'Tactical Baseline'}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>Deployment Readiness</div>
+                                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>OPTIMIZED</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {errorMsg && <div className="error-box" style={{ fontSize: '0.8rem' }}>{errorMsg}</div>}
+                    {errorMsg && <div className="error-box" style={{ marginTop: '20px' }}>{errorMsg}</div>}
                 </div>
 
                 {/* Footer */}
                 <div className="wizard-footer">
                     {step > 1 ? (
-                        <Button variant="glass" onClick={() => setStep(step - 1)} disabled={isSubmitting}>
-                            Prev
-                        </Button>
+                        <button className="wizard-btn-prev" onClick={() => setStep(step - 1)} disabled={isSubmitting}>
+                            Return to Previous
+                        </button>
                     ) : (
-                        <Button variant="glass" onClick={onClose} disabled={isSubmitting}>Discard</Button>
+                        <div />
                     )}
 
                     <div style={{ display: 'flex', gap: '12px' }}>
                         {step < 3 ? (
                             <Button 
                                 variant="primary" 
-                                style={{ height: '44px', borderRadius: '10px', padding: '0 24px' }}
+                                style={{ height: '52px', borderRadius: '14px', padding: '0 36px', fontSize: '1rem', fontWeight: 800 }}
                                 onClick={() => setStep(step + 1)}
                                 disabled={step === 1 && !name}
                             >
-                                Continue
+                                Continue Selection
                             </Button>
                         ) : (
                             <Button 
                                 variant="primary" 
-                                style={{ height: '44px', borderRadius: '10px', padding: '0 24px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}
+                                style={{ height: '52px', borderRadius: '14px', padding: '0 36px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', boxShadow: '0 12px 32px rgba(139, 92, 246, 0.4)', fontSize: '1rem', fontWeight: 800 }}
                                 onClick={handleFinalLaunch}
                                 disabled={isSubmitting}
                             >
-                                {isSubmitting ? 'Syncing...' : 'Deploy Project'}
+                                {isSubmitting ? 'Syncing...' : 'Confirm Deployment'}
                             </Button>
                         )}
                     </div>

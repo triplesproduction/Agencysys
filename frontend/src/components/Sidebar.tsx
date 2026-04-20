@@ -212,7 +212,13 @@ export default function Sidebar() {
                 <div className="sidebar-footer">
                     {employee ? (
                         <div className={`user-profile ${isCollapsed ? 'collapsed-profile' : ''}`}>
-                            <div className="avatar">{firstInitial}</div>
+                            <div className="avatar">
+                                {employee.profilePhoto ? (
+                                    <img src={employee.profilePhoto} alt="" style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} />
+                                ) : (
+                                    firstInitial
+                                )}
+                            </div>
                             {!isCollapsed && (
                                 <>
                                     <div className="user-info">
@@ -232,7 +238,7 @@ export default function Sidebar() {
                         </div>
                     ) : (
                         <div className="user-profile skeleton-pulse">
-                            <div className="avatar">...</div>
+                            <div className="avatar"></div>
                         </div>
                     )}
                 </div>

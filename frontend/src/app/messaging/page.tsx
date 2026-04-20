@@ -573,7 +573,7 @@ export default function MessagingPage() {
                         )}
 
                         {!loading && unifiedList.map(({ contact, conversationId, lastMessage, unreadCount }) => {
-                            const isActive = conversationId === activeConvId;
+                            const isActive = !!activeConvId && conversationId === activeConvId;
                             const isAdminUser = String(contact.roleId || '').toUpperCase() === 'ADMIN';
                             const isOnline = !!onlineUsers[String(contact.id)];
 

@@ -11,6 +11,14 @@
     gap: 1.25rem;
 }
 
+.greeting {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: white;
+    margin: 0;
+}
+
 .msg-layout {
     flex: 1;
     display: flex;
@@ -88,7 +96,7 @@
     border-radius: 4px;
 }
 
-/* Each row (Matches Dashboard Task Item) */
+/* Each row */
 .msg-conv-item {
     display: flex;
     align-items: center;
@@ -99,23 +107,22 @@
     border-radius: 14px;
     cursor: pointer;
     transition: all 0.2s;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .msg-conv-item:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.09);
 }
+/* Active conversation — subtle glass highlight, NO purple fill */
 .msg-conv-item.active {
-    background: rgba(124, 58, 237, 0.1);
-    border-color: rgba(124, 58, 237, 0.3);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.12);
+    border-left: 3px solid var(--purple-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
-/* Matches the "Command Center" dashboard items */
-.msg-conv-item.admin-pinned {
-    border-left: 3px solid rgba(139, 92, 246, 0.5);
-}
-.msg-conv-item.admin-pinned.active {
-    border-left-color: rgba(139, 92, 246, 0.9);
+/* Admin pinned item — left accent only when NOT active */
+.msg-conv-item.admin-pinned:not(.active) {
+    border-left: 3px solid rgba(139, 92, 246, 0.3);
 }
 
 /* Avatar */
