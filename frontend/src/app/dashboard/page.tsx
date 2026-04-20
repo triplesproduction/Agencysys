@@ -84,10 +84,22 @@ function AdminDashboard({
 }) {
     const taskList = tasks || [];
     const eodList = recentEods || [];
-    const kpiList = (teamKpis || []).filter((p: any) => {
-        const role = (p.employee?.roleId || p.employee?.role_id || '').toUpperCase();
-        return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
-    });
+    const kpiList = allEmployees
+        .filter(emp => {
+            const role = (emp.roleId || emp.role_id || '').toUpperCase();
+            return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
+        })
+        .map(emp => {
+            const profile = (teamKpis || []).find((p: any) => p.employeeId === emp.id || p.employee_id === emp.id);
+            return {
+                id: profile?.id || `temp-${emp.id}`,
+                employee: emp,
+                current_score: profile?.currentScore || profile?.current_score || 0,
+                grade: profile?.grade || 'New Recruit'
+            };
+        })
+        .sort((a, b) => b.current_score - a.current_score);
+
     const kpiLogList = recentKpiLogs || [];
 
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE').length;
