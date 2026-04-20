@@ -360,7 +360,7 @@ export const api = {
         const data = { ...payload };
         
         // Whitelist for eod_reports table
-        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status'];
+        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status', 'workHours'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -368,7 +368,7 @@ export const api = {
             }
         });
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
         handleSupabaseEvent(res, error, 'Submit EOD');
         return res as EODSubmissionDTO;
     },
@@ -376,7 +376,7 @@ export const api = {
         const data = { ...payload };
 
         // Whitelist for eod_reports table
-        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status'];
+        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status', 'workHours'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -384,7 +384,7 @@ export const api = {
             }
         });
 
-        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
         handleSupabaseEvent(res, error, 'Update EOD');
         return res as EODSubmissionDTO;
     },
@@ -427,6 +427,12 @@ export const api = {
         return data as any;
     },
     reviewEOD: async (id: string, payload: { employeeId: string; date: string; workHours: number; adminNote?: string; status: string }) => {
+        // 1. Update the EOD Report status
+        if (id) {
+            await supabase.from('eod_reports').update({ status: payload.status }).eq('id', id);
+        }
+
+        // 2. Sync with work hour log
         // Find existing work hour log for this date and employee
         const { data: logs } = await supabase.from('work_hours').select('*').eq('employeeId', payload.employeeId).eq('date', payload.date);
         
@@ -610,33 +616,49 @@ export const api = {
         return data as WorkHourLogDTO[];
     },
     getMonthlyWorkHours: async (employeeId: string, monthYear?: string) => {
-        // queryMonth format: YYYY-MM
         const now = new Date();
         const year = now.getFullYear();
-        const month = now.getMonth(); // 0-indexed
+        const month = now.getMonth();
         
         const startOfMonth = new Date(year, month, 1).toISOString().split('T')[0];
         const nextMonthYear = month === 11 ? year + 1 : year;
         const nextMonth = month === 11 ? 0 : month + 1;
         const startOfNextMonth = new Date(nextMonthYear, nextMonth, 1).toISOString().split('T')[0];
 
-        // If monthYear is provided, we'd need more logic, but for "current month" we use this range:
-        const { data, error } = await supabase
-            .from('work_hours')
-            .select('hoursLogged')
-            .eq('employeeId', employeeId)
-            .gte('date', startOfMonth)
-            .lt('date', startOfNextMonth);
-        
-        handleSupabaseEvent(data, error, 'Fetch Monthly Work Hours');
-        const total = (data || []).reduce((acc: number, row: any) => acc + (parseFloat(row.hoursLogged) || 0), 0);
-        return total;
+        // 1. Fetch from work_hours and eod_reports
+        try {
+            const [{ data: workHoursData }, { data: eodData }] = await Promise.all([
+                supabase.from('work_hours').select('*').eq('employeeId', employeeId).gte('date', startOfMonth).lt('date', startOfNextMonth),
+                supabase.from('eod_reports').select('*').eq('employeeId', employeeId).gte('reportDate', startOfMonth).lt('reportDate', startOfNextMonth)
+            ]);
+            
+            // 2. Aggregate by date to prevent double-counting (taking the max of either for that day)
+            const dailyHours: Record<string, number> = {};
+
+            (workHoursData || []).forEach((row: any) => {
+                const d = row.date;
+                const h = parseFloat(row.hoursLogged || (row as any).hours_logged) || 0;
+                if (d) dailyHours[d] = Math.max(dailyHours[d] || 0, h);
+            });
+
+            (eodData || []).forEach((row: any) => {
+                const d = row.reportDate || (row as any).report_date;
+                const h = parseFloat(row.workHours || (row as any).work_hours) || 0;
+                if (d) dailyHours[d] = Math.max(dailyHours[d] || 0, h);
+            });
+
+            const total = Object.values(dailyHours).reduce((acc, h) => acc + h, 0);
+            return total;
+        } catch (err) {
+            console.error('[API] getMonthlyWorkHours failure:', err);
+            return 0;
+        }
     },
     getAllKpiProfiles: async (monthYear?: string, limit: number = 10) => {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto, roleId, role_id)')
             .eq('month_year', queryMonth)
             .order('current_score', { ascending: false })
             .limit(limit);
@@ -652,7 +674,7 @@ export const api = {
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
             .from('kpi_audit_logs')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto)')
+            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto, roleId, role_id)')
             .order('created_at', { ascending: false })
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
