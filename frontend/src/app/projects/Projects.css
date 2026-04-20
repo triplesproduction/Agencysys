@@ -1,0 +1,382 @@
+/* 
+  TRIPLES OS - PROJECTS MODULE
+  Design System Alignment: Revision 2.0
+  Strict adheres to: 24px Page Padding | 16px Card Padding | 12px Gaps
+*/
+
+:root {
+    --project-page-padding: 24px;
+    --project-card-radius: 12px;
+    --project-spacing-sm: 12px;
+    --project-spacing-md: 24px;
+    --glass-bg: rgba(20, 20, 28, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.05);
+}
+
+.projects-page {
+    padding: var(--project-page-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--project-spacing-md);
+    min-height: 100vh;
+}
+
+/* --- HEADER SECTION --- */
+.emp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 32px 0 20px 0;
+    margin-bottom: 24px;
+}
+
+.emp-title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: white;
+    margin: 0;
+}
+
+.emp-stats-inline {
+    display: flex;
+    gap: 24px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: 600;
+    margin-top: 4px;
+    align-items: center;
+}
+
+.emp-stats-inline span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.emp-stats-inline .active {
+    color: #10b981;
+}
+
+.emp-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.emp-search {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    height: 40px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.emp-search input {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.emp-action-btn-primary {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: white;
+    border: none;
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    transition: all 0.2s;
+}
+
+.emp-glass-select {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    height: 40px;
+    padding: 0 16px;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.8);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    min-width: 160px;
+}
+
+/* --- FILTER BAR --- */
+.project-toolbar {
+    display: flex;
+    gap: var(--project-spacing-sm);
+    align-items: center;
+}
+
+.project-search-box {
+    flex: 1;
+    max-width: 400px;
+    height: 44px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+}
+
+.project-search-box input {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.9rem;
+    width: 100%;
+    outline: none;
+}
+
+.project-filter-select {
+    height: 44px;
+    padding: 0 16px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+    min-width: 160px;
+}
+
+/* --- GRID --- */
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--project-spacing-md);
+    width: 100%;
+    align-items: start;
+    pointer-events: none; /* Disable click/hover capture for the grid background and gaps */
+}
+
+/* --- PROJECT CARD (STANDARDIZED) --- */
+.project-card {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: var(--project-card-radius) !important;
+    padding: 14px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    backdrop-filter: blur(24px);
+    height: fit-content;
+    width: 100%;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
+    overflow: hidden; /* CRITICAL: Clips any overflowing images or elements */
+}
+
+.project-card:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-4px);
+}
+
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-pill {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.card-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.card-desc {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.4;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card-progress-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progress-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.progress-label {
+    color: var(--purple-main);
+}
+
+.progress-deadline {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.progress-deadline.overdue {
+    color: #ef4444;
+}
+
+.progress-bar-outer {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #8b5cf6, #d946ef);
+}
+
+/* Avatars */
+.card-team-stack {
+    display: flex;
+    margin-top: 4px;
+}
+
+.team-av {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid #0e0e14;
+    margin-left: -6px;
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 800;
+    overflow: hidden; /* Clips the internal img */
+}
+
+.team-av img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.team-av:first-child { margin-left: 0; }
+
+/* Status Colors */
+.status-planning { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+.status-active { background: rgba(139, 92, 246, 0.1); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.2); }
+.status-on_hold { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+.status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+
+/* --- WIZARD ALIGNMENT --- */
+.wizard-overlay {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.wizard-card {
+    background: #0f0f15 !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: var(--project-card-radius) !important;
+    width: 100%;
+    max-width: 600px; /* Aligned to cards */
+    padding: var(--project-spacing-md) !important;
+    display: flex;
+    flex-direction: column;
+    gap: var(--project-spacing-md);
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+}
+
+.wizard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.wizard-title h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0;
+}
+
+.wizard-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--project-spacing-md);
+}
+
+.wizard-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wizard-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.wizard-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: white;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.wizard-input:focus {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--purple-main);
+}
+
+.wizard-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}

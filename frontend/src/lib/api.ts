@@ -14,7 +14,7 @@ import { supabase } from './supabase';
 
 const handleSupabaseEvent = (data: any, error: any, context: string) => {
     // Standardized high-fidelity logging for all system events
-    console.log(`[DB TRACE] ${context}:`, { data, error });
+    // console.log(`[DB TRACE] ${context}:`, { data, error });
 
     if (error) {
         console.error(`Supabase Error (${context}):`, error);
@@ -106,10 +106,10 @@ export const api = {
         return data ? normalizeEmployee(data) : null;
     },
     createEmployee: async (data: any) => {
-        console.log('[API] Create Employee Payload:', data);
+        // console.log('[API] Create Employee Payload:', data);
         const { data: res, error } = await supabase.from('employees').insert(data).select().single();
         handleSupabaseEvent(data, error, 'Create Employee');
-        console.log('[API] Create Employee Response:', res);
+        // console.log('[API] Create Employee Response:', res);
         return res ? normalizeEmployee(res) : null;
     },
     createEmployeeAccount: async (data: any): Promise<{ userId: string; email: string; tempPassword: string }> => {
@@ -140,7 +140,7 @@ export const api = {
         return data ? normalizeEmployee(data) : null;
     },
     updateEmployee: async (id: string, data: any) => {
-        console.log(`[API] Update Employee (${id}) Payload:`, data);
+        // console.log(`[API] Update Employee (${id}) Payload:`, data);
         
         // Map camelCase keys to snake_case for database compatibility
         const mappedData = { ...data };
@@ -167,7 +167,7 @@ export const api = {
             throw new Error(error.message || 'Failed to update employee');
         }
 
-        console.log('[API] updateEmployee Response (rows):', rows);
+        // console.log('[API] updateEmployee Response (rows):', rows);
         return rows && rows.length > 0 ? normalizeEmployee(rows[0]) : null;
     },
     deleteEmployee: async (id: string) => {
@@ -246,10 +246,11 @@ export const api = {
     },
 
     // Tasks
-    getTasks: async (assigneeId?: string, status?: string, limit: number = 20) => {
+    getTasks: async (assigneeId?: string, status?: string, limit: number = 20, projectId?: string) => {
         let query = supabase.from('tasks').select('*, assignee:employees!assigneeId(id, firstName, lastName, profilePhoto)');
         if (assigneeId) query = query.eq('assigneeId', assigneeId);
         if (status) query = query.eq('status', status);
+        if (projectId) query = query.eq('projectId', projectId);
         
         const { data, error } = await query
             .order('createdAt', { ascending: false })
@@ -295,12 +296,16 @@ export const api = {
             }
         }
 
-        // Remove virtual fields to prevent Supabase errors
-        delete data.assignees;
-        delete (data as any).assigneeIds;
-        delete (data as any).assigneeNames;
+        // Strict whitelist to prevent Supabase schema cache errors
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'dueDate', 'attachments', 'creatorId', 'managerId', 'projectId'];
+        const dbPayload: any = {};
+        Object.keys(data).forEach(key => {
+            if (whitelist.includes(key) && (data as any)[key] !== undefined) {
+                dbPayload[key] = (data as any)[key];
+            }
+        });
 
-        const { data: res, error } = await supabase.from('tasks').insert(data).select().single();
+        const { data: res, error } = await supabase.from('tasks').insert(dbPayload).select('id, title, description, status, priority, assigneeId, dueDate, attachments, creatorId, managerId, createdAt').single();
         handleSupabaseEvent(res, error, 'Create Task');
         return { ...payload, ...res } as TaskDTO;
     },
@@ -330,12 +335,16 @@ export const api = {
             }
         }
 
-        // Remove virtual fields to prevent Supabase errors
-        delete data.assignees;
-        delete (data as any).assigneeIds;
-        delete (data as any).assigneeNames;
+        // Strict whitelist to prevent Supabase schema cache errors
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'dueDate', 'attachments', 'creatorId', 'managerId', 'quality_rating', 'projectId'];
+        const dbPayload: any = {};
+        Object.keys(data).forEach(key => {
+            if (whitelist.includes(key) && (data as any)[key] !== undefined) {
+                dbPayload[key] = (data as any)[key];
+            }
+        });
 
-        const { data: res, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
+        const { data: res, error } = await supabase.from('tasks').update(dbPayload).eq('id', id).select('id, title, description, status, priority, assigneeId, dueDate, attachments, creatorId, managerId, quality_rating, createdAt').single();
         handleSupabaseEvent(res, error, 'Update Task');
         return { ...payload, ...res } as TaskDTO;
     },
@@ -347,14 +356,36 @@ export const api = {
     },
 
     // EOD
-    submitEOD: async (data: Partial<EODSubmissionDTO>) => {
-        const { data: res, error } = await supabase.from('eod_reports').insert(data).select().single();
-        handleSupabaseEvent(data, error, 'Submit EOD');
+    submitEOD: async (payload: Partial<EODSubmissionDTO>) => {
+        const data = { ...payload };
+        
+        // Whitelist for eod_reports table
+        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status'];
+        const dbPayload: any = {};
+        Object.keys(data).forEach(key => {
+            if (whitelist.includes(key) && (data as any)[key] !== undefined) {
+                dbPayload[key] = (data as any)[key];
+            }
+        });
+
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
+        handleSupabaseEvent(res, error, 'Submit EOD');
         return res as EODSubmissionDTO;
     },
-    updateEOD: async (id: string, data: Partial<EODSubmissionDTO>) => {
-        const { data: res, error } = await supabase.from('eod_reports').update(data).eq('id', id).select().single();
-        handleSupabaseEvent(data, error, 'Update EOD');
+    updateEOD: async (id: string, payload: Partial<EODSubmissionDTO>) => {
+        const data = { ...payload };
+
+        // Whitelist for eod_reports table
+        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status'];
+        const dbPayload: any = {};
+        Object.keys(data).forEach(key => {
+            if (whitelist.includes(key) && (data as any)[key] !== undefined) {
+                dbPayload[key] = (data as any)[key];
+            }
+        });
+
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
+        handleSupabaseEvent(res, error, 'Update EOD');
         return res as EODSubmissionDTO;
     },
     getMyEODs: async (userId: string) => {
@@ -1014,5 +1045,80 @@ export const api = {
             .order('createdAt', { ascending: false })
             .limit(100);
         return data || [];
+    },
+
+    // --- Projects ---
+    getProjects: async (userId?: string) => {
+        let query = supabase.from('projects').select(`
+            *,
+            members:project_members(
+                *,
+                user:employees!userId(id, firstName, lastName, profilePhoto)
+            )
+        `);
+        
+        if (userId) {
+            // Filter by projects where the user is a member
+            const { data: memberProjects } = await supabase
+                .from('project_members')
+                .select('projectId')
+                .eq('userId', userId);
+            
+            const projectIds = (memberProjects || []).map(m => m.projectId);
+            if (projectIds.length === 0) return [];
+            query = query.in('id', projectIds);
+        }
+
+        const { data, error } = await query.order('createdAt', { ascending: false });
+        handleSupabaseEvent(data, error, 'Fetch Projects');
+        return data as ProjectDTO[];
+    },
+
+    getProjectById: async (id: string) => {
+        const { data, error } = await supabase
+            .from('projects')
+            .select(`
+                *,
+                members:project_members(
+                    *,
+                    user:employees!userId(id, firstName, lastName, profilePhoto)
+                ),
+                tasks:tasks(*)
+            `)
+            .eq('id', id)
+            .single();
+        
+        handleSupabaseEvent(data, error, 'Fetch Project Detail');
+        return data as ProjectDTO;
+    },
+
+    createProject: async (payload: Partial<ProjectDTO>) => {
+        const { data, error } = await supabase.from('projects').insert(payload).select().single();
+        handleSupabaseEvent(data, error, 'Create Project');
+        return data as ProjectDTO;
+    },
+
+    updateProject: async (id: string, payload: Partial<ProjectDTO>) => {
+        const { data, error } = await supabase.from('projects').update(payload).eq('id', id).select().single();
+        handleSupabaseEvent(data, error, 'Update Project');
+        return data as ProjectDTO;
+    },
+
+    deleteProject: async (id: string) => {
+        const { error } = await supabase.from('projects').delete().eq('id', id);
+        handleSupabaseEvent(null, error, 'Delete Project');
+        return { success: true };
+    },
+
+    addProjectMember: async (projectId: string, userId: string, role: string = 'MEMBER') => {
+        const { data, error } = await supabase.from('project_members').insert({ projectId, userId, role }).select().single();
+        handleSupabaseEvent(data, error, 'Add Project Member');
+        return data as ProjectMemberDTO;
+    },
+
+    removeProjectMember: async (id: string) => {
+        const { error } = await supabase.from('project_members').delete().eq('id', id);
+        handleSupabaseEvent(null, error, 'Remove Project Member');
+        return { success: true };
     },
 };

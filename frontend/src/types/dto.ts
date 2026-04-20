@@ -47,10 +47,39 @@ export interface PaginatedResponse<T> {
     page: number;
 }
 
+export interface ProjectMemberDTO {
+    id: string;
+    projectId: string;
+    userId: string;
+    role: string;
+    user?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        profilePhoto?: string;
+    };
+}
+
+export interface ProjectDTO {
+    id: string;
+    name: string;
+    description?: string;
+    status: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    startDate?: string;
+    deadline?: string;
+    createdBy: string;
+    createdAt: string;
+    members?: ProjectMemberDTO[];
+    tasks?: TaskDTO[];
+}
+
 export interface TaskDTO {
     id: string;
     title: string;
     description?: string;
+    projectId?: string; // Links task to a project
+    project?: ProjectDTO;
     assigneeId?: string; // Legacy/Primary assignee
     assigneeIds?: string[]; // Modern multi-assignee support
     creatorId: string;

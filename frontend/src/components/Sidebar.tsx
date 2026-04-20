@@ -36,6 +36,7 @@ type NavItem = { name: string, href?: string, icon?: any, isGroup?: boolean };
 const RoleNavItems: Record<string, NavItem[]> = {
     ADMIN: [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Task Allocation', href: '/tasks', icon: CheckSquare },
         { name: 'Employee Management', href: '/employees', icon: UserPlus },
         { name: 'Leave Approvals', href: '/leaves/approvals', icon: CalendarDays },
@@ -48,6 +49,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
     ],
     MANAGER: [
         { name: 'Team Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Team Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
@@ -56,6 +58,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
     ],
     EMPLOYEE: [
         { name: 'My Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'My Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Submit EOD', href: '/eod', icon: FileText },
         { name: 'Work Log', href: '/logs', icon: Clock },

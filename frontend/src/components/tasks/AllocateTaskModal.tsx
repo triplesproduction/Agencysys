@@ -18,9 +18,10 @@ interface AllocateTaskModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    projectId?: string; // Optional: Link created tasks to this project
 }
 
-export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: AllocateTaskModalProps) {
+export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectId }: AllocateTaskModalProps) {
     const { employee: authEmployee } = useAuth();
     const [tasks, setTasks] = useState<{ id: string, title: string, description?: string }[]>([]);
     const [employees, setEmployees] = useState<{ id: string, name: string, role: string, profilePhoto?: string, firstName?: string }[]>([]);
@@ -127,7 +128,8 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess }: Alloca
                 creatorId: authEmployee?.id, // Crucial: Set the creator
                 dueDate: new Date(dueDate).toISOString(),
                 attachments: allAttachments.length > 0 ? allAttachments : undefined,
-                status: 'TODO'
+                status: 'TODO',
+                projectId: projectId || undefined
             };
 
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
     X, User, Calendar, Tag, FileText, CheckSquare, 
     MoreVertical, Paperclip, MessageSquare, 
@@ -30,6 +31,7 @@ interface TaskDetailDrawerProps {
 
 export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, currentUserRole }: TaskDetailDrawerProps) {
     const { employee: authEmployee } = useAuth();
+    const router = useRouter();
     const [task, setTask] = useState<TaskDTO | null>(null);
 
     const [loading, setLoading] = useState(false);
@@ -51,6 +53,13 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
             ]);
             
             const found = (tasksList || []).find(t => t.id === taskId);
+            
+            // Hydrate project name if exists (simple way)
+            if (found?.projectId) {
+                const proj = await api.getProjectById(found.projectId);
+                (found as any).projectName = proj?.name;
+            }
+
             setTask(found || null);
             if (employeesData && 'data' in employeesData) {
                 setEmployees((employeesData as any).data);
@@ -138,6 +147,16 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             <span>T-ITEM-{task?.id?.slice?.(0, 5).toUpperCase() || '...'}</span>
                         </div>
                         <div className="header-actions">
+                            {task?.projectId && (
+                                <div 
+                                    className="project-tag" 
+                                    onClick={() => router.push(`/projects/${task.projectId}`)}
+                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--purple-main)', background: 'rgba(139, 92, 246, 0.1)', padding: '4px 10px', borderRadius: '20px', fontWeight: 700 }}
+                                >
+                                    <Activity size={12} />
+                                    {task?.projectName ? `PROJECT: ${task.projectName}` : `PROJECT: ${task?.projectId?.slice(0, 8).toUpperCase()}`}
+                                </div>
+                            )}
                             <button type="button" className="icon-btn-ghost"><MoreVertical size={18} /></button>
                             <button type="button" className="icon-btn-ghost close-btn" onClick={onClose}><X size={20} /></button>
                         </div>
