@@ -658,7 +658,7 @@ export const api = {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto, roleId, role_id)')
+            .select('*, employee:employees!employee_id(*)')
             .eq('month_year', queryMonth)
             .order('current_score', { ascending: false })
             .limit(limit);
@@ -674,7 +674,7 @@ export const api = {
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
             .from('kpi_audit_logs')
-            .select('*, employee:employees!employee_id(id, firstName, lastName, profilePhoto, roleId, role_id)')
+            .select('*, employee:employees!employee_id(*)')
             .order('created_at', { ascending: false })
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
