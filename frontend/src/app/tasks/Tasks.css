@@ -1,51 +1,36 @@
 .tasks-container {
-    width: 100%;
+    padding: 24px 32px;
     height: calc(100vh - 40px);
     display: flex;
     flex-direction: column;
-    padding: 30px;
-    background: radial-gradient(circle at top left, #121220, #000000);
-    position: relative;
+    gap: 24px;
     overflow: hidden;
 }
 
-.tasks-container::before {
-    content: '';
-    position: absolute;
-    top: -20%;
-    right: -10%;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.1), transparent 70%);
-    pointer-events: none;
-}
-
 .tasks-header {
-    margin-bottom: 40px;
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center;
 }
 
-.greeting {
-    margin: 0;
-    line-height: 1.1;
-    letter-spacing: -1px;
+.tasks-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
 
-.subtitle {
-    margin-top: 4px;
-    opacity: 0.6;
-    font-size: 1rem;
+.header-actions {
+    display: flex;
+    gap: 12px;
 }
 
 .kanban-board {
     display: flex;
     gap: 24px;
     padding: 10px 0 24px 0;
+    flex: 1;
     overflow-x: auto;
     overflow-y: hidden;
-    flex: 1;
     align-items: flex-start;
 }
 
@@ -67,14 +52,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(15, 15, 20, 0.6); /* Added background to prevent shadow artifact */
-    backdrop-filter: blur(10px);
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 .column-info {
@@ -83,52 +60,31 @@
     gap: 12px;
 }
 
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-.status-dot.todo { background: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
-.status-dot.in_progress { background: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
-.status-dot.done { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
-
 .column-info h2 {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: rgba(255,255,255,0.6);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin: 0;
+    letter-spacing: 0.05em;
+    color: var(--text-primary);
 }
 
 .column-count {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.03);
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
 }
 
-.add-task-inline {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.column-more {
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 0.2s;
 }
 
-.add-task-inline:hover {
-    background: var(--purple-main);
-    border-color: var(--purple-light);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+.column-more:hover {
+    color: var(--text-primary);
 }
 
 .kanban-cards-container {
@@ -142,54 +98,58 @@
 
 .trello-card {
     background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
     overflow: hidden;
-    cursor: grab;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .trello-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(139, 92, 246, 0.3);
-    transform: translateY(-4px) scale(1.02);
-}
-
-.trello-card.dragging {
-    cursor: grabbing;
-    background: rgba(139, 92, 246, 0.1);
-    backdrop-filter: blur(30px);
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
-    border: 1.5px solid var(--purple-main);
-}
-
-.trello-card-priority {
-    height: 38px; /* Thick color block */
-    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .trello-card-body {
-    padding: 12px 16px 16px 16px;
+    padding: 16px;
 }
 
 .trello-card-title {
     font-size: 0.95rem;
-    font-weight: 500;
-    color: #e5e7eb;
-    margin-bottom: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
     line-height: 1.4;
 }
 
 .trello-card-meta {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    align-items: center;
 }
 
-.trello-card-assignee {
-    margin-left: auto;
+.trello-date-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+}
+
+.trello-date-badge.overdue {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.trello-status-icon.done {
+    color: #10b981;
 }
 
 .card-avatar-stack {
@@ -198,335 +158,157 @@
 }
 
 .card-avatar {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    object-fit: cover;
-    border: 1.5px solid #1f2128;
+    border: 2px solid #0a0a0f;
+    margin-left: -8px;
     background: var(--purple-main);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.6rem;
-    font-weight: 700;
+    font-size: 0.65rem;
+    font-weight: 800;
     color: white;
-    margin-right: -8px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.card-avatar:hover {
-    transform: translateY(-4px) scale(1.1);
-    z-index: 50 !important;
-    border-color: var(--purple-light);
-    margin-right: 0; /* Clear overlap on hover for clarity */
+.card-avatar:first-child {
+    margin-left: 0;
 }
 
-.card-avatar.avatar-more {
+.avatar-more {
     background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.55rem;
-    margin-right: 0;
-    margin-left: 4px;
-}
-
-.trello-date-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.05); /* Neutral background */
-    color: rgba(255, 255, 255, 0.5);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
-}
-
-.trello-date-badge.overdue {
-    background: rgba(239, 68, 68, 0.1);
-    color: #f87171;
-}
-
-.trello-status-icon.done {
-    color: #10b981;
-}
-
-.add-column-wrapper {
-    min-width: 280px;
-    padding-top: 10px;
-}
-
-.add-list-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    border-radius: 12px;
-    color: white;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.add-list-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
-}
-
-.kanban-column-header {
-    padding: 20px 20px 12px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(15, 15, 20, 0.6);
-    backdrop-filter: blur(10px);
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.column-more {
-    color: rgba(255, 255, 255, 0.3);
-    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.6rem;
 }
 
 .column-footer {
-    padding: 8px 12px;
+    padding: 16px 24px 24px 24px;
 }
 
 .add-card-btn {
     width: 100%;
     display: flex;
     align-items: center;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: transparent;
-    border: none;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
     transition: all 0.2s;
 }
 
 .add-card-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
 }
 
+.add-column-wrapper {
+    min-width: 320px;
+    height: fit-content;
+}
 
+/* Custom Scrollbar for Kanban Columns */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
 
-.card-description {
-    font-size: 0.82rem;
-    color: rgba(255,255,255,0.5);
-    line-height: 1.6;
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Header & Toolbar Styles */
+.tasks-page {
+    padding: 32px 40px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.page-header {
     margin-bottom: 24px;
 }
 
-.card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+.greeting {
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(to bottom, #fff, rgba(255,255,255,0.6));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.card-assignees {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.subtitle {
+    margin: 4px 0 0 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
 }
 
-.avatar-stack {
-    display: flex;
-}
-
-.stack-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 2px solid #121216;
-    object-fit: cover;
-    background: var(--purple-main);
-}
-
-.stack-avatar.placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: white;
-    font-weight: 700;
-}
-
-.assignee-name {
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.4);
-    font-weight: 500;
-}
-
-.empty-column-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 60px 20px;
-    color: rgba(255, 255, 255, 0.15);
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.search-pill {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 0 16px;
+.search-pill, .filter-pill {
     display: flex;
     align-items: center;
     gap: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 0 16px;
     height: 44px;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 }
 
-.search-pill:focus-within {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--purple-main);
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
+.search-pill:focus-within, .filter-pill:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
 }
 
 .search-pill input {
     background: transparent;
     border: none;
     color: white;
-    font-size: 0.875rem;
-    outline: none;
+    font-size: 0.9rem;
+    font-weight: 500;
     width: 200px;
+    outline: none;
 }
 
-.filter-pill {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 0 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    height: 44px;
+.search-pill input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
 }
 
 .filter-pill select {
     background: transparent;
     border: none;
-    color: rgba(255,255,255,0.8);
-    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 600;
     outline: none;
     cursor: pointer;
+    padding-right: 8px;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
-
-/* Detail Page specific */
-.back-btn {
-    align-self: flex-start;
-    font-size: 0.875rem;
+.filter-pill select option {
+    background: #121218;
+    color: white;
+    padding: 12px;
 }
 
-.detail-card {
-    padding: 2.5rem !important;
-}
-
-.detail-header {
+.toolbar-actions {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 2rem;
-    gap: 2rem;
-}
-
-.detail-title {
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-.detail-badges {
-    display: flex;
-    gap: 0.75rem;
-    flex-shrink: 0;
-}
-
-.status-badge.priority-high {
-    background: rgba(251, 191, 36, 0.2);
-    color: #fbbf24;
-}
-
-.status-badge.priority-critical {
-    background: rgba(239, 68, 68, 0.2);
-    color: #f87171;
-}
-
-.status-badge.priority-medium {
-    background: rgba(94, 92, 230, 0.2);
-    color: var(--purple-light);
-}
-
-.status-badge.priority-low {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-}
-
-.detail-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2.5rem;
-    padding: 1.5rem;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.meta-label {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.meta-value {
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-.section-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
-.detail-desc {
-    font-size: 1rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 3rem;
-}
-
-.detail-actions {
-    display: flex;
-    gap: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 1.5rem;
+    align-items: center;
+    gap: 12px;
 }

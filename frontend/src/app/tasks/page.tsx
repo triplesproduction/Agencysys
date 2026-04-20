@@ -185,16 +185,16 @@ export default function TasksPage() {
     return (
         <div className="tasks-page fade-in">
             {/* Elegant Header & Toolbar */}
-            <header className="page-header" style={{ padding: '32px 0 24px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
-                    <div>
-                        <h1 className="greeting" style={{ fontSize: '2.5rem' }}>{userRole === 'EMPLOYEE' ? 'My Board' : 'Team TaskBoard'}</h1>
+            <header className="page-header">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '40px' }}>
+                    <div style={{ flex: 1 }}>
+                        <h1 className="greeting">{userRole === 'EMPLOYEE' ? 'My Board' : 'Team TaskBoard'}</h1>
                         <p className="subtitle">High-fidelity team task orchestration.</p>
                     </div>
                     
-                    <div className="toolbar-actions" style={{ display: 'flex', gap: '12px' }}>
+                    <div className="toolbar-actions">
                         <div className="search-pill">
-                            <Search size={16} color="rgba(255,255,255,0.3)" />
+                            <Search size={16} color="rgba(255,255,255,0.4)" />
                             <input 
                                 placeholder="Search tasks..." 
                                 value={searchQuery}
@@ -203,7 +203,7 @@ export default function TasksPage() {
                         </div>
                         
                         <div className="filter-pill">
-                            <SlidersHorizontal size={16} color="rgba(255,255,255,0.5)" />
+                            <SlidersHorizontal size={16} color="rgba(255,255,255,0.6)" />
                             <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
                                 <option value="ALL">All Priorities</option>
                                 <option value="CRITICAL">Critical</option>
@@ -215,7 +215,7 @@ export default function TasksPage() {
 
                         {userRole !== 'EMPLOYEE' && (
                             <div className="filter-pill">
-                                <User size={16} color="rgba(255,255,255,0.5)" />
+                                <User size={16} color="rgba(255,255,255,0.6)" />
                                 <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
                                     <option value="ALL">All Members</option>
                                     {employees.map(emp => (
@@ -227,12 +227,11 @@ export default function TasksPage() {
                             </div>
                         )}
 
-
                         {canCreate && (
                             <Button 
                                 variant="primary" 
                                 onClick={() => setIsAllocateModalOpen(true)}
-                                style={{ background: 'var(--purple-main)', border: 'none', borderRadius: '14px', height: '44px' }}
+                                style={{ background: 'var(--purple-main)', border: 'none', borderRadius: '14px', height: '44px', fontWeight: 700, padding: '0 24px' }}
                             >
                                 <Plus size={18} /> Allocate
                             </Button>
