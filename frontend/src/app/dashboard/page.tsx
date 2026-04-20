@@ -6,7 +6,7 @@ import GlassCard from '@/components/GlassCard';
 import DeadlineIndicator from '@/components/DeadlineIndicator';
 import { api } from '@/lib/api';
 import { EmployeeDTO, TaskDTO, WorkHourLogDTO } from '@/types/dto';
-import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock } from 'lucide-react';
+import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock, Briefcase } from 'lucide-react';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
 
 import { useNotifications } from '@/components/notifications/NotificationProvider';
@@ -18,6 +18,7 @@ import RecentMessagesWidget from '@/components/dashboard/RecentMessagesWidget';
 import WorkClock from '@/components/dashboard/WorkClock';
 import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
+import CreateProjectModal from '@/components/projects/CreateProjectModal';
 
 import './Dashboard.css';
 
@@ -54,7 +55,6 @@ const TaskAssigneeStack = ({ assignees = [] }: { assignees? : any[] }) => {
         </div>
     );
 };
-
 function AdminDashboard({
     employee,
     tasks = [],
@@ -65,7 +65,8 @@ function AdminDashboard({
     recentKpiLogs = [],
     allEmployees = [],
     onCreateEmployeeTrigger,
-    onBroadcastTrigger
+    onBroadcastTrigger,
+    onCreateProjectTrigger
 }: {
     employee: any,
     tasks?: TaskDTO[],
@@ -74,6 +75,7 @@ function AdminDashboard({
     onAssignTaskTrigger: () => void,
     onCreateEmployeeTrigger: () => void,
     onBroadcastTrigger: () => void,
+    onCreateProjectTrigger: () => void,
     kanbanRefresh: number,
     recentEods?: any[],
     teamKpis?: any[],
@@ -82,7 +84,7 @@ function AdminDashboard({
 }) {
     const taskList = tasks || [];
     const eodList = recentEods || [];
-    const kpiList = teamKpis || [];
+    const kpiList = (teamKpis || []).filter((p: any) => p.employee?.roleId !== 'ADMIN');
     const kpiLogList = recentKpiLogs || [];
 
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE').length;
@@ -93,15 +95,17 @@ function AdminDashboard({
     const todayStr = new Date().toISOString().split('T')[0];
     const todayEods = eodList.filter(e => e && e.reportDate === todayStr);
 
-    const employeeEodstatus = allEmployees.map(emp => {
-        const eod = todayEods.find(e => e.employeeId === emp.id);
-        return {
-            ...emp,
-            eodStatus: eod ? 'SUBMITTED' : 'PENDING',
-            eodId: eod?.id,
-            submittedAt: eod?.submittedAt
-        };
-    });
+    const employeeEodstatus = allEmployees
+        .filter(emp => emp.roleId !== 'ADMIN')
+        .map(emp => {
+            const eod = todayEods.find(e => e.employeeId === emp.id);
+            return {
+                ...emp,
+                eodStatus: eod ? 'SUBMITTED' : 'PENDING',
+                eodId: eod?.id,
+                submittedAt: eod?.submittedAt
+            };
+        });
 
     const pendingCount = employeeEodstatus.filter(e => e.eodStatus === 'PENDING').length;
     const avgTeamScore = kpiList.length > 0
@@ -150,6 +154,9 @@ function AdminDashboard({
                             </button>
                             <button className="ad2-btn-add" onClick={onCreateEmployeeTrigger}>
                                 <Users size={16} /> Manage Employees
+                            </button>
+                            <button className="ad2-btn-add" onClick={onCreateProjectTrigger}>
+                                <Briefcase size={16} /> Create Project
                             </button>
                             <button className="ad2-btn-add" onClick={onBroadcastTrigger}>
                                 <Bell size={16} /> Send Broadcast
@@ -373,7 +380,7 @@ function ManagerDashboard({
     recentEods?: any[]
 }) {
     const taskList = tasks || [];
-    const eodList = recentEods || [];
+    const eodList = (recentEods || []).filter(e => e?.employee?.roleId !== 'ADMIN');
     const kpiLogList = recentKpiLogs || [];
 
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED').length;
@@ -556,7 +563,7 @@ function ManagerDashboard({
 // ---------------------------------------------------------------------------
 // EMPLOYEE DASHBOARD (Clean & High Density)
 // ---------------------------------------------------------------------------
-function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[] }) {
+function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number }) {
     const taskList = tasks || [];
     const pendingTasks = taskList.filter(t => t && t.status !== 'DONE' && t.status !== 'APPROVED');
     const kpiScore = kpis?.current_score ?? 0;
@@ -606,7 +613,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                 <Link href="/leaves" style={{ textDecoration: 'none', flex: 1 }}>
                     <GlassCard className="stat-card">
                         <div className="stat-label">Monthly Hours</div>
-                        <div className="stat-value">{kpis?.total_hours_worked || 0}h</div>
+                        <div className="stat-value">{monthlyHours || 0}h</div>
                         <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>Target: 160h</div>
                     </GlassCard>
                 </Link>
@@ -681,18 +688,18 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
                             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
                                 <Activity size={16} color="#10B981" /> Month Pace
                             </h3>
-                            <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800 }}>{Math.round(((kpis?.total_hours_worked || 0) / 160) * 100)}%</span>
+                            <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800 }}>{Math.round(((monthlyHours || 0) / 160) * 100)}%</span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
-                            <span style={{ fontSize: '1.4rem', color: 'white', fontWeight: 900 }}>{kpis?.total_hours_worked || 0}h</span>
+                            <span style={{ fontSize: '1.4rem', color: 'white', fontWeight: 900 }}>{monthlyHours || 0}h</span>
                             <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)' }}>logged this month</span>
                         </div>
 
                         <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
                             <div style={{
                                 height: '100%',
-                                width: `${Math.min(100, Math.max((Number(kpis?.total_hours_worked || 0) > 0 ? 2 : 0), (Number(kpis?.total_hours_worked || 0) / 160) * 100))}%`,
+                                width: `${Math.min(100, Math.max((Number(monthlyHours || 0) > 0 ? 2 : 0), (Number(monthlyHours || 0) / 160) * 100))}%`,
                                 background: 'linear-gradient(90deg, #10B981 0%, #3B82F6 100%)',
                                 transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
                                 borderRadius: '10px',
@@ -702,7 +709,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs }: { employee: an
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)' }}>
                             <span>Target: 160h</span>
-                            <span>{160 - (kpis?.total_hours_worked || 0)}h left</span>
+                            <span>{160 - (monthlyHours || 0)}h left</span>
                         </div>
                     </div>
                 </div>
@@ -726,8 +733,11 @@ export default function DashboardPage() {
     const [totalEmployees, setTotalEmployees] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState('EMPLOYEE');
+    const [monthlyHours, setMonthlyHours] = useState(0);
     const [recentEods, setRecentEods] = useState<any[]>([]);
     const [allEmployees, setAllEmployees] = useState<EmployeeDTO[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [hasNewRules, setHasNewRules] = useState(false);
 
     const { addNotification } = useNotifications();
 
@@ -735,6 +745,7 @@ export default function DashboardPage() {
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [isCreateEmployeeModalOpen, setIsCreateEmployeeModalOpen] = useState(false);
     const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+    const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
     const [kanbanRefresh, setKanbanRefresh] = useState(0);
 
 
@@ -835,6 +846,7 @@ export default function DashboardPage() {
                     if (fetchedKpis) {
                         const finalKpis = { ...fetchedKpis, total_hours_worked: realMonthlyHours };
                         setKpis(finalKpis);
+                        setMonthlyHours(realMonthlyHours);
 
                         // Proactive Performance Alert Popup (Login only)
                         if (activeRole === 'EMPLOYEE' && (finalKpis.current_score ?? 0) < 50) {
@@ -851,6 +863,7 @@ export default function DashboardPage() {
                         }
                     } else {
                         setKpis({ total_hours_worked: realMonthlyHours });
+                        setMonthlyHours(realMonthlyHours);
                     }
 
                 } catch (err) {
@@ -862,6 +875,32 @@ export default function DashboardPage() {
             };
 
             fetchDataAsync();
+
+            // Fetch unread messages
+            const fetchUnread = async () => {
+                try {
+                    const count = await api.getUnreadCount(String(activeEmpId));
+                    setUnreadCount(count);
+                } catch { /* silent */ }
+            };
+            fetchUnread();
+            const unreadInterval = setInterval(fetchUnread, 30000);
+
+            // Fetch rules to check for "new" status (last 48 hours)
+            const fetchRulesCheck = async () => {
+                try {
+                    const rules = await api.getRules();
+                    const now = new Date();
+                    const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+                    const hasNew = rules.some(r => r.createdAt && new Date(r.createdAt) > fortyEightHoursAgo);
+                    setHasNewRules(hasNew);
+                } catch { /* silent */ }
+            };
+            fetchRulesCheck();
+
+            return () => {
+                clearInterval(unreadInterval);
+            };
         }
 
         if (!authLoading) {
@@ -894,7 +933,9 @@ export default function DashboardPage() {
                 <div>
                     <h1 className="greeting" style={{ margin: 0, fontSize: '2.1rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Welcome back, {employee?.firstName || 'User'}</h1>
                     <p className="subtitle" style={{ margin: '4px 0 0 0', opacity: 0.6, fontSize: '0.95rem', fontWeight: 500 }}>
-                        {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' ? employee.designation : 'Creative Strategist'} | Overview for today
+                        {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' 
+                            ? employee.designation 
+                            : (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')} | Overview for today
                     </p>
                 </div>
 
@@ -918,12 +959,16 @@ export default function DashboardPage() {
                         <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/messaging'}>
                             <MessageCircle size={18} />
                             {/* Chat Notification Badge */}
-                            <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#EF4444', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)' }}></span>
+                            {unreadCount > 0 && (
+                                <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#EF4444', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)' }}></span>
+                            )}
                         </div>
                         <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/rulebook'}>
                             <BookOpen size={18} />
                             {/* System Update Badge */}
-                            <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#F59E0B', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)' }}></span>
+                            {hasNewRules && (
+                                <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#F59E0B', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)' }}></span>
+                            )}
                         </div>
                     </div>
 
@@ -931,7 +976,9 @@ export default function DashboardPage() {
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'white', lineHeight: 1 }}>{employee?.firstName} {employee?.lastName}</div>
                             <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '3px' }}>
-                                {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' ? employee.designation : (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')}
+                                {employee?.designation && employee.designation.toUpperCase() !== 'EMPLOYEE' 
+                                    ? employee.designation 
+                                    : (userRole === 'ADMIN' ? 'Agency Administrator' : userRole === 'MANAGER' ? 'Team Manager' : 'Creative Strategist')}
                             </div>
                         </div>
                         <img
@@ -952,6 +999,7 @@ export default function DashboardPage() {
                     onAssignTaskTrigger={() => setIsAssignModalOpen(true)}
                     onCreateEmployeeTrigger={() => setIsCreateEmployeeModalOpen(true)}
                     onBroadcastTrigger={() => setIsBroadcastModalOpen(true)}
+                    onCreateProjectTrigger={() => setIsCreateProjectModalOpen(true)}
                     kanbanRefresh={kanbanRefresh}
                     recentEods={recentEods}
                     teamKpis={allKpis}
@@ -970,7 +1018,7 @@ export default function DashboardPage() {
                 />
             )}
             {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (
-                <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} />
+                <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} monthlyHours={monthlyHours} />
             )}
 
             <AllocateTaskModal
@@ -994,6 +1042,20 @@ export default function DashboardPage() {
                         message: 'The new task tracking cards have been pushed to the Kanban board.',
                         type: 'SYSTEM',
                         metadata: null
+                    });
+                }}
+            />
+
+            <CreateProjectModal
+                isOpen={isCreateProjectModalOpen}
+                onClose={() => setIsCreateProjectModalOpen(false)}
+                onSuccess={() => {
+                    setIsCreateProjectModalOpen(false);
+                    setKanbanRefresh(k => k + 1);
+                    addNotification({
+                        title: 'Project Initialized',
+                        message: 'The new project and its backlog have been successfully created.',
+                        type: 'SYSTEM'
                     });
                 }}
             />
