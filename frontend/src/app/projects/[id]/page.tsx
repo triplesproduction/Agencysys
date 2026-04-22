@@ -87,9 +87,9 @@ export default function ProjectDetailPage() {
             const employeeMap = new Map<string, EmployeeDTO>();
             (empsData.data || []).forEach((e: EmployeeDTO) => employeeMap.set(e.id, e));
 
-            const hydratedTasks = (tasksData || []).map(t => ({
+            const hydratedTasks = (tasksData || []).map((t: TaskDTO) => ({
                 ...t,
-                assignees: (t.assigneeIds || []).map(aid => employeeMap.get(aid)).filter(Boolean)
+                assignees: (t.assigneeIds || []).map((aid: string) => employeeMap.get(aid)).filter(Boolean)
             }));
 
             setProject(projData);
