@@ -317,28 +317,28 @@
 .wizard-card {
     background: #0D0D12;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 32px;
-    width: 800px; /* Enterprise Scale */
+    border-radius: 36px;
+    width: 850px; /* Increased width for better layout */
     max-width: 95vw;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 92, 246, 0.1);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(139, 92, 246, 0.1);
     position: relative;
     overflow: hidden;
 }
 
 .wizard-header {
-    padding: 40px 48px 24px;
+    padding: 48px 56px 32px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
 }
 
 .wizard-title h2 {
-    font-size: 2.2rem;
+    font-size: 2.4rem;
     font-weight: 800;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.05em;
     color: white;
     margin: 0;
     font-family: 'Plus Jakarta Sans', sans-serif;
@@ -367,8 +367,9 @@
 }
 
 .wizard-body {
-    padding: 0 48px 48px;
+    padding: 0 56px 48px;
     flex: 1;
+    overflow-y: auto;
 }
 
 .wizard-field-group {
@@ -396,6 +397,14 @@
     width: 100%;
     outline: none;
     transition: all 0.2s;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.wizard-input::placeholder {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.2);
+    letter-spacing: 0;
 }
 
 .wizard-input:focus {
@@ -405,7 +414,7 @@
 }
 
 .wizard-footer {
-    padding: 24px 33px 33px;
+    padding: 24px 48px 32px;
     background: rgba(0, 0, 0, 0.4);
     display: flex;
     justify-content: space-between;
@@ -413,20 +422,23 @@
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.wizard-btn-prev {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: rgba(255, 255, 255, 0.6) !important;
-    padding: 12px 24px !important;
-    border-radius: 14px !important;
-    font-weight: 700 !important;
-    transition: all 0.2s !important;
+
+.icon-btn-ghost {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 8px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.wizard-btn-prev:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: white !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+.icon-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
 }
 
 /* --- TACTICAL TASK CARDS (STEP 2) --- */
@@ -450,27 +462,30 @@
 
 .wizard-add-task-btn {
     width: 100%;
-    padding: 20px;
-    border-radius: 24px;
-    border: 2px dashed rgba(255, 255, 255, 0.05);
-    background: rgba(255, 255, 255, 0.01);
-    color: rgba(255, 255, 255, 0.4);
+    padding: 32px;
+    border-radius: 28px;
+    border: 2px dashed rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.02);
+    color: rgba(139, 92, 246, 0.6);
     font-weight: 800;
-    font-size: 0.9rem;
+    font-size: 1rem;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    transition: all 0.2s;
+    gap: 16px;
+    transition: all 0.3s;
     cursor: pointer;
+    margin-top: 12px;
 }
 
 .wizard-add-task-btn:hover {
-    background: rgba(124, 58, 237, 0.05);
+    background: rgba(139, 92, 246, 0.08);
     border-color: var(--purple-main);
     color: white;
+    border-style: solid;
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.15);
 }
 
 .card-remove-btn {

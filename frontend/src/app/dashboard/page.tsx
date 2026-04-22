@@ -86,7 +86,7 @@ function AdminDashboard({
     const eodList = recentEods || [];
     const kpiList = allEmployees
         .filter(emp => {
-            const role = (emp.roleId || emp.role_id || '').toUpperCase();
+            const role = (emp.roleId || '').toUpperCase();
             return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
         })
         .map(emp => {
@@ -111,7 +111,10 @@ function AdminDashboard({
     const todayEods = eodList.filter(e => e && e.reportDate === todayStr);
 
     const employeeEodstatus = allEmployees
-        .filter(emp => emp.roleId !== 'ADMIN')
+        .filter(emp => {
+            const role = (emp.roleId || '').toUpperCase();
+            return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
+        })
         .map(emp => {
             const eod = todayEods.find(e => e.employeeId === emp.id);
             return {

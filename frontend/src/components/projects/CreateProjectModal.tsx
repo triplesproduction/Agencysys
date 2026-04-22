@@ -19,6 +19,7 @@ interface CreateProjectModalProps {
 
 type TaskEntry = {
     title: string;
+    description: string;
     assigneeId?: string;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
 };
@@ -54,7 +55,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             setStartDate(new Date().toISOString().split('T')[0]);
             setDeadline('');
             setSelectedMemberIds(authEmployee ? [authEmployee.id] : []);
-            setTasks([{ title: '', assigneeId: authEmployee?.id, priority: 'MEDIUM' }]);
+            setTasks([{ title: '', description: '', assigneeId: authEmployee?.id, priority: 'MEDIUM' }]);
             setErrorMsg('');
         }
     }, [isOpen, authEmployee]);
@@ -68,7 +69,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
     if (!isOpen) return null;
 
-    const handleAddTaskRow = () => setTasks([...tasks, { title: '', assigneeId: authEmployee?.id, priority: 'MEDIUM' }]);
+    const handleAddTaskRow = () => setTasks([...tasks, { title: '', description: '', assigneeId: authEmployee?.id, priority: 'MEDIUM' }]);
     const handleRemoveTaskRow = (idx: number) => {
         const newTasks = [...tasks];
         newTasks.splice(idx, 1);
@@ -104,6 +105,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             if (validTasks.length > 0) {
                 await Promise.all(validTasks.map(t => api.createTask({
                     title: t.title,
+                    description: t.description,
                     projectId: project.id,
                     assigneeId: t.assigneeId,
                     status: 'TODO',
@@ -158,14 +160,14 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                     value={name}
                                     autoFocus
                                     onChange={(e) => setName(e.target.value)}
-                                    style={{ fontSize: '1.25rem', fontWeight: 800, padding: '18px 24px' }}
+                                    style={{ fontSize: '1.1rem', fontWeight: 700, padding: '16px 20px' }}
                                 />
                                 <textarea 
                                     className="wizard-input"
                                     placeholder="High-level strategic roadmap and objectives..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    style={{ minHeight: '120px', resize: 'none', lineHeight: 1.6, padding: '20px 24px' }}
+                                    style={{ minHeight: '100px', resize: 'none', lineHeight: 1.5, padding: '16px 20px', fontSize: '0.95rem' }}
                                 />
                             </div>
 
@@ -203,55 +205,53 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                 {tasks.map((t, idx) => (
                                     <div key={idx} className="tactical-task-card slide-up" style={{ animationDelay: `${idx * 0.05}s` }}>
-                                        <button className="card-remove-btn" onClick={() => handleRemoveTaskRow(idx)}><Trash2 size={16} /></button>
+                                        <button className="card-remove-btn" onClick={() => handleRemoveTaskRow(idx)}><Trash2 size={18} /></button>
                                         
                                         <div className="task-card-header">
-                                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '16px' }}>
-                                                <Target size={18} color="var(--purple-main)" />
+                                            <div className="task-card-icon-box">
+                                                <Target size={24} />
                                             </div>
-                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <div className="task-card-info">
                                                 <input 
                                                     className="wizard-input" 
                                                     placeholder="Tactical Unit Objective (e.g. Design System Specs)" 
                                                     value={t.title}
                                                     onChange={(e) => updateTaskRow(idx, 'title', e.target.value)}
-                                                    style={{ border: 'none', background: 'transparent', padding: '0', fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.02em' }}
+                                                    style={{ border: 'none', background: 'transparent', padding: '0', fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em' }}
                                                 />
                                                 <textarea 
                                                     className="wizard-input"
                                                     placeholder="Operational instructions and scope definition..."
-                                                    value={t.description || ''}
+                                                    value={t.description}
                                                     onChange={(e) => updateTaskRow(idx, 'description', e.target.value)}
-                                                    style={{ border: 'none', background: 'transparent', padding: '0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', minHeight: '40px', resize: 'none' }}
+                                                    style={{ border: 'none', background: 'transparent', padding: '0', fontSize: '0.95rem', color: 'rgba(255,255,255,0.4)', minHeight: '44px', resize: 'none', lineHeight: 1.5 }}
                                                 />
                                             </div>
                                         </div>
 
-                                        <div className="task-card-body" style={{ marginTop: '12px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                            <div className="priority-tab-group" style={{ width: '220px' }}>
+                                        <div className="task-card-body">
+                                            <div className="priority-tab-group">
                                                 {['LOW', 'MEDIUM', 'HIGH'].map(p => (
                                                     <button 
                                                         key={p}
                                                         className={`p-tab ${p.toLowerCase()} ${t.priority === p ? 'active' : ''}`}
                                                         onClick={() => updateTaskRow(idx, 'priority', p)}
+                                                        type="button"
                                                     >
                                                         {p}
                                                     </button>
                                                 ))}
                                             </div>
-                                            <div style={{ flex: 1 }}>
-                                                <select 
-                                                    className="wizard-select"
-                                                    value={t.assigneeId}
-                                                    style={{ width: '100%', height: '44px' }}
-                                                    onChange={(e) => updateTaskRow(idx, 'assigneeId', e.target.value)}
-                                                >
-                                                    <option value="">Select Specialist...</option>
-                                                    {employees.filter(e => selectedMemberIds.includes(e.id)).map(e => (
-                                                        <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                            <select 
+                                                className="wizard-select"
+                                                value={t.assigneeId}
+                                                onChange={(e) => updateTaskRow(idx, 'assigneeId', e.target.value)}
+                                            >
+                                                <option value="">Select Specialist...</option>
+                                                {employees.filter(e => selectedMemberIds.includes(e.id)).map(e => (
+                                                    <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 ))}
@@ -264,41 +264,43 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                     )}
 
                     {step === 3 && (
-                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
                             <div className="summary-grid">
                                 <div className="summary-card">
                                     <h5>Mission Length</h5>
                                     <div className="val">{duration}d</div>
                                 </div>
                                 <div className="summary-card">
-                                    <h5>Tactical Count</h5>
+                                    <h5>Tactical Units</h5>
                                     <div className="val">{validTasksCount}</div>
                                 </div>
                                 <div className="summary-card">
-                                    <h5>Force Active</h5>
+                                    <h5>Specialist Force</h5>
                                     <div className="val">{selectedMemberIds.length}</div>
                                 </div>
                             </div>
 
-                            <div style={{ background: 'rgba(20, 20, 25, 0.6)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '24px', padding: '32px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                                    <ShieldCheck size={20} color="var(--purple-main)" />
-                                    <span style={{ fontWeight: 800, textTransform: 'uppercase', color: 'var(--purple-main)', fontSize: '0.75rem', letterSpacing: '0.1em' }}>Strategic Deployment Audit</span>
+                            <div className="deployment-overview-box">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                                    <ShieldCheck size={28} color="var(--purple-main)" />
+                                    <span style={{ fontWeight: 800, textTransform: 'uppercase', color: 'var(--purple-main)', fontSize: '0.85rem', letterSpacing: '0.2em' }}>Strategic Deployment Audit</span>
                                 </div>
                                 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <h4 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{name}</h4>
-                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.95rem', lineHeight: 1.7, margin: 0 }}>{description || 'No strategic overview provided for this initiative.'}</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <h4 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, letterSpacing: '-0.04em', color: 'white' }}>{name}</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '1.1rem', lineHeight: 1.7, margin: 0, maxWidth: '600px' }}>{description || 'No strategic overview provided for this initiative.'}</p>
                                 </div>
 
-                                <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                <div style={{ marginTop: '40px', paddingTop: '40px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                                     <div>
-                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>Operational Saturation</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{validTasksCount > 2 ? 'High Precision' : 'Tactical Baseline'}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.1em' }}>Operational Saturation</div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'white' }}>{validTasksCount > 2 ? 'High Precision' : 'Tactical Baseline'}</div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>Deployment Readiness</div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>OPTIMIZED</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.1em' }}>Deployment Readiness</div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                            <Zap size={18} /> OPTIMIZED
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -311,9 +313,15 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                 {/* Footer */}
                 <div className="wizard-footer">
                     {step > 1 ? (
-                        <button className="wizard-btn-prev" onClick={() => setStep(step - 1)} disabled={isSubmitting}>
+                        <Button 
+                            variant="secondary" 
+                            size="lg"
+                            style={{ borderRadius: '14px', fontWeight: 700 }}
+                            onClick={() => setStep(step - 1)} 
+                            disabled={isSubmitting}
+                        >
                             Return to Previous
-                        </button>
+                        </Button>
                     ) : (
                         <div />
                     )}
@@ -322,7 +330,8 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                         {step < 3 ? (
                             <Button 
                                 variant="primary" 
-                                style={{ height: '52px', borderRadius: '14px', padding: '0 36px', fontSize: '1rem', fontWeight: 800 }}
+                                size="lg"
+                                style={{ borderRadius: '14px', fontWeight: 800 }}
                                 onClick={() => setStep(step + 1)}
                                 disabled={step === 1 && !name}
                             >
@@ -331,7 +340,8 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                         ) : (
                             <Button 
                                 variant="primary" 
-                                style={{ height: '52px', borderRadius: '14px', padding: '0 36px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', boxShadow: '0 12px 32px rgba(139, 92, 246, 0.4)', fontSize: '1rem', fontWeight: 800 }}
+                                size="lg"
+                                style={{ borderRadius: '14px', fontWeight: 800 }}
                                 onClick={handleFinalLaunch}
                                 disabled={isSubmitting}
                             >

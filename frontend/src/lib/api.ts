@@ -27,8 +27,8 @@ const normalizeEmployee = (emp: any): EmployeeDTO => ({
     firstName: emp.firstName || emp.first_name || 'Unknown',
     lastName: emp.lastName || emp.last_name || '',
     profilePhoto: emp.profilePhoto || emp.profile_photo,
-    roleId: emp.roleId || 'EMPLOYEE',
-    designation: emp.designation || emp.roleId || 'Staff',
+    roleId: emp.roleId || emp.role_id || 'EMPLOYEE',
+    designation: emp.designation || emp.design_ation || emp.roleId || 'Staff',
     status: emp.status || 'ACTIVE',
     department: emp.department || 'General'
 });
@@ -359,32 +359,48 @@ export const api = {
     submitEOD: async (payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
         
-        // Whitelist for eod_reports table
-        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status', 'workHours'];
-        const dbPayload: any = {};
-        Object.keys(data).forEach(key => {
-            if (whitelist.includes(key) && (data as any)[key] !== undefined) {
-                dbPayload[key] = (data as any)[key];
-            }
-        });
+        // Whitelist mapping for eod_reports table (mapping camelCase DTO to snake_case DB columns)
+        const dbPayload: any = {
+            employeeId: data.employeeId,
+            reportDate: data.reportDate,
+            tasksCompleted: data.tasksCompleted,
+            tasksInProgress: data.tasksInProgress,
+            blockers: data.blockers,
+            sentiment: data.sentiment,
+            status: data.status,
+            work_hours: data.workHours
+        };
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
+        
+        // Map back to DTO
+        if (res && (res as any).work_hours !== undefined) {
+            res.workHours = (res as any).work_hours;
+        }
         handleSupabaseEvent(res, error, 'Submit EOD');
         return res as EODSubmissionDTO;
     },
     updateEOD: async (id: string, payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
 
-        // Whitelist for eod_reports table
-        const whitelist = ['employeeId', 'reportDate', 'tasksCompleted', 'tasksInProgress', 'blockers', 'sentiment', 'status', 'workHours'];
-        const dbPayload: any = {};
-        Object.keys(data).forEach(key => {
-            if (whitelist.includes(key) && (data as any)[key] !== undefined) {
-                dbPayload[key] = (data as any)[key];
-            }
-        });
+        // Whitelist mapping for eod_reports table
+        const dbPayload: any = {
+            employeeId: data.employeeId,
+            reportDate: data.reportDate,
+            tasksCompleted: data.tasksCompleted,
+            tasksInProgress: data.tasksInProgress,
+            blockers: data.blockers,
+            sentiment: data.sentiment,
+            status: data.status,
+            work_hours: data.workHours
+        };
 
-        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
+        
+        // Map back to DTO
+        if (res && (res as any).work_hours !== undefined) {
+            res.workHours = (res as any).work_hours;
+        }
         handleSupabaseEvent(res, error, 'Update EOD');
         return res as EODSubmissionDTO;
     },
@@ -401,7 +417,8 @@ export const api = {
             ...report,
             sentiment: report.sentiment || 'OKAY',
             tasksCompleted: report.tasksCompleted || [],
-            tasksInProgress: report.tasksInProgress || []
+            tasksInProgress: report.tasksInProgress || [],
+            workHours: report.workHours || report.work_hours
         })) as EODSubmissionDTO[];
     },
     getAllEODs: async (limit: number = 15) => {
@@ -418,7 +435,8 @@ export const api = {
             ...report,
             sentiment: report.sentiment || 'OKAY',
             tasksCompleted: report.tasksCompleted || [],
-            tasksInProgress: report.tasksInProgress || []
+            tasksInProgress: report.tasksInProgress || [],
+            workHours: report.workHours || report.work_hours
         }));
     },
     updateEODSentiment: async (id: string, sentiment: string) => {
