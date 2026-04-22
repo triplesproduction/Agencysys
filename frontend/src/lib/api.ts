@@ -8,7 +8,9 @@ import {
     RuleDTO,
     PaginatedResponse,
     KpiProfileDTO,
-    KpiAuditLogDTO
+    KpiAuditLogDTO,
+    ProjectDTO,
+    ProjectMemberDTO
 } from '../types/dto';
 import { supabase } from './supabase';
 
@@ -373,12 +375,11 @@ export const api = {
 
         const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
         
-        // Map back to DTO
-        if (res && (res as any).work_hours !== undefined) {
-            res.workHours = (res as any).work_hours;
-        }
         handleSupabaseEvent(res, error, 'Submit EOD');
-        return res as EODSubmissionDTO;
+        // Map back to DTO
+        const mapped: any = { ...res };
+        if (mapped.work_hours !== undefined) mapped.workHours = mapped.work_hours;
+        return mapped as EODSubmissionDTO;
     },
     updateEOD: async (id: string, payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
@@ -397,12 +398,11 @@ export const api = {
 
         const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
         
-        // Map back to DTO
-        if (res && (res as any).work_hours !== undefined) {
-            res.workHours = (res as any).work_hours;
-        }
         handleSupabaseEvent(res, error, 'Update EOD');
-        return res as EODSubmissionDTO;
+        // Map back to DTO
+        const mapped: any = { ...res };
+        if (mapped.work_hours !== undefined) mapped.workHours = mapped.work_hours;
+        return mapped as EODSubmissionDTO;
     },
     getMyEODs: async (userId: string) => {
         if (!userId) throw new Error('Not authenticated');

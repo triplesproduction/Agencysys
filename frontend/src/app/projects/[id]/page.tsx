@@ -89,11 +89,14 @@ export default function ProjectDetailPage() {
 
             const hydratedTasks = (tasksData || []).map((t: TaskDTO) => ({
                 ...t,
-                assignees: (t.assigneeIds || []).map((aid: string) => employeeMap.get(aid)).filter(Boolean)
+                assignees: (t.assigneeIds || [])
+                    .map((aid: string) => employeeMap.get(aid))
+                    .filter((e): e is EmployeeDTO => !!e)
+                    .map(e => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, profilePhoto: e.profilePhoto }))
             }));
 
             setProject(projData);
-            setTasks(hydratedTasks);
+            setTasks(hydratedTasks as TaskDTO[]);
         } catch (err) {
             console.error('Failed to load project details:', err);
         } finally {
@@ -165,13 +168,13 @@ export default function ProjectDetailPage() {
 
                 <div className="nav-right">
                     {isAdmin && activeTab === 'BOARD' && (
-                        <Button variant="primary" size="sm" onClick={() => setIsAllocateModalOpen(true)} icon={<Plus size={16} />}>
-                            New Unit
+                        <Button variant="primary" size="sm" onClick={() => setIsAllocateModalOpen(true)}>
+                            <Plus size={16} /> New Unit
                         </Button>
                     )}
                     {isAdmin && activeTab === 'FORCE' && (
-                        <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)} icon={<ShieldCheck size={16} />}>
-                            Manage Force
+                        <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)}>
+                            <ShieldCheck size={16} /> Manage Force
                         </Button>
                     )}
                 </div>
@@ -217,8 +220,8 @@ export default function ProjectDetailPage() {
                                 <h2>No units identified</h2>
                                 <p>Initialize tactical units to begin operations on this initiative.</p>
                                 {isAdmin && (
-                                    <Button variant="primary" onClick={() => setIsAllocateModalOpen(true)} icon={<Plus size={18} />}>
-                                        Identify First Unit
+                                    <Button variant="primary" onClick={() => setIsAllocateModalOpen(true)}>
+                                        <Plus size={18} /> Identify First Unit
                                     </Button>
                                 )}
                             </div>

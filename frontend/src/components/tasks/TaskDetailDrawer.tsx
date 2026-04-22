@@ -154,7 +154,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                     style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--purple-main)', background: 'rgba(139, 92, 246, 0.1)', padding: '4px 10px', borderRadius: '20px', fontWeight: 700 }}
                                 >
                                     <Activity size={12} />
-                                    {task?.projectName ? `PROJECT: ${task.projectName}` : `PROJECT: ${task?.projectId?.slice(0, 8).toUpperCase()}`}
+                                    {(task as any)?.projectName ? `PROJECT: ${(task as any).projectName}` : `PROJECT: ${task?.projectId?.slice(0, 8).toUpperCase()}`}
                                 </div>
                             )}
                             <button type="button" className="icon-btn-ghost"><MoreVertical size={18} /></button>
