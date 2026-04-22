@@ -84,8 +84,8 @@ export default function ProjectDetailPage() {
                 api.getEmployees({ limit: 1000 })
             ]);
 
-            const employeeMap = new Map();
-            (empsData.data || []).forEach(e => employeeMap.set(e.id, e));
+            const employeeMap = new Map<string, EmployeeDTO>();
+            (empsData.data || []).forEach((e: EmployeeDTO) => employeeMap.set(e.id, e));
 
             const hydratedTasks = (tasksData || []).map(t => ({
                 ...t,
