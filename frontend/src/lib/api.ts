@@ -361,7 +361,7 @@ export const api = {
     submitEOD: async (payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
         
-        // Whitelist mapping for eod_reports table (mapping camelCase DTO to snake_case DB columns)
+        // Whitelist mapping for eod_reports table
         const dbPayload: any = {
             employeeId: data.employeeId,
             reportDate: data.reportDate,
@@ -370,16 +370,13 @@ export const api = {
             blockers: data.blockers,
             sentiment: data.sentiment,
             status: data.status,
-            work_hours: data.workHours
+            workHours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
         
         handleSupabaseEvent(res, error, 'Submit EOD');
-        // Map back to DTO
-        const mapped: any = { ...res };
-        if (mapped.work_hours !== undefined) mapped.workHours = mapped.work_hours;
-        return mapped as EODSubmissionDTO;
+        return res as unknown as EODSubmissionDTO;
     },
     updateEOD: async (id: string, payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
@@ -393,16 +390,13 @@ export const api = {
             blockers: data.blockers,
             sentiment: data.sentiment,
             status: data.status,
-            work_hours: data.workHours
+            workHours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
         
         handleSupabaseEvent(res, error, 'Update EOD');
-        // Map back to DTO
-        const mapped: any = { ...res };
-        if (mapped.work_hours !== undefined) mapped.workHours = mapped.work_hours;
-        return mapped as EODSubmissionDTO;
+        return res as unknown as EODSubmissionDTO;
     },
     getMyEODs: async (userId: string) => {
         if (!userId) throw new Error('Not authenticated');
