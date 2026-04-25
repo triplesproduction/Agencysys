@@ -608,3 +608,291 @@
     opacity: 1;
     transform: scale(1.1);
 }
+
+/* ─── STEP 2: COLLAPSIBLE TASK CARDS ─── */
+.wiz-task-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wiz-task-card:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.wiz-task-card.expanded {
+    border-color: rgba(139, 92, 246, 0.25);
+    background: rgba(139, 92, 246, 0.03);
+}
+
+.wiz-task-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.wiz-task-header:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.wiz-task-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
+.wiz-task-num.filled {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: var(--purple-main);
+}
+
+.wiz-task-remove {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.15);
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.wiz-task-remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.wiz-task-body {
+    padding: 0 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    padding-top: 16px;
+}
+
+.wiz-task-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wiz-task-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.wiz-priority-group {
+    display: flex;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.wiz-priority-btn {
+    flex: 1;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 7px 0;
+    border-radius: 7px;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+.wiz-priority-btn.active.low { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.wiz-priority-btn.active.medium { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.wiz-priority-btn.active.high { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+.wiz-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.wiz-check-box {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.wiz-checklist-remove {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    margin-left: auto;
+    transition: color 0.2s;
+}
+
+.wiz-checklist-remove:hover {
+    color: #ef4444;
+}
+
+.wiz-add-task-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    border: 1.5px dashed rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.02);
+    color: rgba(139, 92, 246, 0.5);
+    font-weight: 700;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.wiz-add-task-btn:hover {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--purple-main);
+    border-style: solid;
+    color: white;
+}
+
+/* ─── STEP 3: SUMMARY ─── */
+.wiz-progress-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.wiz-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple-main), #a78bfa);
+    border-radius: 10px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wiz-summary-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.wiz-summary-task-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.wiz-summary-task-row:last-child {
+    border-bottom: none;
+}
+
+.wiz-summary-task-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.wiz-summary-check {
+    flex-shrink: 0;
+}
+
+.wiz-check-circle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.2s;
+}
+
+.wiz-priority-pill {
+    font-size: 0.55rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.wiz-priority-pill.low { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.wiz-priority-pill.medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.wiz-priority-pill.high { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+/* Timeline */
+.wiz-timeline {
+    padding: 8px 0;
+}
+
+.wiz-timeline-bar {
+    position: relative;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    margin: 12px 0;
+}
+
+.wiz-timeline-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid #0D0D12;
+    transition: all 0.3s;
+    cursor: default;
+    z-index: 2;
+}
+
+.wiz-timeline-dot.low { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+.wiz-timeline-dot.medium { background: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+.wiz-timeline-dot.high { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+
+.wiz-timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.25);
+    font-weight: 600;
+    margin-top: 6px;
+}
