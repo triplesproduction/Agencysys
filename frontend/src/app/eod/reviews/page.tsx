@@ -105,6 +105,8 @@ function EODReviewsContent() {
             });
 
             addNotification({ type: 'SUCCESS', title: 'Review Saved', message: `Report marked as ${status}.` });
+            setExpandedId(null);
+            setRatingMenuOpen(null);
             fetchReports(); // Refresh data
         } catch (err: any) {
             addNotification({ type: 'ERROR', title: 'Update Failed', message: err.message });

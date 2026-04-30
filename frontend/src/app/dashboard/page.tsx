@@ -332,7 +332,7 @@ function AdminDashboard({
                 {/* Column 4: Announcements, Chats & Leaderboard */}
                 <div className="ad2-col ad2-col-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <AnnouncementsWidget maxItems={2} />
-                    <RecentMessagesWidget maxItems={2} />
+                    <RecentMessagesWidget maxItems={10} />
 
                     <div className="ad2-card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
                         <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -567,7 +567,7 @@ function ManagerDashboard({
 
                 {/* Column 3: Communication & Rules */}
                 <div className="ad2-col ad2-col-4" style={{ gridArea: 'col4' }}>
-                    <RecentMessagesWidget maxItems={3} />
+                    <RecentMessagesWidget maxItems={10} />
                     <div style={{ marginTop: '12px' }}>
                         <AnnouncementsWidget maxItems={2} />
                     </div>
@@ -581,7 +581,7 @@ function ManagerDashboard({
 // ---------------------------------------------------------------------------
 // EMPLOYEE DASHBOARD (Clean & High Density)
 // ---------------------------------------------------------------------------
-function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number }) {
+function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eodList = [] }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number, eodList?: any[] }) {
     const taskList = tasks || [];
     const pendingTasks = taskList.filter(t => t && t.status !== 'DONE' && t.status !== 'APPROVED');
     const kpiScore = kpis?.current_score ?? 0;
@@ -600,6 +600,9 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours }: 
 
     const empName = employee?.firstName || 'Team Member';
     const empRole = employee?.roleId || 'Creative Strategist';
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasSubmittedToday = eodList.some(e => e && e.reportDate && e.reportDate.startsWith(todayStr));
 
     return (
         <div className="admin-dash-v2 fade-in">
@@ -624,7 +627,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours }: 
                 <Link href="/eod" style={{ textDecoration: 'none', flex: 1 }}>
                     <GlassCard className="stat-card">
                         <div className="stat-label">EOD Status</div>
-                        <div className="stat-value" style={{ fontSize: '1.25rem' }}>{new Date().getHours() >= 17 ? 'Ready to Submit' : 'In Progress'}</div>
+                        <div className="stat-value" style={{ fontSize: '1.25rem' }}>{hasSubmittedToday ? 'Submitted' : new Date().getHours() >= 17 ? 'Ready to Submit' : 'In Progress'}</div>
                         <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>Daily Check-in</div>
                     </GlassCard>
                 </Link>
@@ -684,7 +687,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours }: 
                 {/* Column 3: Quick Actions, Messages & Monthly Pace */}
                 <div className="ad2-col">
                     <AnnouncementsWidget maxItems={10} />
-                    <RecentMessagesWidget maxItems={2} style={{ flex: 1 }} />
+                    <RecentMessagesWidget maxItems={10} style={{ flex: 1 }} />
                 </div>
 
                 {/* Column 4: Communication & Rules (Right Side) */}
@@ -694,7 +697,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours }: 
                             <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button className="ad2-btn-add primary" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/eod'}>Submit EOD</button>
+                            <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && (window.location.href = '/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
                             <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/tasks'}>Tasks Board</button>
                             <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
                             <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
@@ -809,6 +812,7 @@ export default function DashboardPage() {
                         baseFetches.push(api.getAllKpiAuditLogs(8));
                     } else {
                         baseFetches.push(api.getRecentWorkHours(activeEmpId, 5));
+                        baseFetches.push(api.getMyEODs(activeEmpId));
                     }
 
                     const results = await Promise.allSettled(baseFetches);
@@ -837,6 +841,7 @@ export default function DashboardPage() {
                                 if (i === 6) setRecentKpiLogs(val || []);
                             } else if (activeRole === 'EMPLOYEE') {
                                 if (i === 4) setRecentLogs(val || []);
+                                if (i === 5) setRecentEods(val || []);
                             }
                         }
                     });
@@ -1036,7 +1041,7 @@ export default function DashboardPage() {
                 />
             )}
             {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (
-                <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} monthlyHours={monthlyHours} />
+                <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} monthlyHours={monthlyHours} eodList={recentEods} />
             )}
 
             <AllocateTaskModal

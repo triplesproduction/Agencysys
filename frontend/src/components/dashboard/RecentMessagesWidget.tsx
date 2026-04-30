@@ -16,7 +16,7 @@ interface Message {
     receiver: { firstName: string; lastName: string; profilePhoto?: string };
 }
 
-export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { maxItems?: number, style?: React.CSSProperties }) {
+export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { maxItems?: number, style?: React.CSSProperties }) {
     const { employee: authEmployee, loading: authLoading } = useAuth();
     const [threads, setThreads] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +57,7 @@ export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { max
 
     return (
         <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column', ...style }}>
-            <div className="ad2-card-header" style={{ marginBottom: '8px', paddingBottom: '4px', border: 'none' }}>
+            <div className="ad2-card-header" style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                 <h3><MessageSquare size={16} color="var(--purple-main)" /> Recent Chats</h3>
                 <Link href="/messaging" className="ad2-badge" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.05)', fontSize: '0.65rem' }}>
                     Open Inbox <ArrowRight size={10} style={{ marginLeft: '4px' }} />
@@ -73,7 +73,14 @@ export default function RecentMessagesWidget({ maxItems = 3, style = {} }: { max
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>No messages yet.</p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="custom-scrollbar" style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '10px',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    paddingRight: '6px'
+                }}>
                     {threads.map(msg => {
                         const name = msg.partner ? `${msg.partner.firstName} ${msg.partner.lastName}` : 'Unknown';
                         const photo = msg.partner?.profilePhoto;

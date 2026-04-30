@@ -361,7 +361,7 @@ export const api = {
     submitEOD: async (payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
         
-        // Whitelist mapping for eod_reports table
+        // Whitelist mapping for eod_reports table (mapping camelCase DTO to snake_case DB columns)
         const dbPayload: any = {
             employeeId: data.employeeId,
             reportDate: data.reportDate,
@@ -369,12 +369,16 @@ export const api = {
             tasksInProgress: data.tasksInProgress,
             blockers: data.blockers,
             sentiment: data.sentiment,
-            status: data.status,
-            workHours: data.workHours
+            status: data.status
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
         
+        // Map back to DTO
+        if (res && (res as any).work_hours !== undefined) {
+            (res as any).workHours = (res as any).work_hours;
+        }
+
         handleSupabaseEvent(res, error, 'Submit EOD');
         return res as unknown as EODSubmissionDTO;
     },
@@ -389,12 +393,16 @@ export const api = {
             tasksInProgress: data.tasksInProgress,
             blockers: data.blockers,
             sentiment: data.sentiment,
-            status: data.status,
-            workHours: data.workHours
+            status: data.status
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, workHours').single();
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
         
+        // Map back to DTO
+        if (res && (res as any).work_hours !== undefined) {
+            (res as any).workHours = (res as any).work_hours;
+        }
+
         handleSupabaseEvent(res, error, 'Update EOD');
         return res as unknown as EODSubmissionDTO;
     },
@@ -412,7 +420,7 @@ export const api = {
             sentiment: report.sentiment || 'OKAY',
             tasksCompleted: report.tasksCompleted || [],
             tasksInProgress: report.tasksInProgress || [],
-            workHours: report.workHours || report.work_hours
+            workHours: report.workHours || (report as any).work_hours || 0
         })) as EODSubmissionDTO[];
     },
     getAllEODs: async (limit: number = 15) => {
@@ -430,7 +438,7 @@ export const api = {
             sentiment: report.sentiment || 'OKAY',
             tasksCompleted: report.tasksCompleted || [],
             tasksInProgress: report.tasksInProgress || [],
-            workHours: report.workHours || report.work_hours
+            workHours: report.workHours || (report as any).work_hours || 0
         }));
     },
     updateEODSentiment: async (id: string, sentiment: string) => {
@@ -439,9 +447,18 @@ export const api = {
         return data as any;
     },
     reviewEOD: async (id: string, payload: { employeeId: string; date: string; workHours: number; adminNote?: string; status: string }) => {
-        // 1. Update the EOD Report status
+        // 1. Update the EOD Report status and note
         if (id) {
-            await supabase.from('eod_reports').update({ status: payload.status }).eq('id', id);
+            const { error: updateError } = await supabase.from('eod_reports')
+                .update({ 
+                    status: payload.status
+                })
+                .eq('id', id);
+            
+            if (updateError) {
+                console.error('Error updating EOD report status:', updateError);
+                handleSupabaseEvent(null, updateError, 'Update EOD Report Status');
+            }
         }
 
         // 2. Sync with work hour log
@@ -463,11 +480,13 @@ export const api = {
             return data;
         } else {
             // Create new
+            const note = payload.adminNote ? `[Review Note: ${payload.adminNote}]` : '';
+            const statusStr = payload.status ? ` [Status: ${payload.status}]` : '';
             const data = await api.addWorkHourLog({
                 employeeId: payload.employeeId,
                 date: payload.date,
                 hoursLogged: payload.workHours,
-                description: `Admin reviewed on ${new Date().toLocaleDateString()}. Status: ${payload.status}. Note: ${payload.adminNote || 'None'}`
+                description: `Admin updated on ${new Date().toLocaleDateString()}. ${note}${statusStr}`
             });
             return data;
         }

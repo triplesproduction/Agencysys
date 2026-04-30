@@ -133,8 +133,8 @@ export default function EODPage() {
         setError('');
         setSuccess(false);
 
-        if (isReviewed) {
-            setError('This report has already been reviewed by an admin and cannot be modified.');
+        if (todayReport) {
+            setError('You have already submitted your EOD for today. It cannot be modified.');
             return;
         }
 
@@ -244,7 +244,7 @@ export default function EODPage() {
 
             {/* Submission Form Area */}
             <section className="form-section" style={{ marginBottom: '48px' }}>
-                <GlassCard className="submission-card" style={{ padding: '24px 28px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15, 15, 20, 0.4)', opacity: isReviewed ? 0.8 : 1 }}>
+                <GlassCard className="submission-card" style={{ padding: '24px 28px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15, 15, 20, 0.4)', opacity: todayReport ? 0.8 : 1 }}>
                     <form onSubmit={handleSubmit}>
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -253,6 +253,8 @@ export default function EODPage() {
                                 </label>
                                 {isReviewed ? (
                                     <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800, background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '4px' }}>REVIEWED BY ADMIN</span>
+                                ) : todayReport ? (
+                                    <span style={{ fontSize: '0.65rem', color: '#60A5FA', fontWeight: 800, background: 'rgba(96,165,250,0.1)', padding: '2px 8px', borderRadius: '4px' }}>SUBMITTED</span>
                                 ) : (
                                     <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>Enter one task per line</span>
                                 )}
@@ -260,8 +262,8 @@ export default function EODPage() {
                             <textarea
                                 className="glass-textarea"
                                 rows={4}
-                                disabled={isReviewed}
-                                style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '14px', cursor: isReviewed ? 'not-allowed' : 'text' }}
+                                disabled={!!todayReport}
+                                style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '14px', cursor: todayReport ? 'not-allowed' : 'text' }}
                                 placeholder="Write the tasks you completed today"
                                 value={formData.tasksCompleted}
                                 onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
@@ -276,9 +278,9 @@ export default function EODPage() {
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="number"
-                                        disabled={isReviewed}
+                                        disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem', cursor: isReviewed ? 'not-allowed' : 'text' }}
+                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem', cursor: todayReport ? 'not-allowed' : 'text' }}
                                         min="0" step="0.5" max="24"
                                         placeholder="8.5"
                                         value={formData.workHours}
@@ -294,9 +296,9 @@ export default function EODPage() {
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"
-                                        disabled={isReviewed}
+                                        disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem', cursor: isReviewed ? 'not-allowed' : 'text' }}
+                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem', cursor: todayReport ? 'not-allowed' : 'text' }}
                                         placeholder="Anything slowing you down?"
                                         value={formData.blockers}
                                         onChange={e => setFormData({ ...formData, blockers: e.target.value })}
@@ -308,18 +310,18 @@ export default function EODPage() {
 
                         <Button
                             type="submit"
-                            disabled={loading || isReviewed}
+                            disabled={loading || !!todayReport}
                             className="submit-btn"
                             style={{ 
                                 width: '100%', 
                                 height: '3rem', 
                                 fontSize: '0.9rem', 
-                                background: isReviewed ? 'rgba(255,255,255,0.05)' : undefined,
-                                color: isReviewed ? 'rgba(255,255,255,0.3)' : undefined,
-                                border: isReviewed ? '1px solid rgba(255,255,255,0.05)' : undefined
+                                background: todayReport ? 'rgba(255,255,255,0.05)' : undefined,
+                                color: todayReport ? 'rgba(255,255,255,0.3)' : undefined,
+                                border: todayReport ? '1px solid rgba(255,255,255,0.05)' : undefined
                              }}
                         >
-                            {loading ? 'Processing...' : isReviewed ? 'Submission Locked' : todayReport ? 'Update Daily EOD' : 'Publish Daily EOD'}
+                            {loading ? 'Processing...' : todayReport ? 'Submitted for Today' : 'Publish Daily EOD'}
                         </Button>
 
                         {error && (
