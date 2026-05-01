@@ -892,21 +892,36 @@ export const api = {
             (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
         }
 
-        // Get last messages and unread counts in bulk
-        // Since Supabase RPC is not available for "last message per conversation", we fetch recent messages
-        const { data: recentMessages, error: msgsErr } = await supabase
+        // NEW OPTIMIZED APPROACH: Activity-First
+        // 1. Fetch the 50 most recent messages for the user's accessible conversations
+        const { data: recentMsgs, error: msgsErr } = await supabase
             .from('messages')
             .select('*')
             .in('conversation_id', convIds)
             .order('created_at', { ascending: false })
-            .limit(1000); // Batched approach for last messages
-        
-        if (msgsErr) logger.error('[Chat] recentMessages error:', msgsErr.message);
+            .limit(100);
 
+        if (msgsErr) {
+            logger.error('[Chat] recentMessages error:', msgsErr.message);
+            return [];
+        }
+
+        // 2. Identify unique conversations from these messages
+        const activeConvIds = Array.from(new Set(recentMsgs.map((m: any) => m.conversation_id)));
+        
+        // 3. Map last message per conversation
+        const lastMessageMap: Record<string, any> = {};
+        recentMsgs.forEach((m: any) => {
+            if (!lastMessageMap[m.conversation_id]) {
+                lastMessageMap[m.conversation_id] = m;
+            }
+        });
+
+        // 4. Get unread counts only for active conversations (optional, but let's do all for now)
         const { data: unreadMsgs, error: unreadErr } = await supabase
             .from('messages')
             .select('conversation_id')
-            .in('conversation_id', convIds)
+            .in('conversation_id', activeConvIds)
             .neq('sender_id', myId)
             .neq('status', 'seen');
 
@@ -917,25 +932,18 @@ export const api = {
             unreadCounts[m.conversation_id] = (unreadCounts[m.conversation_id] || 0) + 1;
         });
 
-        const lastMessages: Record<string, any> = {};
-        (recentMessages || []).forEach((m: any) => {
-            if (!lastMessages[m.conversation_id]) {
-                lastMessages[m.conversation_id] = {
-                    ...m,
-                    createdAt: m.created_at,
-                    senderId: m.sender_id
-                };
-            }
-        });
-
-        const results = convIds.map((convId: string) => {
+        const results = activeConvIds.map((convId: string) => {
             const other = (otherParts || []).find((p: any) => p.conversation_id === convId);
             const otherEmployee = other ? employeeMap[other.user_id] : null;
 
             return {
                 conversationId: convId,
                 otherUser: otherEmployee || null,
-                lastMessage: lastMessages[convId] || null,
+                lastMessage: lastMessageMap[convId] ? {
+                    ...lastMessageMap[convId],
+                    createdAt: lastMessageMap[convId].created_at,
+                    senderId: lastMessageMap[convId].sender_id
+                } : null,
                 unreadCount: unreadCounts[convId] || 0,
             };
         });
@@ -1027,6 +1035,11 @@ export const api = {
             .eq('conversation_id', conversationId)
             .neq('sender_id', myId)
             .neq('status', 'seen');
+        
+        // Notify other components (like Sidebar) to refresh unread count
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('messagesMarkedRead'));
+        }
     },
 
     /** Upsert typing status */
@@ -1059,6 +1072,7 @@ export const api = {
     },
 
     /** Get total unread count for a user (for sidebar badge) */
+    /** Count of distinct conversations (not total messages) that have unread messages */
     getUnreadCount: async (myId: string): Promise<number> => {
         // Get all conversations the user belongs to
         const { data: parts } = await supabase
@@ -1067,13 +1081,20 @@ export const api = {
             .eq('user_id', myId);
         if (!parts || parts.length === 0) return 0;
         const convIds = parts.map((p: any) => p.conversation_id);
-        const { count } = await supabase
+
+        // Fetch all unread messages and count distinct conversation_ids
+        const { data: unreadMsgs } = await supabase
             .from('messages')
-            .select('*', { count: 'exact', head: true })
+            .select('conversation_id')
             .in('conversation_id', convIds)
             .neq('sender_id', myId)
             .neq('status', 'seen');
-        return count || 0;
+
+        if (!unreadMsgs || unreadMsgs.length === 0) return 0;
+
+        // Count distinct conversations (not individual messages)
+        const distinctConvs = new Set(unreadMsgs.map((m: any) => m.conversation_id));
+        return distinctConvs.size;
     },
 
     sendChatMessage: async (payload: { receiverId: string; content: string }, senderId: string) => {
@@ -1087,7 +1108,7 @@ export const api = {
             *,
             members:project_members(
                 *,
-                user:employees!userId(id, firstName, lastName, profilePhoto)
+                user:employees!fk_project_members_user(id, firstName, lastName, profilePhoto)
             )
         `);
         
@@ -1115,7 +1136,7 @@ export const api = {
                 *,
                 members:project_members(
                     *,
-                    user:employees!userId(id, firstName, lastName, profilePhoto)
+                    user:employees!fk_project_members_user(id, firstName, lastName, profilePhoto)
                 ),
                 tasks:tasks(*)
             `)

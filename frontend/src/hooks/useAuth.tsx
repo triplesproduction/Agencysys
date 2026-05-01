@@ -128,11 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUser(currentUser);
                     setSession(currentSession);
                     
-                    // Fetch profile if missing or just to keep it fresh
-                    const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
-                    if (mounted) {
-                        setEmployee(profileData);
-                        logger.log(`[AUTH DEBUG] Profile resolved for ${currentUser.id}:`, profileData ? 'SUCCESS' : 'FAILED (Missing Employee Record)');
+                    // Optimization: Only fetch profile if it's not already in state
+                    // This prevents re-fetching the same profile during SPA navigation
+                    if (!employee) {
+                        const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
+                        if (mounted) {
+                            setEmployee(profileData);
+                            setLoading(false);
+                        }
+                    } else {
                         setLoading(false);
                     }
                 } else {
@@ -182,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(safetyTimeout);
             subscription.unsubscribe();
         };
-    }, [router]);
+    }, []);
 
     const signOut = useCallback(async () => {
         logger.log('[Auth] Nuclear Sign Out initiated...');

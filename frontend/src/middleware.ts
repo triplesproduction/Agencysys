@@ -27,13 +27,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // This will refresh session if expired - required for Server Components
-  // and Route Handlers to work correctly.
+  const start = Date.now();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   const pathname = request.nextUrl.pathname;
+  console.log(`[MIDDLEWARE] Session check took ${Date.now() - start}ms for ${pathname}`);
 
   // 1. If no user and not on login page -> redirect to login
   if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {

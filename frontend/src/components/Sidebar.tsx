@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import './Sidebar.css';
 
 // Centralized navigation configurations dictated by Role
@@ -81,18 +82,47 @@ export default function Sidebar() {
         setIsMounted(true);
     }, []);
 
-    // Poll unread message count every 30s
+    // Real-time unread message count
     useEffect(() => {
         if (!employee?.id) return;
+
         const fetchUnread = async () => {
             try {
                 const count = await api.getUnreadCount(String(employee.id));
                 setUnreadCount(count);
             } catch { /* silent */ }
         };
+
         fetchUnread();
-        const interval = setInterval(fetchUnread, 30000);
-        return () => clearInterval(interval);
+
+        // 1. Listen for local read events (from the same user on this device)
+        const handleLocalRead = () => fetchUnread();
+        window.addEventListener('messagesMarkedRead', handleLocalRead);
+
+        // 2. Poll every 10s as a robust fallback
+        const interval = setInterval(fetchUnread, 10000);
+
+        // 3. Subscribe to message changes (new messages or status updates from others)
+        const channel = supabase
+            .channel('sidebar-unread-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'messages'
+                },
+                () => {
+                    fetchUnread();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            window.removeEventListener('messagesMarkedRead', handleLocalRead);
+            clearInterval(interval);
+            supabase.removeChannel(channel);
+        };
     }, [employee?.id]);
 
     const handleLogout = (e: React.MouseEvent) => {

@@ -346,7 +346,7 @@ export default function MessagingPage() {
                 const { url } = await api.uploadChatMedia(imagePreview.file);
                 console.log('[Chat] Image uploaded:', url);
                 const taggedTaskId = extractTaggedTaskId(messageInput);
-                await api.sendMessage({
+                const sent = await api.sendMessage({
                     conversationId: activeConvId,
                     senderId: myId,
                     type: 'image',
@@ -354,6 +354,13 @@ export default function MessagingPage() {
                     content: messageInput.trim() || undefined,
                     taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
                 });
+                // Show immediately without waiting for realtime echo
+                if (sent) {
+                    setMessages((prev) => {
+                        if (prev.find((m) => m.id === sent.id)) return prev;
+                        return [...prev, sent as Message];
+                    });
+                }
                 setImagePreview(null);
                 setMessageInput('');
             } catch (err: any) {
@@ -369,19 +376,42 @@ export default function MessagingPage() {
         if (!text) return;
 
         const taggedTaskId = extractTaggedTaskId(text);
+
+        // Optimistic update: show own message immediately, no realtime dependency
+        const optimisticId = `optimistic-${Date.now()}`;
+        const optimisticMsg: Message = {
+            id: optimisticId,
+            conversationId: activeConvId,
+            senderId: myId,
+            content: text,
+            type: 'text',
+            status: 'sent',
+            createdAt: new Date().toISOString(),
+            taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
+        setMessageInput('');
+
         try {
             setIsSending(true);
-            setMessageInput('');
             console.log('[Chat] Sending message, taskRef:', taggedTaskId);
-            await api.sendMessage({
+            const sent = await api.sendMessage({
                 conversationId: activeConvId,
                 senderId: myId,
                 content: text,
                 type: 'text',
                 taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
             });
+            // Swap placeholder with real DB record (correct id, createdAt, status)
+            if (sent) {
+                setMessages((prev) =>
+                    prev.map((m) => (m.id === optimisticId ? (sent as Message) : m))
+                );
+            }
             if (myId && activeConvId) api.setTypingStatus(myId, activeConvId, false).catch(() => {});
         } catch (err: any) {
+            // Roll back on failure
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
             setMessageInput(text);
             console.error('[Chat] Send failed:', err.message);
         } finally {
