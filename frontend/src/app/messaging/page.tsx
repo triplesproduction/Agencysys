@@ -57,6 +57,7 @@ export default function MessagingPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [messagesLoading, setMessagesLoading] = useState(false); // per-conversation load
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
     const [myTasks, setMyTasks] = useState<any[]>([]);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -200,23 +201,39 @@ export default function MessagingPage() {
 
         if (!activeConvId || !myId) {
             setMessages([]);
+            setMessagesLoading(false);
             return;
         }
-        const load = async () => {
-            console.log('[Chat] Loading messages for conv:', activeConvId);
-            const msgs = await api.getMessages(activeConvId);
-            setMessages(msgs as Message[]);
-            await api.markMessagesRead(activeConvId, myId);
-            await loadConversations();
 
-            // Fix 6: retry once after 2s if messages came back empty (race on new conv)
-            if (msgs.length === 0) {
-                retryTimerRef.current = setTimeout(async () => {
-                    if (activeConvIdRef.current !== activeConvId) return; // user moved away
-                    console.log('[Chat] Retry: empty on first load, retrying...');
-                    const retried = await api.getMessages(activeConvId);
-                    if (retried.length > 0) setMessages(retried as Message[]);
-                }, 2000);
+        const convSnapshot = activeConvId;
+
+        const load = async () => {
+            setMessagesLoading(true);
+            try {
+                console.log('[Chat] Loading messages for conv:', convSnapshot);
+                const msgs = await api.getMessages(convSnapshot);
+                
+                if (activeConvIdRef.current !== convSnapshot) return;
+                
+                setMessages(msgs as Message[]);
+                api.markMessagesRead(convSnapshot, myId).catch(() => {});
+                await loadConversations();
+
+                // Retry once after 2s if messages came back empty (race on brand-new conv)
+                if (msgs.length === 0) {
+                    retryTimerRef.current = setTimeout(async () => {
+                        if (activeConvIdRef.current !== convSnapshot) return;
+                        console.log('[Chat] Retry: empty on first load, retrying...');
+                        const retried = await api.getMessages(convSnapshot);
+                        if (retried.length > 0) setMessages(retried as Message[]);
+                    }, 2000);
+                }
+            } catch (err: any) {
+                console.error('[Chat] load messages error:', err);
+            } finally {
+                if (activeConvIdRef.current === convSnapshot) {
+                    setMessagesLoading(false);
+                }
             }
         };
         load();
@@ -712,11 +729,15 @@ export default function MessagingPage() {
 
                             {/* Messages Area */}
                             <div className="msg-messages-area">
-                                {messages.length === 0 && (
+                                {messagesLoading ? (
+                                    <div className="msg-messages-loading">
+                                        <div className="msg-spinner" />
+                                    </div>
+                                ) : messages.length === 0 ? (
                                     <div className="msg-no-msgs">
                                         <p>Say hello to {activeOtherUser?.firstName} 👋</p>
                                     </div>
-                                )}
+                                ) : null}
 
                                 {messages.map((msg, idx) => {
                                     const isMine = String(msg.senderId) === String(myId);

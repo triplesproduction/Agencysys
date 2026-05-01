@@ -868,10 +868,9 @@ export const api = {
             if (!parts || parts.length === 0) return [];
             convIds = parts.map((p: any) => p.conversation_id);
         }
-
         if (convIds.length === 0) return [];
 
-        // Get all other participants (their userId only)
+        // 1. Get all other participants (their userId only)
         const { data: otherParts, error: otherErr } = await supabase
             .from('conversation_participants')
             .select('conversation_id, user_id')
@@ -880,10 +879,9 @@ export const api = {
 
         if (otherErr) logger.error('[Chat] otherParts error:', otherErr.message);
 
-        // Collect unique other userIds and fetch employee data in one query
+        // Collect unique other userIds and fetch employee data
         const otherUserIds = Array.from(new Set((otherParts || []).map((p: any) => p.user_id)));
         let employeeMap: Record<string, any> = {};
-
         if (otherUserIds.length > 0) {
             const { data: emps } = await supabase
                 .from('employees')
@@ -892,55 +890,55 @@ export const api = {
             (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
         }
 
-        // NEW OPTIMIZED APPROACH: Activity-First
-        // 1. Fetch the 50 most recent messages for the user's accessible conversations
-        const { data: recentMsgs, error: msgsErr } = await supabase
+        // 2. Fetch the LATEST message for each conversation
+        // We do this by fetching the latest message per convId
+        // In Supabase, we can use a query that gets the last message for each conv
+        const { data: latestMsgs } = await supabase
             .from('messages')
             .select('*')
             .in('conversation_id', convIds)
-            .order('created_at', { ascending: false })
-            .limit(100);
+            .order('created_at', { ascending: false });
 
-        if (msgsErr) {
-            logger.error('[Chat] recentMessages error:', msgsErr.message);
-            return [];
-        }
-
-        // 2. Identify unique conversations from these messages
-        const activeConvIds = Array.from(new Set(recentMsgs.map((m: any) => m.conversation_id)));
-        
-        // 3. Map last message per conversation
+        // Map latest message per conversation
         const lastMessageMap: Record<string, any> = {};
-        recentMsgs.forEach((m: any) => {
+        (latestMsgs || []).forEach((m: any) => {
             if (!lastMessageMap[m.conversation_id]) {
                 lastMessageMap[m.conversation_id] = m;
             }
         });
 
-        // 4. Get unread counts only for active conversations (optional, but let's do all for now)
-        const { data: unreadMsgs, error: unreadErr } = await supabase
+        // 3. Get unread counts for all conversations
+        const { data: unreadMsgs } = await supabase
             .from('messages')
             .select('conversation_id')
-            .in('conversation_id', activeConvIds)
+            .in('conversation_id', convIds)
             .neq('sender_id', myId)
             .neq('status', 'seen');
-
-        if (unreadErr) logger.error('[Chat] unreadMsgs error:', unreadErr.message);
 
         const unreadCounts: Record<string, number> = {};
         (unreadMsgs || []).forEach((m: any) => {
             unreadCounts[m.conversation_id] = (unreadCounts[m.conversation_id] || 0) + 1;
         });
 
-        const results = activeConvIds.map((convId: string) => {
+        // 4. Assemble results for ALL convIds
+        const results = convIds.map((convId: string) => {
             const other = (otherParts || []).find((p: any) => p.conversation_id === convId);
             const otherEmployee = other ? employeeMap[other.user_id] : null;
 
             return {
                 conversationId: convId,
-                otherUser: otherEmployee || null,
+                otherUser: otherEmployee ? {
+                    id: otherEmployee.id,
+                    firstName: otherEmployee.firstName,
+                    lastName: otherEmployee.lastName,
+                    profilePhoto: otherEmployee.profilePhoto,
+                    designation: otherEmployee.designation,
+                    roleId: otherEmployee.roleId
+                } : null,
                 lastMessage: lastMessageMap[convId] ? {
-                    ...lastMessageMap[convId],
+                    id: lastMessageMap[convId].id,
+                    content: lastMessageMap[convId].content,
+                    type: lastMessageMap[convId].type,
                     createdAt: lastMessageMap[convId].created_at,
                     senderId: lastMessageMap[convId].sender_id
                 } : null,
@@ -950,8 +948,8 @@ export const api = {
 
         // Sort by latest message timestamp
         return results.sort((a, b) => {
-            const aIsAdmin = (a.otherUser as any)?.roleId?.toUpperCase() === 'ADMIN';
-            const bIsAdmin = (b.otherUser as any)?.roleId?.toUpperCase() === 'ADMIN';
+            const aIsAdmin = String((a.otherUser as any)?.roleId || '').toUpperCase() === 'ADMIN';
+            const bIsAdmin = String((b.otherUser as any)?.roleId || '').toUpperCase() === 'ADMIN';
             if (aIsAdmin && !bIsAdmin) return -1;
             if (!aIsAdmin && bIsAdmin) return 1;
             const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
@@ -967,33 +965,48 @@ export const api = {
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true })
+            .order('created_at', { ascending: false }) // Get LATEST first
             .limit(limit);
+
         if (error) {
             logger.error('[Chat] getMessages error:', error.message);
-            throw new Error(error.message);
+            return [];
         }
 
-        // Enrich with sender names
-        const senderIds = Array.from(new Set((data || []).map((m: any) => m.sender_id)));
-        let senderMap: Record<string, any> = {};
+        const messages = (data || []).reverse(); // Reverse so they are chronological for UI
+
+        // Enrich messages with sender names
+        const senderIds = Array.from(new Set(messages.map((m: any) => m.sender_id)));
         if (senderIds.length > 0) {
             const { data: emps } = await supabase
                 .from('employees')
                 .select('id, firstName, lastName, profilePhoto')
                 .in('id', senderIds);
-            (emps || []).forEach((e: any) => { senderMap[e.id] = e; });
+            
+            const empMap: Record<string, any> = {};
+            (emps || []).forEach(e => empMap[e.id] = e);
+
+            return messages.map((m: any) => ({
+                id: m.id,
+                content: m.content,
+                type: m.type,
+                createdAt: m.created_at,
+                senderId: m.sender_id,
+                status: m.status,
+                senderName: empMap[m.sender_id] ? `${empMap[m.sender_id].firstName} ${empMap[m.sender_id].lastName}` : 'System',
+                senderPhoto: empMap[m.sender_id]?.profilePhoto,
+                taskId: m.task_id
+            }));
         }
 
-        logger.log('[Chat] getMessages fetched:', data?.length, 'messages');
-        return (data || []).map(m => ({
-            ...m,
+        return messages.map((m: any) => ({
+            id: m.id,
+            content: m.content,
+            type: m.type,
             createdAt: m.created_at,
             senderId: m.sender_id,
-            mediaUrl: m.media_url,
-            taskRef: m.task_ref,
-            senderName: senderMap[m.sender_id] ? `${senderMap[m.sender_id].firstName} ${senderMap[m.sender_id].lastName}` : null,
-            senderPhoto: senderMap[m.sender_id]?.profilePhoto || null,
+            status: m.status,
+            taskId: m.task_id
         }));
     },
 

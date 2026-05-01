@@ -24,7 +24,8 @@ import {
     TrendingUp,
     BookOpen,
     ChevronLeft,
-    ChevronRight 
+    ChevronRight,
+    Megaphone 
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
@@ -40,12 +41,12 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Task Allocation', href: '/tasks', icon: CheckSquare },
         { name: 'Employee Management', href: '/employees', icon: UserPlus },
+        { name: 'Messaging', href: '/messaging', icon: MessageSquare },
+        { name: 'Announcements', href: '/broadcast', icon: Megaphone },
         { name: 'Leave Approvals', href: '/leaves/approvals', icon: CalendarDays },
         { name: 'EOD Reviews', href: '/eod/reviews', icon: FileText },
         { name: 'System Logs', href: '/logs/system', icon: Clock },
         { name: 'Permissions', href: '/permissions', icon: ShieldAlert },
-        { name: 'Messaging', href: '/messaging', icon: MessageSquare },
-        { name: 'Announcements', href: '/messaging/broadcast', icon: MessageSquare },
         { name: 'Rule Book', href: '/wiki', icon: BookOpen },
     ],
     MANAGER: [
@@ -55,6 +56,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
+        { name: 'Announcements', href: '/broadcast', icon: Megaphone },
         { name: 'Project Notes', href: '/notes', icon: FileText },
     ],
     EMPLOYEE: [
@@ -62,10 +64,11 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'My Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Submit EOD', href: '/eod', icon: FileText },
-        { name: 'Work Log', href: '/logs', icon: Clock },
-        { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
+        { name: 'Announcements', href: '/broadcast', icon: Megaphone },
+        { name: 'Work Log', href: '/logs', icon: Clock },
         { name: 'Company Rulebook', href: '/rulebook', icon: BookOpen },
+        { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
     ]
 };
 
@@ -198,9 +201,11 @@ export default function Sidebar() {
                                 }
 
                                 const Icon = item.icon;
-                                const isActive = item.href === '/dashboard'
-                                    ? pathname === '/dashboard'
-                                    : pathname?.startsWith(item.href || '');
+                                const isActive = item.href === '/messaging'
+                                    ? pathname === '/messaging'
+                                    : item.href === '/dashboard'
+                                        ? pathname === '/dashboard'
+                                        : pathname?.startsWith(item.href || '');
 
                             return (
                                     <li key={item.name}>

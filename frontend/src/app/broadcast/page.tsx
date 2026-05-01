@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Send, BellRing, Users, History, ShieldAlert, Trash2, ToggleLeft, ToggleRight, Loader2, Plus, X } from 'lucide-react';
+import { MessageSquare, Send, BellRing, Users, History, ShieldAlert, Trash2, ToggleLeft, ToggleRight, Loader2, Plus, X, ShieldCheck } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 
 import { api } from '@/lib/api';
@@ -116,6 +116,9 @@ export default function BroadcastPage() {
     const [filter, setFilter] = useState('ALL');
 
     const filteredAnnouncements = announcements.filter(ann => {
+        // If not an admin, hide inactive announcements
+        if (!isAdmin && ann.status === 'inactive') return false;
+        
         if (filter === 'ALL') return true;
         return ann.type === filter;
     });
@@ -130,8 +133,7 @@ export default function BroadcastPage() {
                         <MessageSquare size={28} style={{ color: 'var(--purple-main)' }} /> System Announcements
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', marginTop: '8px', maxWidth: '650px', fontSize: '0.95rem', lineHeight: '1.6' }}>
-                        Broadcast critical updates and maintain a unified communication channel across the agency. 
-                        Use the filters below to navigate through announcements, urgent alerts, and system updates.
+                        Stay informed with the latest agency updates, urgent alerts, and system news. Use the filters below to browse through different categories.
                     </p>
                 </div>
 
@@ -257,9 +259,9 @@ export default function BroadcastPage() {
                                 <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(139,92,246,0.2)', color: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800 }}>
-                                            {ann.author?.firstName?.[0] || 'A'}
+                                            {ann.author ? (ann.author.firstName?.[0] || 'A') : <ShieldCheck size={12} />}
                                         </div>
-                                        {ann.author ? `${ann.author.firstName} ${ann.author.lastName}` : 'System'}
+                                        {ann.author ? `${ann.author.firstName} ${ann.author.lastName}` : 'Admin'}
                                     </div>
                                     <span>{new Date(ann.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                 </div>

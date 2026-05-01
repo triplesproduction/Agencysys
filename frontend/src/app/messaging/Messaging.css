@@ -763,6 +763,14 @@
     animation: spin 0.8s linear infinite;
 }
 
+.msg-messages-loading {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
     .msg-sidebar {
