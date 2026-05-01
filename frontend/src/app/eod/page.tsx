@@ -166,7 +166,7 @@ export default function EODPage() {
 
             const payload: Partial<EODSubmissionDTO> = {
                 employeeId: empId,
-                reportDate: todayReport ? todayReport.reportDate : new Date().toISOString(),
+                reportDate: new Date().toISOString(),
                 tasksCompleted: completedList,
                 tasksInProgress: [],
                 blockers: formData.blockers || undefined,
@@ -174,11 +174,7 @@ export default function EODPage() {
                 workHours: hours
             };
 
-            if (todayReport) {
-                await api.updateEOD(todayReport.id, payload);
-            } else {
-                await api.submitEOD(payload);
-            }
+            const createdReport = await api.submitEOD(payload);
 
             // Sync/Update work hours log
             try {
@@ -187,7 +183,7 @@ export default function EODPage() {
                 
                 if (existingLog) {
                     // Update existing log
-                    await api.reviewEOD(todayReport?.id || '', { // api.reviewEOD is basically a "upsert work hour log" with review metadata
+                    await api.reviewEOD(createdReport.id, { // api.reviewEOD is basically a "upsert work hour log" with review metadata
                          employeeId: empId,
                          date: todayDate,
                          workHours: hours,
