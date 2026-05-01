@@ -28,7 +28,7 @@ export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { ma
             try {
                 const myId = authEmployee.id;
                 // getConversations returns { conversationId, otherUser, lastMessage, unreadCount }[]
-                const response: any = await api.getMyChats(myId);
+                const response: any = await api.getConversations(myId, authEmployee.roleId);
                 const convs = Array.isArray(response) ? response : [];
 
                 const lastMessages = convs

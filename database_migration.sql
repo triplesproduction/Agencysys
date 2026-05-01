@@ -69,7 +69,7 @@ ALTER TABLE tasks
 ADD COLUMN IF NOT EXISTS "projectId" uuid REFERENCES projects(id) ON DELETE SET NULL;
 
 -- 4. Add Index for Performance
-CREATE INDEX IF NOT EXISTS idx_tasks_projectId ON tasks(projectId);
+CREATE INDEX IF NOT EXISTS idx_tasks_projectId ON tasks("projectId");
 
 -- 5. IMPORTANT: Add Foreign Key for project members to employees join
 -- This ensures API joins work correctly
@@ -82,9 +82,34 @@ BEGIN
     END IF;
 END $$;
 
--- 6. Disable RLS for testing to bypass permission issues
-ALTER TABLE projects DISABLE ROW LEVEL SECURITY;
-ALTER TABLE project_members DISABLE ROW LEVEL SECURITY;
+-- 6. Re-enable RLS and add basic policies
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated users to select projects" ON projects FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to insert projects" ON projects FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to update projects" ON projects FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to delete projects" ON projects FOR DELETE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow authenticated users to select project_members" ON project_members FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to insert project_members" ON project_members FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to update project_members" ON project_members FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to delete project_members" ON project_members FOR DELETE USING (auth.role() = 'authenticated');
+
+-- =====================================================================
+-- WORK SESSIONS (WorkClock tracking)
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS work_sessions (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "employeeId" uuid REFERENCES employees(id) ON DELETE CASCADE,
+  "startTime" timestamptz DEFAULT now(),
+  "endTime" timestamptz,
+  "status" text DEFAULT 'ACTIVE',
+  "createdAt" timestamptz DEFAULT now()
+);
+
+ALTER TABLE work_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated to manage work_sessions" ON work_sessions FOR ALL USING (auth.role() = 'authenticated');
 
 -- Notify PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';

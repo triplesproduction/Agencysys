@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TripleS OS — Code Audit Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #07080d;
+    --surface: #0e1018;
+    --border: #1e2130;
+    --accent: #7c3aed;
+    --accent-dim: rgba(124,58,237,0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --yellow: #f59e0b;
+    --yellow-dim: rgba(245,158,11,0.12);
+    --green: #10b981;
+    --green-dim: rgba(16,185,129,0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  .hero {
+    padding: 60px 60px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(124,58,237,0.08) 0%, transparent 60%);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: 'AUDIT';
+    position: absolute;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 160px;
+    font-weight: 800;
+    color: rgba(124,58,237,0.04);
+    letter-spacing: -10px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .hero-tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-top: 16px;
+  }
+
+  .summary-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .summary-item {
+    flex: 1;
+    padding: 20px 28px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .summary-item:last-child { border-right: none; }
+  .summary-num {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .summary-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--mono);
+  }
+  .num-red { color: var(--red); }
+  .num-yellow { color: var(--yellow); }
+  .num-blue { color: var(--blue); }
+  .num-green { color: var(--green); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 48px 60px; }
+
+  .section {
+    margin-bottom: 56px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .icon-red { background: var(--red-dim); }
+  .icon-yellow { background: var(--yellow-dim); }
+  .icon-blue { background: var(--blue-dim); }
+  .icon-green { background: var(--green-dim); }
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .section-count {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  .issue {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .issue-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 20px;
+  }
+  .severity-badge {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .sev-critical { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .sev-high { background: rgba(249,115,22,0.12); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
+  .sev-medium { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .sev-low { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+
+  .issue-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+    flex: 1;
+  }
+  .issue-body {
+    padding: 0 20px 16px 54px;
+  }
+  .issue-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+  .issue-file {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .code-block {
+    background: #080b14;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.7;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    color: #a8b4c8;
+  }
+  .code-block .del { color: var(--red); }
+  .code-block .add { color: var(--green); }
+  .code-block .comment { color: var(--text-muted); }
+  .fix-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--mono);
+    margin-bottom: 6px;
+  }
+
+  .improve-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 16px;
+  }
+  .improve-num {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.1);
+    flex-shrink: 0;
+    width: 28px;
+    text-align: right;
+  }
+  .improve-content { flex: 1; }
+  .improve-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .improve-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+  .improve-file {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--blue);
+    margin-top: 6px;
+  }
+
+  .dead-code-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .dead-code-file {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    flex: 1;
+  }
+  .dead-code-what {
+    font-size: 0.82rem;
+    color: var(--text);
+    flex: 2;
+  }
+  .dead-code-tag {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 48px;
+  }
+  .toc-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--mono);
+    margin-bottom: 12px;
+  }
+  .toc-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .toc-link {
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-decoration: none;
+    background: var(--accent-dim);
+    padding: 4px 12px;
+    border-radius: 20px;
+    transition: opacity 0.2s;
+  }
+  .toc-link:hover { opacity: 0.8; }
+
+  .warning-box {
+    background: var(--red-dim);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    color: #fca5a5;
+    line-height: 1.7;
+  }
+  .warning-box strong { color: var(--red); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-tag">Code Review · April 2026</div>
+  <h1>TripleS <span>OS</span> Audit Report</h1>
+  <p style="color:var(--text-muted); font-size:0.9rem; margin-top:8px;">Full-stack analysis — Next.js frontend · NestJS backend · Supabase</p>
+  <div class="hero-meta">Generated by Claude Sonnet 4.6 &nbsp;·&nbsp; Scope: frontend/src, backend/src, DB schema</div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-item">
+    <div class="summary-num num-red">4</div>
+    <div class="summary-label">🔴 Critical / Security</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num num-yellow">8</div>
+    <div class="summary-label">🟡 Bugs & Logic Errors</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num num-blue">10</div>
+    <div class="summary-label">🔵 Improvements</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num num-green">9</div>
+    <div class="summary-label">🟢 Dead Code Items</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="toc">
+    <div class="toc-title">Sections</div>
+    <div class="toc-list">
+      <a href="#security" class="toc-link">🔴 Critical / Security</a>
+      <a href="#bugs" class="toc-link">🟡 Bugs & Logic Errors</a>
+      <a href="#improvements" class="toc-link">🔵 Improvements</a>
+      <a href="#dead-code" class="toc-link">🟢 Dead Code</a>
+    </div>
+  </div>
+
+  <!-- ========== SECURITY ========== -->
+  <div class="section" id="security">
+    <div class="section-header">
+      <div class="section-icon icon-red">🔴</div>
+      <div class="section-title">Critical / Security Issues</div>
+      <div class="section-count">4 issues</div>
+    </div>
+
+    <div class="warning-box">
+      <strong>⚠️ STOP — Rotate your credentials before anything else</strong>
+      Your Supabase URL, anon key, database password, and JWT secret are all committed in plain text to your repository. Anyone with access to this repo has full database access. These must be rotated <em>immediately</em>.
+    </div>
+
+    <!-- Issue 1 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-critical">CRITICAL</div>
+        <div class="issue-title">Credentials Hardcoded in Source Code & Committed to Git</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">Keys.txt · backend/.env · frontend/src/lib/supabase.ts</div>
+        <div class="issue-desc">
+          Three separate files contain production credentials in plain text: <code>Keys.txt</code> has the DB username/password, <code>backend/.env</code> has the connection string and a weak JWT secret (<code>triples_secret</code>), and <code>supabase.ts</code> has the Supabase project URL and anon key hardcoded as fallback strings. These are committed to git history permanently.
+        </div>
+        <div class="code-block">
+<span class="comment">// Keys.txt — should NEVER exist</span>
+<span class="del">Password → @TripleS.OS</span>
+
+<span class="comment">// backend/.env — should be in .gitignore and never committed</span>
+<span class="del">JWT_SECRET="triples_secret"</span>  <span class="comment">// too weak, too short</span>
+
+<span class="comment">// supabase.ts — hardcoded fallback is still a leak</span>
+<span class="del">const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGci...';</span>
+        </div>
+        <div class="fix-label">Fix</div>
+        <div class="issue-desc">
+          1. Rotate ALL credentials on Supabase and your PostgreSQL host immediately.<br>
+          2. Delete <code>Keys.txt</code> entirely.<br>
+          3. Add <code>.env</code>, <code>*.env</code>, <code>Keys.txt</code> to <code>.gitignore</code> (currently <code>.env</code> is NOT in your <code>.gitignore</code>).<br>
+          4. Remove the hardcoded fallback strings from <code>supabase.ts</code> — throw if env vars are missing.<br>
+          5. Use <code>git filter-branch</code> or BFG Repo Cleaner to purge these from git history.
+        </div>
+        <div class="code-block">
+<span class="comment">// supabase.ts — correct approach</span>
+<span class="add">const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;</span>
+<span class="add">const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;</span>
+<span class="add">if (!supabaseUrl || !supabaseAnonKey) throw new Error('Missing Supabase env vars');</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issue 2 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-critical">CRITICAL</div>
+        <div class="issue-title">Server-Side Middleware Does Zero Auth Enforcement</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/middleware.ts</div>
+        <div class="issue-desc">
+          The Next.js middleware matches all protected routes (<code>/dashboard</code>, <code>/employees</code>, <code>/logs</code>, etc.) but immediately returns <code>NextResponse.next()</code> with no auth check whatsoever. Any unauthenticated request to these routes gets a 200 response. The only guard is client-side JavaScript (<code>AuthGuard</code>), which can be bypassed by disabling JS, using curl, or scraping tools.
+        </div>
+        <div class="code-block">
+<span class="comment">// Current middleware — effectively does nothing</span>
+<span class="del">return NextResponse.next(); // No auth check!</span>
+
+<span class="comment">// Fix — verify Supabase session server-side</span>
+<span class="add">import { createServerClient } from '@supabase/ssr';</span>
+<span class="add">const supabase = createServerClient(url, key, { cookies: { ... } });</span>
+<span class="add">const { data: { session } } = await supabase.auth.getSession();</span>
+<span class="add">if (!session) return NextResponse.redirect(new URL('/login', request.url));</span>
+        </div>
+        <div class="fix-label">Fix</div>
+        <div class="issue-desc">Use <code>@supabase/ssr</code> in middleware to verify the session cookie server-side before allowing access to any protected route. This is the standard Supabase + Next.js pattern.</div>
+      </div>
+    </div>
+
+    <!-- Issue 3 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-critical">CRITICAL</div>
+        <div class="issue-title">Role Escalation Via Email Address Pattern-Match</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/hooks/useAuth.tsx · lines ~60–70</div>
+        <div class="issue-desc">
+          In the <code>fetchProfile</code> fallback (when no DB record is found), the role is assigned based on whether the email contains the string <code>"admin"</code>. Any user who signs up with an email like <code>myadmintools@company.com</code> or <code>administrator@gmail.com</code> would silently receive ADMIN privileges — including access to employee management, payroll, and system logs.
+        </div>
+        <div class="code-block">
+<span class="comment">// useAuth.tsx — dangerous fallback</span>
+<span class="del">roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE',</span>
+
+<span class="comment">// Fix — always default to the lowest privilege</span>
+<span class="add">roleId: 'EMPLOYEE', // Role MUST come from the DB record, never inferred from email</span>
+        </div>
+        <div class="fix-label">Fix</div>
+        <div class="issue-desc">The fallback path should always assign <code>'EMPLOYEE'</code> as the role. If the DB record is missing, the user should be blocked (shown the "Profile Sync Error" screen) rather than granted any access with an inferred role. This fallback exists in three places in <code>useAuth.tsx</code> — all three need to be fixed.</div>
+      </div>
+    </div>
+
+    <!-- Issue 4 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-critical">CRITICAL</div>
+        <div class="issue-title">getMyLeaves() Fetches ALL Employees' Leaves (Data Leak)</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/lib/api.ts · getMyLeaves()</div>
+        <div class="issue-desc">
+          The comment in the code says <em>"Temporarily relaxed filtering due to auth mismatch"</em> — but the actual filter (<code>.eq('employeeId', user.id)</code>) is commented out. Every employee who visits their Leaves page can see ALL leave applications from ALL employees, including sensitive HR data (leave reasons, dates, approval status).
+        </div>
+        <div class="code-block">
+<span class="comment">// api.ts — the employee filter is commented out!</span>
+<span class="del">// const { data, error } = await supabase.from('leaves').select('*').eq('employeeId', user.id)...</span>
+<span class="del">const { data, error } = await supabase.from('leaves').select('*').order('createdAt', ...);</span>
+
+<span class="comment">// Fix — restore the filter</span>
+<span class="add">const { data, error } = await supabase.from('leaves')</span>
+<span class="add">  .select('*')</span>
+<span class="add">  .eq('employeeId', userId)  // userId is already passed as a param</span>
+<span class="add">  .order('createdAt', { ascending: false });</span>
+        </div>
+        <div class="fix-label">Fix</div>
+        <div class="issue-desc">Restore the <code>.eq('employeeId', userId)</code> filter. Also enforce this via a Supabase Row Level Security (RLS) policy on the <code>leaves</code> table as a defense-in-depth measure.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+
+  <!-- ========== BUGS ========== -->
+  <div class="section" id="bugs">
+    <div class="section-header">
+      <div class="section-icon icon-yellow">🟡</div>
+      <div class="section-title">Bugs & Logic Errors</div>
+      <div class="section-count">8 issues</div>
+    </div>
+
+    <!-- Bug 1 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-high">HIGH</div>
+        <div class="issue-title">Supabase Lock Bypass Breaks Multi-Tab Session Security</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/lib/supabase.ts</div>
+        <div class="issue-desc">
+          The Supabase client is configured with a custom <code>lock</code> function that immediately executes without acquiring any lock. The comment says this is a "workaround for AbortError" — but disabling the lock means multiple tabs can simultaneously write conflicting session state, causing unpredictable auth behavior, stale tokens being used, and potential session corruption.
+        </div>
+        <div class="code-block">
+<span class="comment">// This silently disables all session locking</span>
+<span class="del">lock: async (name, acquireTimeout, fn) => { return await fn(); }</span>
+
+<span class="comment">// Fix: Remove the override; investigate the AbortError root cause instead</span>
+<span class="add">// Remove the lock property entirely and let Supabase handle it</span>
+        </div>
+        <div class="fix-label">Fix</div>
+        <div class="issue-desc">Remove the custom <code>lock</code> override. The <code>AbortError</code> typically happens from duplicate Supabase client instantiations — ensure <code>supabase.ts</code> is a true singleton (it is, but verify no other <code>createClient</code> calls exist elsewhere).</div>
+      </div>
+    </div>
+
+    <!-- Bug 2 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-high">HIGH</div>
+        <div class="issue-title">handleSupabaseEvent Silently Swallows Errors on Null Data</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/lib/api.ts · handleSupabaseEvent()</div>
+        <div class="issue-desc">
+          Several API calls pass <code>data</code> (not <code>res</code>) as the first argument to <code>handleSupabaseEvent</code> — for example <code>createEmployee</code>, <code>logWorkHours</code>, and <code>applyForLeave</code>. This means on error, the function logs the request payload instead of the response, making debugging misleading. Also, <code>handleSupabaseEvent(null, error, ctx)</code> is called correctly in some places but incorrectly in others.
+        </div>
+        <div class="code-block">
+<span class="comment">// createEmployee — passes request data, not response</span>
+<span class="del">handleSupabaseEvent(data, error, 'Create Employee'); // 'data' = payload, not response</span>
+<span class="add">handleSupabaseEvent(res, error, 'Create Employee');   // 'res' = the actual response</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bug 3 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-high">HIGH</div>
+        <div class="issue-title">signOut Uses localStorage.clear() Destroying ALL App Storage</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/hooks/useAuth.tsx · signOut()</div>
+        <div class="issue-desc">
+          The signOut function calls <code>localStorage.clear()</code> as a "nuclear option" before also calling <code>sessionStorage.clear()</code>. This destroys all localStorage data for the domain — including data from any other apps or libraries stored there (React Query cache, user preferences, feature flags, etc.). This is unnecessarily destructive.
+        </div>
+        <div class="code-block">
+<span class="del">localStorage.clear(); // Nuclear option — nukes everything</span>
+<span class="del">sessionStorage.clear();</span>
+
+<span class="comment">// Fix — remove only what you own</span>
+<span class="add">localStorage.removeItem('cached_profile');</span>
+<span class="add">localStorage.removeItem('triples_auth_session');</span>
+<span class="comment">// Let Supabase's signOut handle its own storage cleanup</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bug 4 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-high">HIGH</div>
+        <div class="issue-title">getConversations Fetches Last Message Per-Conversation in a Loop (N+1 Query)</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/lib/api.ts · getConversations()</div>
+        <div class="issue-desc">
+          For every conversation, the function makes a separate Supabase query inside <code>Promise.all(convIds.map(...))</code> — fetching the last message and unread count individually. For a user with 20 conversations, this fires 40+ database queries simultaneously. This will be slow and will hammer Supabase rate limits.
+        </div>
+        <div class="code-block">
+<span class="comment">// Current — N queries for N conversations</span>
+<span class="del">const results = await Promise.all(</span>
+<span class="del">  convIds.map(async (convId) => {</span>
+<span class="del">    const { data: msgs } = await supabase.from('messages').select('*').eq(...);</span>
+<span class="del">    const { count: unread } = await supabase.from('messages').select(...);</span>
+<span class="del">  })</span>
+<span class="del">);</span>
+
+<span class="comment">// Fix — use a single query with aggregation, or a Supabase RPC function</span>
+<span class="add">// Create a DB function/view that returns conversations with last_message + unread_count</span>
+<span class="add">const { data } = await supabase.rpc('get_conversations_with_stats', { user_id: myId });</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bug 5 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-medium">MEDIUM</div>
+        <div class="issue-title">Team Assignment Encoded as HTML Comments in Task Description (Fragile Hack)</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/lib/api.ts · createTask() / updateTask() / getTasks()</div>
+        <div class="issue-desc">
+          Multi-assignee IDs are stored by embedding <code>&lt;!-- TEAM:[id1,id2] --&gt;</code> markers inside the task's <code>description</code> text field. This is a fragile workaround — any user who edits the description will likely wipe this marker. The marker can also appear in rendered markdown. It should be a proper <code>task_assignees</code> junction table.
+        </div>
+        <div class="code-block">
+<span class="comment">// Hack — encoding data in description HTML comments</span>
+<span class="del">const teamMarker = `&lt;!-- TEAM:[${data.assigneeIds.join(',')}] --&gt;`;</span>
+<span class="del">data.description = data.description.replace(/&lt;!-- TEAM:.../) + teamMarker;</span>
+
+<span class="comment">// Proper fix — a task_assignees table</span>
+<span class="add">CREATE TABLE task_assignees (task_id UUID, employee_id UUID, PRIMARY KEY (...));</span>
+        </div>
+        <div class="fix-label">Fix</div>
+        <div class="issue-desc">Add a <code>task_assignees</code> junction table. The schema migration file is already in the repo — this is the right place to add it. The <code>assigneeIds</code> array on <code>TaskDTO</code> already anticipates this properly.</div>
+      </div>
+    </div>
+
+    <!-- Bug 6 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-medium">MEDIUM</div>
+        <div class="issue-title">Dashboard fetchData Returned Cleanup Function Never Runs</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/app/dashboard/page.tsx · DashboardPage</div>
+        <div class="issue-desc">
+          The <code>useEffect</code> calls <code>fetchData()</code> which is an async function that returns a cleanup function (<code>clearInterval(unreadInterval)</code>). However, because <code>fetchData</code> is async, the outer <code>useEffect</code> receives a <code>Promise</code> — not the cleanup function. React ignores Promise return values from effects, so the interval is never cleared, leaking memory on unmount.
+        </div>
+        <div class="code-block">
+<span class="comment">// Bug: async function returns Promise, not cleanup</span>
+<span class="del">useEffect(() => {</span>
+<span class="del">  async function fetchData() {</span>
+<span class="del">    ...setup...</span>
+<span class="del">    const unreadInterval = setInterval(fetchUnread, 30000);</span>
+<span class="del">    return () => clearInterval(unreadInterval); // ← never reached by React</span>
+<span class="del">  }</span>
+<span class="del">  fetchData(); // ← React gets undefined, not the cleanup fn</span>
+
+<span class="comment">// Fix: hoist cleanup outside async</span>
+<span class="add">useEffect(() => {</span>
+<span class="add">  let unreadInterval: NodeJS.Timeout;</span>
+<span class="add">  async function fetchData() { ...; unreadInterval = setInterval(fetchUnread, 30000); }</span>
+<span class="add">  fetchData();</span>
+<span class="add">  return () => clearInterval(unreadInterval); // ← this runs correctly</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bug 7 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-medium">MEDIUM</div>
+        <div class="issue-title">ManagerDashboard Shows Hardcoded "94.2" KPI Score</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/app/dashboard/page.tsx · ManagerDashboard</div>
+        <div class="issue-desc">
+          The Manager's "Team Performance" stat card displays a hardcoded value of <code>94.2</code> — it never uses the real <code>teamKpis</code> data. A manager could have a team performing at 30 and the dashboard would still show 94.2.
+        </div>
+        <div class="code-block">
+<span class="del">&lt;div className="stat-value purple-glow"&gt;94.2&lt;/div&gt;</span>
+
+<span class="add">// Calculate from actual teamKpis prop</span>
+<span class="add">const avgScore = teamKpis.length</span>
+<span class="add">  ? (teamKpis.reduce((s, k) =&gt; s + k.currentScore, 0) / teamKpis.length).toFixed(1)</span>
+<span class="add">  : '—';</span>
+<span class="add">&lt;div className="stat-value purple-glow"&gt;{avgScore}&lt;/div&gt;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bug 8 -->
+    <div class="issue">
+      <div class="issue-header">
+        <div class="severity-badge sev-medium">MEDIUM</div>
+        <div class="issue-title">useAuth Has Stale Dependency: supabase.auth in useCallback</div>
+      </div>
+      <div class="issue-body">
+        <div class="issue-file">frontend/src/hooks/useAuth.tsx · signOut useCallback</div>
+        <div class="issue-desc">
+          <code>signOut</code> is wrapped in <code>useCallback</code> with <code>[supabase.auth]</code> as a dependency. <code>supabase.auth</code> is a module-level object reference that never changes, so this dependency is meaningless — and it may cause ESLint exhaustive-deps warnings that are silently suppressed. The inactivity timer <code>useEffect</code> also has <code>signOut</code> in its deps, creating a re-registration cycle on every auth state change.
+        </div>
+        <div class="code-block">
+<span class="del">const signOut = useCallback(async () => { ... }, [supabase.auth]); // pointless dep</span>
+<span class="add">const signOut = useCallback(async () => { ... }, []); // stable, no deps needed</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+
+  <!-- ========== IMPROVEMENTS ========== -->
+  <div class="section" id="improvements">
+    <div class="section-header">
+      <div class="section-icon icon-blue">🔵</div>
+      <div class="section-title">Improvements & Optimizations</div>
+      <div class="section-count">10 items</div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">01</div>
+      <div class="improve-content">
+        <div class="improve-title">Add Row Level Security (RLS) Policies to Supabase</div>
+        <div class="improve-desc">Currently, authorization is enforced entirely in frontend JavaScript, which means any user with your anon key and a SQL client can read/write all tables. Enable RLS on <code>employees</code>, <code>leaves</code>, <code>tasks</code>, <code>eod_reports</code>, <code>messages</code>, and <code>kpi_profiles</code>. Define policies like <code>USING (auth.uid() = employee_id)</code> so security is enforced at the DB layer regardless of how requests arrive.</div>
+        <div class="improve-file">Supabase Dashboard → Table Editor → RLS Policies</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">02</div>
+      <div class="improve-content">
+        <div class="improve-title">Replace <code>axios</code> and <code>socket.io-client</code> with Tree-Shaken Alternatives</div>
+        <div class="improve-desc">Your <code>package.json</code> lists <code>axios</code> and <code>socket.io-client</code> as dependencies, but all networking is done through Supabase. These packages add ~50KB and ~200KB to your bundle respectively. Run <code>npm ls axios socket.io-client</code> to verify they are unused, then remove them. The Supabase client handles HTTP and realtime (WebSocket) natively.</div>
+        <div class="improve-file">frontend/package.json</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">03</div>
+      <div class="improve-content">
+        <div class="improve-title">Centralize Role Normalization — It's Duplicated ~8 Times</div>
+        <div class="improve-desc">The pattern <code>role.toUpperCase().includes('ADMIN') ? 'ADMIN' : ...</code> is duplicated in <code>useAuth.tsx</code> (×3), <code>dashboard/page.tsx</code>, <code>employees/page.tsx</code>, <code>api.ts</code>, <code>permissions.ts</code>, and the chat function. You have <code>getResolvedRole()</code> in <code>permissions.ts</code> — use it everywhere and delete the duplicates.</div>
+        <div class="improve-file">frontend/src/lib/permissions.ts → getResolvedRole()</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">04</div>
+      <div class="improve-content">
+        <div class="improve-title">Extract Repeated Loading Spinner JSX into a Component</div>
+        <div class="improve-desc">The spinning loader UI (the dark fullscreen with a rotating purple ring) is copy-pasted verbatim in <code>AuthGuard.tsx</code> at least 3 times with slightly different labels ("INITIALIZING", "REDIRECTING", "LOADING PROFILE"). Extract this into a <code>&lt;FullscreenLoader label="..." /&gt;</code> component and replace all instances.</div>
+        <div class="improve-file">frontend/src/components/auth/AuthGuard.tsx</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">05</div>
+      <div class="improve-content">
+        <div class="improve-title">Use <code>@tanstack/react-query</code> for Data Fetching (Already Installed)</div>
+        <div class="improve-desc"><code>@tanstack/react-query</code> is in your <code>package.json</code> but is not used anywhere. Currently, every page re-fetches all data on every mount with no caching. Using React Query would give you automatic caching, background refetching, loading/error states, and deduplication of identical requests — all of which are currently implemented manually and inconsistently.</div>
+        <div class="improve-file">frontend/package.json → @tanstack/react-query@5.x</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">06</div>
+      <div class="improve-content">
+        <div class="improve-title">Dashboard Data Fetching: Use <code>Promise.allSettled</code> Already — but Log Rejections</div>
+        <div class="improve-desc">The dashboard correctly uses <code>Promise.allSettled</code> to prevent one failing fetch from blocking the whole page. But rejected promises are silently ignored — the user sees stale <code>0</code> values with no indication something failed. Add a <code>results.filter(r => r.status === 'rejected')</code> check and log errors or show a subtle "Some data failed to load" banner.</div>
+        <div class="improve-file">frontend/src/app/dashboard/page.tsx</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">07</div>
+      <div class="improve-content">
+        <div class="improve-title">Whitelist-Based DB Payload Construction is Fragile — Use Zod or a DTO Class</div>
+        <div class="improve-desc">In <code>createTask</code> and <code>updateTask</code>, you manually iterate over an object and filter keys against a string array whitelist. This pattern is easy to break (typo in a key name, new field not added to whitelist). Use a Zod schema or class-transformer to define the DB shape once and validate/strip fields automatically.</div>
+        <div class="improve-file">frontend/src/lib/api.ts · createTask(), updateTask(), submitEOD()</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">08</div>
+      <div class="improve-content">
+        <div class="improve-title">NotificationProvider Creates a Duplicate Supabase Channel ("system_events")</div>
+        <div class="improve-desc">Both <code>NotificationProvider.tsx</code> and <code>ws.ts</code> (<code>SupabaseRealtimeClient</code>) subscribe to a channel named <code>system_events</code>. Supabase will create two separate subscriptions, and broadcast events may be delivered to both, causing duplicate notifications. Consolidate into a single channel manager.</div>
+        <div class="improve-file">frontend/src/lib/ws.ts · components/notifications/NotificationProvider.tsx</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">09</div>
+      <div class="improve-content">
+        <div class="improve-title">normalizeEmployee() Has a Typo in Column Name</div>
+        <div class="improve-desc">In <code>normalizeEmployee()</code>, there's <code>emp.design_ation</code> (with an underscore in the middle of "designation"). This is almost certainly a typo and will silently fail to map the designation field correctly for some records.</div>
+        <div class="improve-file">frontend/src/lib/api.ts · normalizeEmployee()</div>
+      </div>
+    </div>
+
+    <div class="improve-card">
+      <div class="improve-num">10</div>
+      <div class="improve-content">
+        <div class="improve-title">File Uploads Use <code>Date.now() + Math.random()</code> — Use UUID Instead</div>
+        <div class="improve-desc">Profile photos and documents are uploaded with filenames like <code>profiles/1714500000000_abc123.jpg</code>. While unlikely to collide, the better pattern for production storage is <code>crypto.randomUUID()</code> which gives proper v4 UUIDs. Also, files from deleted employees will remain in storage indefinitely — implement a cleanup mechanism.</div>
+        <div class="improve-file">frontend/src/lib/api.ts · uploadPhoto(), uploadFile(), uploadChatMedia()</div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+
+  <!-- ========== DEAD CODE ========== -->
+  <div class="section" id="dead-code">
+    <div class="section-header">
+      <div class="section-icon icon-green">🟢</div>
+      <div class="section-title">Dead Code — Safe to Remove</div>
+      <div class="section-count">9 items</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/lib/auth.ts</div>
+      <div class="dead-code-what"><code>getAuthToken()</code> and <code>getUserFromToken()</code> — both return <code>null</code> unconditionally. The file's own comment says "DEPRECATED". Delete the entire file.</div>
+      <div class="dead-code-tag">DELETE FILE</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/lib/api.ts</div>
+      <div class="dead-code-what"><code>getMyChats()</code> — just calls <code>getConversations()</code>. And <code>sendChatMessage()</code> — just calls two other functions. And <code>getAdminChats()</code> — queries <code>messages</code> with wrong column name (<code>createdAt</code> vs <code>created_at</code>).</div>
+      <div class="dead-code-tag">REMOVE</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/lib/api.ts</div>
+      <div class="dead-code-what"><code>logWorkHours()</code> — duplicate of <code>addWorkHourLog()</code>. Both do exactly the same insert into <code>work_hours</code>. Only one is used in the codebase.</div>
+      <div class="dead-code-tag">REMOVE DUPLICATE</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/app/tasks/KanbanComponents.tsx</div>
+      <div class="dead-code-what">This file exists alongside <code>components/tasks/KanbanBoard.tsx</code> and <code>KanbanColumn.tsx</code>. The naming and co-location suggests significant overlap. Audit and consolidate.</div>
+      <div class="dead-code-tag">AUDIT</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/lib/ws.ts</div>
+      <div class="dead-code-what"><code>wsClient.connect()</code> and <code>wsClient.disconnect()</code> — <code>connect()</code> is a no-op. <code>messagingLayer</code> and <code>kpiEvents</code> exports appear unused since all realtime is handled via the NotificationProvider channel.</div>
+      <div class="dead-code-tag">REMOVE</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/middleware.ts</div>
+      <div class="dead-code-what">The <code>token</code> and <code>userSession</code> cookie reads on lines 4–5 are assigned but never used (the function always returns <code>NextResponse.next()</code>). These variables are dead.</div>
+      <div class="dead-code-tag">REMOVE VARS</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/scratch/</div>
+      <div class="dead-code-what"><code>check_schema.js</code>, <code>check_projects.js</code>, <code>check_announcements.mjs</code>, <code>check_kpis.mjs</code> — these look like one-off diagnostic scripts. They should not be committed to the main branch.</div>
+      <div class="dead-code-tag">DELETE FILES</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">Root level</div>
+      <div class="dead-code-what"><code>Keys.txt</code> — beyond the security issue, this file has no legitimate place in the repo. Delete it from the entire git history.</div>
+      <div class="dead-code-tag">DELETE FILE</div>
+    </div>
+
+    <div class="dead-code-item">
+      <div class="dead-code-file">frontend/src/lib/api.ts · ~30 locations</div>
+      <div class="dead-code-what">There are approximately 30 commented-out <code>console.log</code> statements (e.g. <code>// console.log('[API] ...')</code>). These should be fully deleted rather than commented out — use a proper logging library with log levels if you need them in production.</div>
+      <div class="dead-code-tag">CLEAN UP</div>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+
+  <!-- Priority Action Plan -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background: rgba(124,58,237,0.15);">📋</div>
+      <div class="section-title">Recommended Priority Order</div>
+    </div>
+    <div style="font-size:0.88rem; color:var(--text-muted); line-height:2;">
+      <strong style="color:var(--red)">Day 1 — Security First:</strong> Rotate all credentials. Fix <code>getMyLeaves()</code> data leak. Delete <code>Keys.txt</code>. Remove email-based role escalation.<br>
+      <strong style="color:var(--yellow)">Day 2 — Auth Hardening:</strong> Implement real middleware auth with <code>@supabase/ssr</code>. Fix the supabase lock bypass. Fix the <code>signOut</code> nuclear clear.<br>
+      <strong style="color:var(--blue)">Week 1 — Bug Fixes:</strong> Fix interval memory leak in dashboard. Fix hardcoded 94.2. Fix <code>handleSupabaseEvent</code> arg order. Fix <code>design_ation</code> typo.<br>
+      <strong style="color:var(--green)">Week 2 — Clean Up:</strong> Remove dead code files. Add RLS policies. Consolidate role normalization. Migrate team assignment to junction table.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

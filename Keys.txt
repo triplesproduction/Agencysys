@@ -1,5 +1,0 @@
-Username → postgres
-
-Password → @TripleS.OS
-
-Port → 5432

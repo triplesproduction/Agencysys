@@ -7,3 +7,9 @@ build
 .DS_Store
 *.log
 tsconfig.tsbuildinfo
+Keys.txt
+backend/.env
+backend/dist/
+frontend/scratch/
+frontend/check_*.js
+frontend/check_*.mjs

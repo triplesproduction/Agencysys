@@ -1,4 +1,5 @@
 'use client';
+import { logger } from '@/lib/logger';
 
 import { useEffect, useState, createContext, useContext, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
-        console.log(`[Auth TRACE] Fetching profile for ${userId} (${email})...`);
+        logger.log(`[Auth TRACE] Fetching profile for ${userId} (${email})...`);
         try {
             // Using select('*') is safer to avoid crashes on missing columns during transitions
             const { data, error } = await supabase
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle();
 
             if (error) {
-                console.error('[Auth DEBUG] Profile fetch database error:', error.message);
+                logger.error('[Auth DEBUG] Profile fetch database error:', error.message);
                 
                 // If it's a database error (like missing table or connection issue), 
                 // we still want to let the user in with a basic profile if they are authenticated.
@@ -51,20 +52,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { 
                     id: userId, 
                     email: email || '', 
-                    roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE', 
+                    roleId: 'EMPLOYEE', 
                     firstName: emailPrefix, 
                     lastName: 'Member' 
                 };
             }
             
             if (!data) {
-                console.warn('[Auth DEBUG] No profile record found in database for UID:', userId);
+                logger.warn('[Auth DEBUG] No profile record found in database for UID:', userId);
                 // Fallback: Return a basic profile so the user isn't stuck at the sync error screen
                 const emailPrefix = email?.split('@')[0] || 'User';
                 return { 
                     id: userId, 
                     email: email || '', 
-                    roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE', 
+                    roleId: 'EMPLOYEE', 
                     firstName: emailPrefix, 
                     lastName: 'Member' 
                 };
@@ -74,25 +75,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const profile: EmployeeProfile = {
                 id: data.id,
                 email: data.email || email || '',
-                roleId: data.roleId || data.role_id || (email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE'),
+                roleId: data.roleId || data.role_id || 'EMPLOYEE',
                 designation: data.designation,
                 firstName: data.firstName || data.first_name || email?.split('@')[0] || 'User',
                 lastName: data.lastName || data.last_name || 'Member',
                 profilePhoto: data.profilePhoto || data.profile_photo
             };
 
-            console.log('[Auth DEBUG] Profile successfully resolved. Role:', profile.roleId);
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('cached_profile', JSON.stringify(profile));
-            }
+            logger.log('[Auth DEBUG] Profile successfully resolved. Role:', profile.roleId);
             return profile;
         } catch (err) {
-            console.error('[Auth DEBUG] Unexpected profile fetch exception:', err);
+            logger.error('[Auth DEBUG] Unexpected profile fetch exception:', err);
             const emailPrefix = email?.split('@')[0] || 'User';
             return { 
                 id: userId, 
                 email: email || '', 
-                roleId: email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE', 
+                roleId: 'EMPLOYEE', 
                 firstName: emailPrefix, 
                 lastName: 'Member' 
             };
@@ -109,24 +107,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Safety fallback: ensure loading never hangs forever
         const safetyTimeout = setTimeout(() => {
             if (mounted && loading) {
-                console.warn('[AUTH DEBUG] Resolution safety timeout reached. Forcing loading false.');
+                logger.warn('[AUTH DEBUG] Resolution safety timeout reached. Forcing loading false.');
                 setLoading(false);
             }
         }, 8000);
 
-        console.log('[AUTH DEBUG] AuthProvider mounted. Initializing session listener...');
+        logger.log('[AUTH DEBUG] AuthProvider mounted. Initializing session listener...');
 
         const resolveAuth = async (currentUser: User | null, currentSession: Session | null, source: string) => {
             if (!mounted) return;
             if (isResolving) {
-                console.log(`[AUTH DEBUG] Resolution already in progress, skipping (${source})`);
+                logger.log(`[AUTH DEBUG] Resolution already in progress, skipping (${source})`);
                 return;
             }
             isResolving = true;
             
             try {
                 if (currentUser) {
-                    console.log(`[AUTH DEBUG] Active session detected (${source}):`, currentUser.id);
+                    logger.log(`[AUTH DEBUG] Active session detected (${source}):`, currentUser.id);
                     setUser(currentUser);
                     setSession(currentSession);
                     
@@ -134,18 +132,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
                     if (mounted) {
                         setEmployee(profileData);
-                        console.log(`[AUTH DEBUG] Profile resolved for ${currentUser.id}:`, profileData ? 'SUCCESS' : 'FAILED (Missing Employee Record)');
+                        logger.log(`[AUTH DEBUG] Profile resolved for ${currentUser.id}:`, profileData ? 'SUCCESS' : 'FAILED (Missing Employee Record)');
                         setLoading(false);
                     }
                 } else {
-                    console.log(`[AUTH DEBUG] No active session (${source})`);
+                    logger.log(`[AUTH DEBUG] No active session (${source})`);
                     setUser(null);
                     setSession(null);
                     setEmployee(null);
                     setLoading(false);
-                    if (typeof window !== 'undefined') {
-                        localStorage.removeItem('cached_profile');
-                    }
                 }
             } finally {
                 isResolving = false;
@@ -162,19 +157,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!mounted) return;
                 
                 // IGNORE neutral events or events that shouldn't trigger local state changes yet
-                console.log(`[AUTH DEBUG] Supabase Auth Event: ${event}`);
+                logger.log(`[AUTH DEBUG] Supabase Auth Event: ${event}`);
 
                 if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
                     // Force resolve for initializing or active sessions
                     await resolveAuth(currentSession?.user || null, currentSession, event);
                 } else if (event === 'SIGNED_OUT') {
-                    console.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
+                    logger.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
                     setUser(null);
                     setSession(null);
                     setEmployee(null);
                     setLoading(false);
                     if (typeof window !== 'undefined') {
-                        localStorage.removeItem('cached_profile');
                         // REMOVED: Aggressive window.location.href here. 
                         // THE AuthGuard will handle the redirect if loading is false and user is null.
                         // This prevents race conditions during page refreshes.
@@ -191,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [router]);
 
     const signOut = useCallback(async () => {
-        console.log('[Auth] Nuclear Sign Out initiated...');
+        logger.log('[Auth] Nuclear Sign Out initiated...');
         try {
             // 1. Clear local state immediately for instant UI feedback
             setUser(null);
@@ -201,7 +195,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (typeof window !== 'undefined') {
                 // Clear all possible session artifacts
-                localStorage.removeItem('cached_profile');
                 localStorage.removeItem('triples_auth_session'); // Target actual Supabase storage key
                 localStorage.clear(); // Nuclear option
                 sessionStorage.clear();
@@ -219,9 +212,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 2. Signal to Supabase
             await supabase.auth.signOut();
             
-            console.log('[Auth] Supabase sign out complete. Redirecting...');
+            logger.log('[Auth] Supabase sign out complete. Redirecting...');
         } catch (error) {
-            console.error('[Auth] Sign out error (swallowed for safety):', error);
+            logger.error('[Auth] Sign out error (swallowed for safety):', error);
         } finally {
             // 3. Always force a hard redirect to clear potential SPA hangs
             if (typeof window !== 'undefined') {
@@ -233,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Inactivity Auto-Logout (120 Seconds)
     useEffect(() => {
         if (!user || !session) {
-            console.log('[Auth Inactivity] No active session. Timer suspended.');
+            logger.log('[Auth Inactivity] No active session. Timer suspended.');
             return;
         }
 
@@ -241,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const INACTIVITY_LIMIT = 3600000; // 60 minutes (business standard)
 
         const triggerLogout = () => {
-            console.log(`[Auth Inactivity] User inactive for ${INACTIVITY_LIMIT/1000}s. Triggering logout protocol...`);
+            logger.log(`[Auth Inactivity] User inactive for ${INACTIVITY_LIMIT/1000}s. Triggering logout protocol...`);
             signOut();
         };
 
@@ -257,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             resetTimer();
         };
 
-        console.log(`[Auth Inactivity] Timer initialized. Limit: ${INACTIVITY_LIMIT/1000}s.`);
+        logger.log(`[Auth Inactivity] Timer initialized. Limit: ${INACTIVITY_LIMIT/1000}s.`);
         
         events.forEach(event => {
             window.addEventListener(event, handler, { passive: true });
@@ -271,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             events.forEach(event => {
                 window.removeEventListener(event, handler);
             });
-            console.log('[Auth Inactivity] Timer dismantled.');
+            logger.log('[Auth Inactivity] Timer dismantled.');
         };
     }, [user, session, signOut]);
 

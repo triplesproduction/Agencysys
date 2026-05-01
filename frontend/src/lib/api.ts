@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import {
     EmployeeDTO,
     TaskDTO,
@@ -16,10 +17,10 @@ import { supabase } from './supabase';
 
 const handleSupabaseEvent = (data: any, error: any, context: string) => {
     // Standardized high-fidelity logging for all system events
-    // console.log(`[DB TRACE] ${context}:`, { data, error });
+    // logger.log(`[DB TRACE] ${context}:`, { data, error });
 
     if (error) {
-        console.error(`Supabase Error (${context}):`, error);
+        logger.error(`Supabase Error (${context}):`, error);
         throw new Error(error.message || `An error occurred during ${context}`);
     }
 };
@@ -40,9 +41,9 @@ export const api = {
     getEmployeeStats: async () => {
         // Optimization: Use count query instead of fetching all rows to get counts
         const { count: total, error: totalError } = await supabase.from('employees').select('*', { count: 'exact', head: true })
-            .neq('roleId', 'ADMIN').neq('roleId', 'admin');
+            .neq('roleId', 'ADMIN');
         const { count: active, error: activeError } = await supabase.from('employees').select('*', { count: 'exact', head: true })
-            .eq('status', 'ACTIVE').neq('roleId', 'ADMIN').neq('roleId', 'admin');
+            .eq('status', 'ACTIVE').neq('roleId', 'ADMIN');
         
         handleSupabaseEvent({ total, active }, totalError || activeError, 'Fetch Stats');
         return {
@@ -59,7 +60,7 @@ export const api = {
         if (options?.roleId) {
             query = query.eq('roleId', options.roleId);
         } else if (options?.excludeAdmin) {
-            query = query.neq('roleId', 'ADMIN').neq('roleId', 'admin');
+            query = query.neq('roleId', 'ADMIN');
         }
         
         if (options?.status) query = query.eq('status', options.status);
@@ -108,10 +109,10 @@ export const api = {
         return data ? normalizeEmployee(data) : null;
     },
     createEmployee: async (data: any) => {
-        // console.log('[API] Create Employee Payload:', data);
+        // logger.log('[API] Create Employee Payload:', data);
         const { data: res, error } = await supabase.from('employees').insert(data).select().single();
-        handleSupabaseEvent(data, error, 'Create Employee');
-        // console.log('[API] Create Employee Response:', res);
+        handleSupabaseEvent(res, error, 'Create Employee');
+        // logger.log('[API] Create Employee Response:', res);
         return res ? normalizeEmployee(res) : null;
     },
     createEmployeeAccount: async (data: any): Promise<{ userId: string; email: string; tempPassword: string }> => {
@@ -142,7 +143,7 @@ export const api = {
         return data ? normalizeEmployee(data) : null;
     },
     updateEmployee: async (id: string, data: any) => {
-        // console.log(`[API] Update Employee (${id}) Payload:`, data);
+        // logger.log(`[API] Update Employee (${id}) Payload:`, data);
         
         // Map camelCase keys to snake_case for database compatibility
         const mappedData = { ...data };
@@ -165,11 +166,11 @@ export const api = {
         const { data: rows, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
         if (error) {
-            console.error('[API] updateEmployee Supabase error:', error);
+            logger.error('[API] updateEmployee Supabase error:', error);
             throw new Error(error.message || 'Failed to update employee');
         }
 
-        // console.log('[API] updateEmployee Response (rows):', rows);
+        // logger.log('[API] updateEmployee Response (rows):', rows);
         return rows && rows.length > 0 ? normalizeEmployee(rows[0]) : null;
     },
     deleteEmployee: async (id: string) => {
@@ -192,6 +193,12 @@ export const api = {
 
     // --- Salary & Payroll ---
     addSalaryHike: async (employeeId: string, amount: number, effectiveDate: string, reason: string) => {
+        // Fetch current baseSalary
+        const { data: emp, error: fetchError } = await supabase.from('employees').select('baseSalary, base_salary').eq('id', employeeId).single();
+        if (fetchError) throw fetchError;
+        const currentSalary = emp.baseSalary || (emp as any).base_salary || 0;
+        const newSalary = currentSalary + amount;
+
         // 1. Add to salaryHistory table
         const { data: hike, error: hikeError } = await supabase.from('salary_history').insert({
             employeeId: employeeId,
@@ -204,7 +211,7 @@ export const api = {
 
         // 2. Update current baseSalary in employees table
         const { error: empError } = await supabase.from('employees')
-            .update({ baseSalary: amount })
+            .update({ baseSalary: newSalary })
             .eq('id', employeeId);
 
         if (empError) throw empError;
@@ -262,14 +269,8 @@ export const api = {
         
         // Normalize with architect defaults
         return (data || []).map((task: any) => {
-            // Virtual Team Decoding
             let assigneeIds = task.assigneeIds || [];
-            if (task.description && task.description.includes('<!-- TEAM:[')) {
-                const match = task.description.match(/<!-- TEAM:\[(.*?)\] -->/);
-                if (match && match[1]) {
-                    assigneeIds = match[1].split(',').filter(Boolean);
-                }
-            } else if (task.assigneeId && assigneeIds.length === 0) {
+            if (task.assigneeId && assigneeIds.length === 0) {
                 assigneeIds = [task.assigneeId];
             }
 
@@ -286,20 +287,12 @@ export const api = {
     createTask: async (payload: Partial<TaskDTO>) => {
         const data = { ...payload };
         
-        // Virtual Team Encoding
         if (data.assigneeIds && data.assigneeIds.length > 0) {
             data.assigneeId = data.assigneeIds[0];
-            const teamMarker = `<!-- TEAM:[${data.assigneeIds.join(',')}] -->`;
-            // Append or replace
-            if (data.description) {
-                data.description = data.description.replace(/<!-- TEAM:\[.*?\] -->/, '') + teamMarker;
-            } else {
-                data.description = teamMarker;
-            }
         }
 
         // Strict whitelist to prevent Supabase schema cache errors
-        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'dueDate', 'attachments', 'creatorId', 'managerId', 'projectId'];
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'managerId', 'projectId'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -320,25 +313,12 @@ export const api = {
     updateTask: async (id: string, payload: Partial<TaskDTO>) => {
         const data = { ...payload };
 
-        // If we are updating assigneeIds but NOT description, we need the current description
-        if (data.assigneeIds && !data.description) {
-            const { data: current } = await supabase.from('tasks').select('description').eq('id', id).single();
-            data.description = current?.description || '';
-        }
-
-        // Virtual Team Encoding
-        if (data.assigneeIds) {
-            if (data.assigneeIds.length > 0) data.assigneeId = data.assigneeIds[0];
-            const teamMarker = `<!-- TEAM:[${data.assigneeIds.join(',')}] -->`;
-            if (data.description) {
-                data.description = data.description.replace(/<!-- TEAM:\[.*?\] -->/, '') + teamMarker;
-            } else {
-                data.description = teamMarker;
-            }
+        if (data.assigneeIds && data.assigneeIds.length > 0) {
+            data.assigneeId = data.assigneeIds[0];
         }
 
         // Strict whitelist to prevent Supabase schema cache errors
-        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'dueDate', 'attachments', 'creatorId', 'managerId', 'quality_rating', 'projectId'];
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'managerId', 'quality_rating', 'projectId'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -456,7 +436,7 @@ export const api = {
                 .eq('id', id);
             
             if (updateError) {
-                console.error('Error updating EOD report status:', updateError);
+                logger.error('Error updating EOD report status:', updateError);
                 handleSupabaseEvent(null, updateError, 'Update EOD Report Status');
             }
         }
@@ -532,9 +512,7 @@ export const api = {
     getMyLeaves: async (userId: string) => {
         if (!userId) throw new Error('Not authenticated');
         
-        // Temporarily relaxed filtering due to auth mismatch
-        // const { data, error } = await supabase.from('leaves').select('*').eq('employeeId', user.id).order('createdAt', { ascending: false });
-        const { data, error } = await supabase.from('leaves').select('*').order('createdAt', { ascending: false });
+        const { data, error } = await supabase.from('leaves').select('*').eq('employeeId', userId).order('createdAt', { ascending: false });
         
         handleSupabaseEvent(data, error, 'Fetch My Leaves');
         return data as LeaveApplicationDTO[];
@@ -567,7 +545,7 @@ export const api = {
     getEmployeeKPIs: async (employeeId: string) => {
         // Fallback or legacy, returning old if needed, but primary is getKpiProfile now
         const { data, error } = await supabase.from('kpi_metrics').select('*').eq('employeeId', employeeId).order('lastUpdated', { ascending: false });
-        if (error) console.warn('Missing old metrics:', error);
+        if (error) logger.warn('Missing old metrics:', error);
         return data as KPIMetricDTO[];
     },
     getKpiProfile: async (employeeId: string, monthYear?: string) => {
@@ -648,8 +626,8 @@ export const api = {
     },
     getMonthlyWorkHours: async (employeeId: string, monthYear?: string) => {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+        const year = monthYear ? parseInt(monthYear.split('-')[0]) : now.getFullYear();
+        const month = monthYear ? parseInt(monthYear.split('-')[1]) - 1 : now.getMonth();
         
         const startOfMonth = new Date(year, month, 1).toISOString().split('T')[0];
         const nextMonthYear = month === 11 ? year + 1 : year;
@@ -681,7 +659,7 @@ export const api = {
             const total = Object.values(dailyHours).reduce((acc, h) => acc + h, 0);
             return total;
         } catch (err) {
-            console.error('[API] getMonthlyWorkHours failure:', err);
+            logger.error('[API] getMonthlyWorkHours failure:', err);
             return 0;
         }
     },
@@ -800,7 +778,7 @@ export const api = {
                     }
                 }
             } catch (delErr) {
-                console.warn('Could not delete old profile photo:', delErr);
+                logger.warn('Could not delete old profile photo:', delErr);
             }
         }
 
@@ -864,7 +842,7 @@ export const api = {
     /** Get all conversations for a user, with last message and unread count */
     getConversations: async (myId: string, role?: string) => {
         const isAdmin = ['ADMIN', 'MANAGER'].includes((role || '').toUpperCase());
-        console.log('[Chat] getConversations called, isAdmin:', isAdmin, 'myId:', myId);
+        logger.log('[Chat] getConversations called, isAdmin:', isAdmin, 'myId:', myId);
 
         let convIds: string[] = [];
 
@@ -874,7 +852,7 @@ export const api = {
                 .from('conversations')
                 .select('id');
             if (allErr) {
-                console.error('[Chat] admin getConversations error:', allErr.message);
+                logger.error('[Chat] admin getConversations error:', allErr.message);
                 return [];
             }
             convIds = (allConvs || []).map((c: any) => c.id);
@@ -884,7 +862,7 @@ export const api = {
                 .select('conversation_id')
                 .eq('user_id', myId);
             if (error) {
-                console.error('[Chat] getConversations error (check RLS policies):', error.message);
+                logger.error('[Chat] getConversations error (check RLS policies):', error.message);
                 return [];
             }
             if (!parts || parts.length === 0) return [];
@@ -900,7 +878,7 @@ export const api = {
             .in('conversation_id', convIds)
             .neq('user_id', myId);
 
-        if (otherErr) console.error('[Chat] otherParts error:', otherErr.message);
+        if (otherErr) logger.error('[Chat] otherParts error:', otherErr.message);
 
         // Collect unique other userIds and fetch employee data in one query
         const otherUserIds = Array.from(new Set((otherParts || []).map((p: any) => p.user_id)));
@@ -914,38 +892,53 @@ export const api = {
             (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
         }
 
-        // Get last message per conversation
-        const results = await Promise.all(
-            convIds.map(async (convId: string) => {
-                const { data: msgs } = await supabase
-                    .from('messages')
-                    .select('*')
-                    .eq('conversation_id', convId)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
+        // Get last messages and unread counts in bulk
+        // Since Supabase RPC is not available for "last message per conversation", we fetch recent messages
+        const { data: recentMessages, error: msgsErr } = await supabase
+            .from('messages')
+            .select('*')
+            .in('conversation_id', convIds)
+            .order('created_at', { ascending: false })
+            .limit(1000); // Batched approach for last messages
+        
+        if (msgsErr) logger.error('[Chat] recentMessages error:', msgsErr.message);
 
-                const { count: unread } = await supabase
-                    .from('messages')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('conversation_id', convId)
-                    .neq('sender_id', myId)
-                    .neq('status', 'seen');
+        const { data: unreadMsgs, error: unreadErr } = await supabase
+            .from('messages')
+            .select('conversation_id')
+            .in('conversation_id', convIds)
+            .neq('sender_id', myId)
+            .neq('status', 'seen');
 
-                const other = (otherParts || []).find((p: any) => p.conversation_id === convId);
-                const otherEmployee = other ? employeeMap[other.user_id] : null;
+        if (unreadErr) logger.error('[Chat] unreadMsgs error:', unreadErr.message);
 
-                return {
-                    conversationId: convId,
-                    otherUser: otherEmployee || null,
-                    lastMessage: msgs?.[0] ? {
-                        ...msgs[0],
-                        createdAt: msgs[0].created_at,
-                        senderId: msgs[0].sender_id
-                    } : null,
-                    unreadCount: unread || 0,
+        const unreadCounts: Record<string, number> = {};
+        (unreadMsgs || []).forEach((m: any) => {
+            unreadCounts[m.conversation_id] = (unreadCounts[m.conversation_id] || 0) + 1;
+        });
+
+        const lastMessages: Record<string, any> = {};
+        (recentMessages || []).forEach((m: any) => {
+            if (!lastMessages[m.conversation_id]) {
+                lastMessages[m.conversation_id] = {
+                    ...m,
+                    createdAt: m.created_at,
+                    senderId: m.sender_id
                 };
-            })
-        );
+            }
+        });
+
+        const results = convIds.map((convId: string) => {
+            const other = (otherParts || []).find((p: any) => p.conversation_id === convId);
+            const otherEmployee = other ? employeeMap[other.user_id] : null;
+
+            return {
+                conversationId: convId,
+                otherUser: otherEmployee || null,
+                lastMessage: lastMessages[convId] || null,
+                unreadCount: unreadCounts[convId] || 0,
+            };
+        });
 
         // Sort by latest message timestamp
         return results.sort((a, b) => {
@@ -961,7 +954,7 @@ export const api = {
 
     /** Get messages for a conversation (newest last, with sender name) */
     getMessages: async (conversationId: string, limit = 50): Promise<any[]> => {
-        console.log('[Chat] getMessages for conv:', conversationId, 'limit:', limit);
+        logger.log('[Chat] getMessages for conv:', conversationId, 'limit:', limit);
         const { data, error } = await supabase
             .from('messages')
             .select('*')
@@ -969,7 +962,7 @@ export const api = {
             .order('created_at', { ascending: true })
             .limit(limit);
         if (error) {
-            console.error('[Chat] getMessages error:', error.message);
+            logger.error('[Chat] getMessages error:', error.message);
             throw new Error(error.message);
         }
 
@@ -984,7 +977,7 @@ export const api = {
             (emps || []).forEach((e: any) => { senderMap[e.id] = e; });
         }
 
-        console.log('[Chat] getMessages fetched:', data?.length, 'messages');
+        logger.log('[Chat] getMessages fetched:', data?.length, 'messages');
         return (data || []).map(m => ({
             ...m,
             createdAt: m.created_at,
@@ -1054,14 +1047,14 @@ export const api = {
     uploadChatMedia: async (file: File): Promise<{ url: string }> => {
         const ext = file.name.split('.').pop();
         const fileName = `chat/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
-        console.log('[Chat] uploadChatMedia: uploading', fileName, 'size:', file.size);
+        logger.log('[Chat] uploadChatMedia: uploading', fileName, 'size:', file.size);
         const { error } = await supabase.storage.from('chat-media').upload(fileName, file, { upsert: false });
         if (error) {
-            console.error('[Chat] uploadChatMedia FAILED:', error.message);
+            logger.error('[Chat] uploadChatMedia FAILED:', error.message);
             throw new Error(`Image upload failed: ${error.message}. Ensure the 'chat-media' bucket exists in Supabase Storage with public access.`);
         }
         const { data: pub } = supabase.storage.from('chat-media').getPublicUrl(fileName);
-        console.log('[Chat] uploadChatMedia SUCCESS. URL:', pub.publicUrl);
+        logger.log('[Chat] uploadChatMedia SUCCESS. URL:', pub.publicUrl);
         return { url: pub.publicUrl };
     },
 
@@ -1083,21 +1076,9 @@ export const api = {
         return count || 0;
     },
 
-    // Legacy compat
-    getMyChats: async (myId: string) => {
-        return api.getConversations(myId);
-    },
     sendChatMessage: async (payload: { receiverId: string; content: string }, senderId: string) => {
         const convId = await api.getOrCreateConversation(senderId, payload.receiverId);
         return api.sendMessage({ conversationId: convId, senderId, content: payload.content });
-    },
-    getAdminChats: async () => {
-        const { data } = await supabase
-            .from('messages')
-            .select('*')
-            .order('createdAt', { ascending: false })
-            .limit(100);
-        return data || [];
     },
 
     // --- Projects ---
@@ -1173,5 +1154,45 @@ export const api = {
         const { error } = await supabase.from('project_members').delete().eq('id', id);
         handleSupabaseEvent(null, error, 'Remove Project Member');
         return { success: true };
+    },
+
+    // Work Sessions (Shift Tracker)
+    clockIn: async (employeeId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('work_sessions')
+                .insert({ employeeId, startTime: new Date().toISOString(), status: 'ACTIVE' })
+                .select()
+                .single();
+            if (error) {
+                // Graceful degradation if table doesn't exist yet — clock still works via localStorage
+                logger.warn('[WorkClock] work_sessions table unavailable, using local fallback:', error.message);
+                return { id: null, local: true };
+            }
+            return data;
+        } catch (err) {
+            logger.warn('[WorkClock] clockIn failed gracefully:', err);
+            return { id: null, local: true };
+        }
+    },
+
+    clockOut: async (employeeId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('work_sessions')
+                .update({ endTime: new Date().toISOString(), status: 'COMPLETED' })
+                .eq('employeeId', employeeId)
+                .eq('status', 'ACTIVE')
+                .select()
+                .single();
+            if (error) {
+                logger.warn('[WorkClock] work_sessions table unavailable, using local fallback:', error.message);
+                return { id: null, local: true };
+            }
+            return data;
+        } catch (err) {
+            logger.warn('[WorkClock] clockOut failed gracefully:', err);
+            return { id: null, local: true };
+        }
     },
 };

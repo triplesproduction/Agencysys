@@ -44,17 +44,26 @@ export default function WorkClock({ employeeId, onClockUpdate }: WorkClockProps)
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
 
-    const handleClockIn = () => {
-        const now = Date.now();
-        localStorage.setItem(`clock_in_${employeeId}`, String(now));
-        setStartTime(now);
-        setIsClockedIn(true);
+    const handleClockIn = async () => {
+        setLoading(true);
+        try {
+            await api.clockIn(employeeId);
+            const now = Date.now();
+            localStorage.setItem(`clock_in_${employeeId}`, String(now));
+            setStartTime(now);
+            setIsClockedIn(true);
+        } catch (error) {
+            console.error('Failed to clock in:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleClockOut = async () => {
         if (!startTime) return;
         setLoading(true);
         try {
+            await api.clockOut(employeeId);
             const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
             const hoursLogged = parseFloat((totalSeconds / 3600).toFixed(2));
 
@@ -91,8 +100,8 @@ export default function WorkClock({ employeeId, onClockUpdate }: WorkClockProps)
 
                 <div className="clock-actions">
                     {!isClockedIn ? (
-                        <button className="clock-btn in" onClick={handleClockIn}>
-                            <Play size={16} fill="white" /> Start Shift
+                        <button className="clock-btn in" onClick={handleClockIn} disabled={loading}>
+                            {loading ? <div className="spinner-small"></div> : <><Play size={16} fill="white" /> Start Shift</>}
                         </button>
                     ) : (
                         <button className="clock-btn out" onClick={handleClockOut} disabled={loading}>
