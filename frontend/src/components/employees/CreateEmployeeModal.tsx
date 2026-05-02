@@ -100,7 +100,14 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     const viewDocument = (doc: UploadedDocument) => {
         const win = window.open();
         if (win) {
-            win.document.write(`<iframe src="${doc.content}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+            win.document.title = doc.name;
+            win.document.write(`
+                <html>
+                    <body style="margin:0; background: #0f0f14; display: flex; align-items: center; justify-content: center;">
+                        <iframe src="${doc.content}" frameborder="0" style="border:0; width:100vw; height:100vh;" allowfullscreen></iframe>
+                    </body>
+                </html>
+            `);
         }
     };
 
@@ -166,25 +173,34 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                     const doc = documents[i];
                     setProvisioningStatus(`Uploading document ${i + 1}/${documents.length}: ${doc.name}...`);
                     
-                    // Convert Data URL back to File for upload
-                    const response = await fetch(doc.content);
-                    const blob = await response.blob();
-                    const file = new File([blob], doc.name, { type: doc.fileType });
-                    
                     try {
+                        // Use a timeout-wrapped fetch for Data URL conversion
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s safety timeout
+                        
+                        const response = await fetch(doc.content, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        
+                        const blob = await response.blob();
+                        const file = new File([blob], doc.name, { type: doc.fileType });
+                        
                         const { url } = await api.uploadFile(file);
                         uploadedDocsMetadata.push({
                             name: doc.name,
                             fileType: doc.fileType,
-                            content: url // Use URL instead of Base64 blob to prevent payload timeout/hang
+                            content: url 
                         });
-                    } catch (uploadErr) {
-                        console.error('File upload failed during provisioning:', uploadErr);
-                        // Fallback: If upload fails, try sending Base64 for very small files (<500KB)
-                        if (blob.size < 500000) {
+                    } catch (uploadErr: any) {
+                        console.error(`Upload failed for ${doc.name}:`, uploadErr);
+                        
+                        // Graceful recovery for small files if upload hangs/fails
+                        const base64Data = doc.content.split(',')[1] || '';
+                        if (base64Data.length < 300000) { // 300KB threshold
                             uploadedDocsMetadata.push(doc);
                         } else {
-                            throw new Error(`Failed to upload ${doc.name}. The file might be too large or the storage service is busy.`);
+                            throw new Error(uploadErr.name === 'AbortError' 
+                                ? `Upload timed out for ${doc.name}. Check your connection.` 
+                                : `Critical upload failure: ${doc.name} could not be securely stored.`);
                         }
                     }
                 }
@@ -502,64 +518,128 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                             </div>
                         </div>
 
-                        {/* STEP 3: DOCUMENTS (optional — upload before credentials) */}
+                        {/* STEP 3: DOCUMENTS */}
                         <div style={{ display: step === 3 ? 'block' : 'none' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><FileText size={18} color="var(--purple-main)" /> Document Repository</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '24px', opacity: 0.8 }}>Securely store official identification, contracts, or certifications. This step is optional but recommended.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                <div style={{ background: 'rgba(139,92,246,0.1)', padding: '8px', borderRadius: '10px' }}>
+                                    <FileText size={20} color="var(--purple-main)" />
+                                </div>
+                                <div>
+                                    <h3 style={{ color: 'white', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Document Repository</h3>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0, opacity: 0.7 }}>Securely upload identity proofs or contracts.</p>
+                                </div>
+                            </div>
                             
                             <div 
                                 onClick={() => fileInputRef.current?.click()}
                                 style={{ 
-                                    border: '2px dashed rgba(255,255,255,0.1)', 
-                                    borderRadius: '16px', 
+                                    border: '2px dashed rgba(255,255,255,0.08)', 
+                                    borderRadius: '20px', 
                                     padding: '40px 20px', 
                                     textAlign: 'center', 
                                     cursor: 'pointer',
                                     background: 'rgba(255,255,255,0.02)',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    marginTop: '24px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '12px'
                                 }}
-                                onMouseOver={e => e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'}
-                                onMouseOut={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.borderColor = 'var(--purple-main)';
+                                    e.currentTarget.style.background = 'rgba(139,92,246,0.03)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                                }}
                             >
+                                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Plus size={24} style={{ color: 'rgba(255,255,255,0.4)' }} />
+                                </div>
+                                <div>
+                                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>Click or drag to upload</div>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '4px' }}>PDF, JPG, PNG up to 4MB</div>
+                                </div>
                                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} />
                             </div>
-                            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+                            <div style={{ marginTop: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 {documents.map(doc => (
-                                    <div key={doc.id} style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ fontSize: '0.875rem' }}>{doc.name}</div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button type="button" onClick={() => viewDocument(doc)} className="action-btn"><Eye size={14} /></button>
-                                            <button type="button" onClick={() => removeDocument(doc.id)} className="action-btn danger-hover"><Trash2 size={14} /></button>
+                                    <div key={doc.id} style={{ 
+                                        padding: '12px 16px', 
+                                        background: 'rgba(255,255,255,0.03)', 
+                                        borderRadius: '16px', 
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center',
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                {doc.fileType.includes('pdf') ? <FileText size={18} color="#EF4444" /> : <Eye size={18} color="#3B82F6" />}
+                                            </div>
+                                            <div style={{ overflow: 'hidden' }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{doc.name}</div>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: '2px' }}>{doc.fileType.split('/')[1]}</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <button type="button" onClick={() => viewDocument(doc)} className="action-btn" title="View"><Eye size={14} /></button>
+                                            <button type="button" onClick={() => removeDocument(doc.id)} className="action-btn danger-hover" title="Remove"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
+                            
                             {documents.length === 0 && (
-                                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '12px' }}>No documents uploaded yet.</p>
+                                <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.3 }}>
+                                    <p style={{ fontSize: '0.85rem' }}>No documents in repository.</p>
+                                </div>
                             )}
                         </div>
 
-                        {/* STEP 4: SYSTEM CREDENTIALS (last step before provisioning) */}
+                        {/* STEP 4: SYSTEM CREDENTIALS */}
                         <div style={{ display: step === 4 ? 'block' : 'none' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '8px' }}><Key size={18} color="var(--purple-main)" /> System Credentials</h3>
-                            <div style={{ padding: '12px 16px', background: 'rgba(139,92,246,0.08)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--purple-light)', marginBottom: '20px' }}>
-                                🔒 Password will be auto-generated and shown once after account creation.
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <div style={{ gridColumn: '1 / -1' }}><label className="input-label">Work Email *</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="user@triples.os" /></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                <div style={{ background: 'rgba(124, 58, 237, 0.1)', padding: '8px', borderRadius: '10px' }}>
+                                    <Key size={20} color="var(--purple-main)" />
+                                </div>
                                 <div>
-                                    <label className="input-label">System Access *</label>
-                                    <select name="roleId" value={formData.roleId} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
-                                        <option value="EMPLOYEE">Employee Access</option>
-                                        <option value="MANAGER">Manager Access</option>
-                                        <option value="ADMIN">Administrator Access</option>
+                                    <h3 style={{ color: 'white', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>System Credentials</h3>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0, opacity: 0.7 }}>Configure work identity and access levels.</p>
+                                </div>
+                            </div>
+
+                            <div style={{ padding: '16px', background: 'rgba(139,92,246,0.05)', borderRadius: '16px', border: '1px solid rgba(139,92,246,0.2)', fontSize: '0.82rem', color: 'var(--purple-light)', margin: '24px 0', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <Save size={16} />
+                                </div>
+                                <div>
+                                    <span style={{ fontWeight: 700 }}>Auto-Generated Password:</span> A secure temporary password will be created. You must copy it after provisioning.
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '24px' }}>
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <label className="input-label" style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Work Email Address *</label>
+                                    <input type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="employee@agency.com" style={{ height: '42px', background: 'rgba(0,0,0,0.2)' }} />
+                                </div>
+                                <div>
+                                    <label className="input-label" style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Access Level *</label>
+                                    <select name="roleId" value={formData.roleId} onChange={handleChange} className="filter-select" style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)' }}>
+                                        <option value="EMPLOYEE">Standard Employee</option>
+                                        <option value="MANAGER">Manager / Team Lead</option>
+                                        <option value="ADMIN">System Administrator</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="input-label">Status *</label>
-                                    <select name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
-                                        <option value="ACTIVE">Active</option>
-                                        <option value="INACTIVE">Inactive</option>
+                                    <label className="input-label" style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Account Status *</label>
+                                    <select name="status" value={formData.status} onChange={handleChange} className="filter-select" style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)' }}>
+                                        <option value="ACTIVE">Active (Immediate Access)</option>
+                                        <option value="INACTIVE">Inactive (Provision Only)</option>
                                     </select>
                                 </div>
                             </div>
