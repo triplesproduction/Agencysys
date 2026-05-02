@@ -145,12 +145,8 @@ export const api = {
     updateEmployee: async (id: string, data: any) => {
         // logger.log(`[API] Update Employee (${id}) Payload:`, data);
         
-        // Map camelCase keys to snake_case for database compatibility
+        // Database uses camelCase (profilePhoto), so no mapping to snake_case is needed
         const mappedData = { ...data };
-        if (mappedData.profilePhoto !== undefined) {
-            mappedData.profile_photo = mappedData.profilePhoto;
-            delete mappedData.profilePhoto;
-        }
 
         const updatePromise = supabase
             .from('employees')
