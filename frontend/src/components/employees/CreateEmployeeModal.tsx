@@ -100,14 +100,28 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     const viewDocument = (doc: UploadedDocument) => {
         const win = window.open();
         if (win) {
+            const isImage = doc.fileType.startsWith('image/');
             win.document.title = doc.name;
             win.document.write(`
                 <html>
-                    <body style="margin:0; background: #0f0f14; display: flex; align-items: center; justify-content: center;">
-                        <iframe src="${doc.content}" frameborder="0" style="border:0; width:100vw; height:100vh;" allowfullscreen></iframe>
+                    <head>
+                        <style>
+                            body { margin: 0; background: #0f0f14; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: auto; font-family: sans-serif; }
+                            img { max-width: 100%; height: auto; display: block; border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+                            iframe { border: none; width: 100vw; height: 100vh; }
+                            .toolbar { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 20px; color: white; font-size: 12px; z-index: 100; pointer-events: none; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="toolbar">${doc.name}</div>
+                        ${isImage 
+                            ? `<img src="${doc.content}" alt="${doc.name}" />`
+                            : `<iframe src="${doc.content}" allowfullscreen></iframe>`
+                        }
                     </body>
                 </html>
             `);
+            win.document.close();
         }
     };
 
