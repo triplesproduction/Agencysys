@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Check, X, Calendar, Clock, Search, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 import DatePicker from '@/components/common/DatePicker';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
 import { api } from '@/lib/api';
 import '../Leaves.css';
 
@@ -125,102 +127,94 @@ export default function LeaveApprovalsPage() {
     return (
         <div className="main-content fade-in" style={{ padding: '24px 24px 40px' }}>
 
-            {/* Header & Filters Row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', gap: '24px' }}>
-                <div style={{ flexShrink: 0 }}>
-                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Calendar size={26} style={{ color: 'var(--purple-main)' }} /> Leave Approvals
-                        {pendingCount > 0 && (
-                            <span style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '20px', padding: '3px 12px', fontSize: '0.8rem', color: '#F59E0B', fontWeight: 600 }}>
-                                {pendingCount}
-                            </span>
-                        )}
+            {/* Header Tier 1: Title & Refresh */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ background: 'rgba(124, 58, 237, 0.1)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
+                        <Calendar size={24} style={{ color: 'var(--purple-main)' }} />
+                    </div>
+                    <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                        Leave Approvals
                     </h1>
+                    {pendingCount > 0 && (
+                        <div style={{ background: '#F59E0B', color: 'black', borderRadius: '30px', padding: '2px 12px', fontSize: '0.75rem', fontWeight: 800, boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
+                            {pendingCount} PENDING
+                        </div>
+                    )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flex: 1, justifyContent: 'flex-end' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label className="input-label" style={{ margin: 0, fontSize: '0.75rem', opacity: 0.6 }}>Search</label>
-                        <div style={{ position: 'relative' }}>
-                            <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                            <input
-                                type="text"
-                                placeholder="Name..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                style={{ 
-                                    background: 'rgba(255,255,255,0.05)', 
-                                    border: '1px solid var(--glass-border)', 
-                                    borderRadius: '10px', 
-                                    padding: '8px 12px 8px 34px', 
-                                    color: 'white', 
-                                    outline: 'none', 
-                                    width: '160px', 
-                                    fontSize: '0.82rem',
-                                    height: '40px'
-                                }}
-                            />
-                        </div>
-                    </div>
+                <Button 
+                    variant="glass" 
+                    size="sm" 
+                    onClick={() => {
+                        setSearch('');
+                        setFilterStatus('');
+                        setStartDate('');
+                        setEndDate('');
+                        fetchLeaves();
+                    }}
+                    style={{ gap: '8px' }}
+                >
+                    <RefreshCw size={14} className={loading ? 'spin-icon' : ''} /> Refresh Data
+                </Button>
+            </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label className="input-label" style={{ margin: 0, fontSize: '0.75rem', opacity: 0.6 }}>Status</label>
-                        <select
-                            className="filter-select"
-                            value={filterStatus} 
-                            onChange={e => setFilterStatus(e.target.value)}
-                            style={{ minWidth: '130px', height: '40px', fontSize: '0.82rem', borderRadius: '10px' }}
-                        >
-                            <option value="">All Status</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="APPROVED">Approved</option>
-                            <option value="REJECTED">Rejected</option>
-                        </select>
-                    </div>
-                    
-                    <div style={{ width: '150px' }}>
-                        <DatePicker 
-                            label="From"
-                            value={startDate}
-                            onChange={setStartDate}
+            {/* Header Tier 2: Filters */}
+            <div style={{ 
+                display: 'flex', 
+                gap: '16px', 
+                marginBottom: '32px', 
+                padding: '20px', 
+                background: 'rgba(255,255,255,0.02)', 
+                borderRadius: '16px', 
+                border: '1px solid rgba(255,255,255,0.05)',
+                alignItems: 'flex-end',
+                flexWrap: 'wrap'
+            }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                    <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Search Employee</label>
+                    <div style={{ position: 'relative' }}>
+                        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
+                        <Input
+                            type="text"
+                            placeholder="Search name or department..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{ paddingLeft: '36px', height: '42px', background: 'rgba(0,0,0,0.2)' }}
                         />
                     </div>
-                    <div style={{ width: '150px' }}>
-                        <DatePicker 
-                            label="To"
-                            value={endDate}
-                            onChange={setEndDate}
-                        />
-                    </div>
+                </div>
 
-                    <button 
-                        onClick={() => {
-                            setSearch('');
-                            setFilterStatus('');
-                            setStartDate('');
-                            setEndDate('');
-                            fetchLeaves();
-                        }} 
-                        style={{ 
-                            background: 'rgba(139,92,246,0.1)', 
-                            border: '1px solid rgba(139,92,246,0.2)', 
-                            borderRadius: '10px', 
-                            padding: '0 14px', 
-                            color: 'var(--purple-main)', 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px', 
-                            fontSize: '0.82rem', 
-                            fontWeight: 600,
-                            height: '40px',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.2)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(139,92,246,0.1)'}
+                <div style={{ width: '160px' }}>
+                    <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Status Filter</label>
+                    <select
+                        className="filter-select"
+                        value={filterStatus} 
+                        onChange={e => setFilterStatus(e.target.value)}
+                        style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)', fontSize: '0.82rem' }}
                     >
-                        <RefreshCw size={14} /> Refresh
-                    </button>
+                        <option value="">All Statuses</option>
+                        <option value="PENDING">Pending Only</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+                </div>
+                
+                <div style={{ width: '180px' }}>
+                    <DatePicker 
+                        label="From Date"
+                        value={startDate}
+                        onChange={setStartDate}
+                        className="approvals-datepicker"
+                    />
+                </div>
+                <div style={{ width: '180px' }}>
+                    <DatePicker 
+                        label="To Date"
+                        value={endDate}
+                        onChange={setEndDate}
+                        className="approvals-datepicker"
+                    />
                 </div>
             </div>
 

@@ -306,8 +306,8 @@
 .wizard-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.88);
-    backdrop-filter: blur(16px);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(24px) saturate(120%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -315,17 +315,32 @@
 }
 
 .wizard-card {
-    background: #0D0D12;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--glass-surface);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--glass-border);
     border-radius: 36px;
-    width: 850px; /* Increased width for better layout */
+    width: 850px;
     max-width: 95vw;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(139, 92, 246, 0.1);
+    box-shadow: 
+        0 40px 120px rgba(0, 0, 0, 0.9), 
+        0 0 0 1px rgba(139, 92, 246, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
     overflow: hidden;
+}
+
+.wizard-glow {
+    position: absolute;
+    top: -150px;
+    right: -150px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .wizard-header {
@@ -356,14 +371,30 @@
     background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
 .step-indicator.active {
-    background: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.15);
+}
+
+.step-indicator.active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--purple-accent), transparent);
+    animation: flow 2s infinite linear;
 }
 
 .step-indicator.complete {
-    background: var(--purple-main);
+    background: linear-gradient(90deg, var(--purple-main), var(--purple-accent));
+    box-shadow: 0 0 10px var(--purple-glow);
+}
+
+@keyframes flow {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }
 
 .wizard-body {
@@ -388,16 +419,23 @@
 }
 
 .wizard-input {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
     padding: 14px 18px;
     color: white;
-    font-size: 1rem;
+    font-size: 0.95rem;
     width: 100%;
     outline: none;
-    transition: all 0.2s;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    backdrop-filter: blur(4px);
+}
+
+.wizard-input:focus {
+    border-color: var(--purple-accent);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 20px var(--purple-glow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .wizard-input::placeholder {
@@ -407,19 +445,14 @@
     letter-spacing: 0;
 }
 
-.wizard-input:focus {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--purple-main);
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
-}
-
 .wizard-footer {
     padding: 24px 48px 32px;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--glass-border);
 }
 
 
@@ -611,20 +644,23 @@
 
 /* ─── STEP 2: COLLAPSIBLE TASK CARDS ─── */
 .wiz-task-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
     overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(4px);
 }
 
 .wiz-task-card:hover {
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .wiz-task-card.expanded {
-    border-color: rgba(139, 92, 246, 0.25);
-    background: rgba(139, 92, 246, 0.03);
+    border-color: var(--glass-border-purple);
+    background: rgba(124, 58, 237, 0.04);
+    box-shadow: inset 0 0 20px rgba(124, 58, 237, 0.05);
 }
 
 .wiz-task-header {
@@ -641,24 +677,26 @@
 }
 
 .wiz-task-num {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 800;
-    color: rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.2);
     flex-shrink: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .wiz-task-num.filled {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.3);
-    color: var(--purple-main);
+    background: var(--purple-glow);
+    border-color: var(--glass-border-purple);
+    color: var(--purple-accent);
+    box-shadow: 0 0 15px var(--purple-glow);
 }
 
 .wiz-task-remove {
@@ -706,30 +744,43 @@
 
 .wiz-priority-group {
     display: flex;
-    gap: 6px;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 4px;
-    border-radius: 10px;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid var(--glass-border);
 }
 
 .wiz-priority-btn {
     flex: 1;
     font-size: 0.65rem;
     font-weight: 800;
-    padding: 7px 0;
-    border-radius: 7px;
+    padding: 10px 0;
+    border-radius: 10px;
     color: rgba(255, 255, 255, 0.3);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     background: transparent;
     border: none;
 }
 
-.wiz-priority-btn.active.low { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-.wiz-priority-btn.active.medium { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.wiz-priority-btn.active.high { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.wiz-priority-btn.active.low { 
+    background: rgba(16, 185, 129, 0.15); 
+    color: #10b981; 
+    box-shadow: inset 0 0 12px rgba(16, 185, 129, 0.1), 0 0 15px rgba(16, 185, 129, 0.1);
+}
+.wiz-priority-btn.active.medium { 
+    background: rgba(245, 158, 11, 0.15); 
+    color: #f59e0b; 
+    box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.1), 0 0 15px rgba(245, 158, 11, 0.1);
+}
+.wiz-priority-btn.active.high { 
+    background: rgba(239, 68, 68, 0.15); 
+    color: #ef4444; 
+    box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.1), 0 0 15px rgba(239, 68, 68, 0.1);
+}
 
 .wiz-checklist-item {
     display: flex;
@@ -809,10 +860,11 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
     overflow: hidden;
+    backdrop-filter: blur(8px);
 }
 
 .wiz-summary-task-row {

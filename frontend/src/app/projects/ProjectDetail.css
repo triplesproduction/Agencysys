@@ -172,6 +172,23 @@
     border-radius: 50%;
     border: 2px solid rgba(139, 92, 246, 0.3);
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    flex-shrink: 0;
+}
+
+.member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.member-avatar span {
+    font-size: 1.1rem;
+    color: var(--purple-main);
+    text-transform: uppercase;
 }
 
 .member-info h4 {

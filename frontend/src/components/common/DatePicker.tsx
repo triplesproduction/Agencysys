@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface DatePickerProps {
@@ -18,6 +19,8 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
     const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
     const [showYearPicker, setShowYearPicker] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [popupCoords, setPopupCoords] = useState({ top: 0, left: 0, width: 300 });
+    const [openUpward, setOpenUpward] = useState(false);
 
     // Sync viewDate when value changes from outside
     useEffect(() => {
@@ -26,17 +29,47 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
         }
     }, [value]);
 
-    // Close on click outside
+    // Close on click outside and track position
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                // If portal is open, we need to check if click is inside the portal too
+                const portal = document.getElementById('datepicker-portal-root');
+                if (portal && portal.contains(e.target as Node)) return;
+                
                 setIsOpen(false);
                 setShowYearPicker(false);
             }
         };
-        document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
-    }, []);
+
+        const updatePosition = () => {
+            if (isOpen && containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const shouldOpenUpward = spaceBelow < 350;
+                setOpenUpward(shouldOpenUpward);
+                
+                setPopupCoords({
+                    top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8,
+                    left: rect.left + rect.width - 300, // Align right with input
+                    width: 300
+                });
+            }
+        };
+
+        if (isOpen) {
+            updatePosition();
+            document.addEventListener('mousedown', handleClick);
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            window.removeEventListener('scroll', updatePosition, true);
+            window.removeEventListener('resize', updatePosition);
+        };
+    }, [isOpen]);
 
     const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
     const startDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
@@ -57,7 +90,6 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
     const handleDateSelect = (day: number) => {
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
-        // Format as YYYY-MM-DD using local time to avoid timezone shifts
         const formatted = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         onChange(formatted);
         setIsOpen(false);
@@ -117,22 +149,26 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
             years.push(y);
         }
 
-        return (
-            <div className="fade-in date-picker-popup" style={{ 
-                background: 'rgba(15, 15, 20, 0.98)', 
-                backdropFilter: 'blur(28px)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '18px',
-                padding: '16px',
-                boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 92, 246, 0.1)',
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                left: 'auto',
-                right: 0,
-                zIndex: 9999,
-                width: '300px',
-                animation: 'slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}>
+        const calendarContent = (
+            <div 
+                id="datepicker-portal-root"
+                className={`fade-in date-picker-popup ${openUpward ? 'upward' : ''}`} 
+                style={{ 
+                    background: 'rgba(15, 15, 20, 0.95)', 
+                    backdropFilter: 'blur(32px)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: '20px',
+                    padding: '18px',
+                    boxShadow: '0 30px 60px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(139, 92, 246, 0.15)',
+                    position: 'fixed',
+                    top: popupCoords.top,
+                    left: popupCoords.left,
+                    transform: openUpward ? 'translateY(-100%)' : 'none',
+                    zIndex: 10000,
+                    width: popupCoords.width,
+                    animation: openUpward ? 'slideUpFadePortal 0.3s cubic-bezier(0.16, 1, 0.3, 1)' : 'slideDownFadePortal 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}
+            >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <button 
                         type="button"
@@ -140,7 +176,7 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                         style={{ 
                             background: 'transparent', border: 'none', color: 'white', 
                             display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
-                            fontSize: '0.95rem', fontWeight: 700, padding: '4px 8px', borderRadius: '8px'
+                            fontSize: '1rem', fontWeight: 700, padding: '4px 8px', borderRadius: '8px'
                         }}
                     >
                         {monthName} {year}
@@ -166,10 +202,10 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                                 key={y}
                                 onClick={() => handleYearSelect(y)}
                                 style={{
-                                    padding: '8px', borderRadius: '8px', border: '1px solid transparent',
+                                    padding: '10px', borderRadius: '10px', border: '1px solid transparent',
                                     background: year === y ? 'var(--purple-main)' : 'rgba(255,255,255,0.03)',
                                     color: year === y ? 'white' : 'rgba(255,255,255,0.7)',
-                                    cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.85rem'
+                                    cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.85rem', fontWeight: 600
                                 }}
                             >
                                 {y}
@@ -178,19 +214,19 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                     </div>
                 ) : (
                     <>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: '10px' }}>
                             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
-                                <div key={idx} style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>
+                                <div key={idx} style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontWeight: 800 }}>
                                     {day}
                                 </div>
                             ))}
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
                             {days}
                         </div>
 
-                        <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center' }}>
                             <button 
                                 type="button" 
                                 onClick={() => {
@@ -198,7 +234,18 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                                     setViewDate(now);
                                     handleDateSelect(now.getDate());
                                 }}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--purple-light)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '4px 12px' }}
+                                style={{ 
+                                    background: 'rgba(124, 58, 237, 0.1)', 
+                                    border: '1px solid rgba(124, 58, 237, 0.2)', 
+                                    color: 'var(--purple-main)', 
+                                    fontSize: '0.85rem', 
+                                    fontWeight: 700, 
+                                    cursor: 'pointer', 
+                                    padding: '6px 20px',
+                                    borderRadius: '10px',
+                                    transition: 'all 0.2s'
+                                }}
+                                className="today-btn-premium"
                             >
                                 Today
                             </button>
@@ -208,35 +255,48 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
 
                 <style jsx>{`
                     .nav-btn {
-                        padding: 6px;
-                        border-radius: 8px;
-                        background: rgba(255,255,255,0.03);
-                        border: 1px solid rgba(255,255,255,0.06);
+                        padding: 8px;
+                        border-radius: 10px;
+                        background: rgba(255,255,255,0.04);
+                        border: 1px solid rgba(255,255,255,0.08);
                         color: rgba(255,255,255,0.8);
                         cursor: pointer;
                         transition: all 0.2s;
                         display: flex;
-                        alignItems: center;
-                        justifyContent: center;
+                        align-items: center;
+                        justify-content: center;
                     }
                     .nav-btn:hover {
-                        background: rgba(255,255,255,0.08);
+                        background: rgba(139, 92, 246, 0.1);
                         border-color: var(--purple-main);
                         color: white;
+                        transform: translateY(-1px);
                     }
                     .calendar-day-btn:hover:not(:disabled) {
                         background: rgba(139, 92, 246, 0.2) !important;
                         color: white !important;
                         transform: scale(1.1);
                         z-index: 1;
+                        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
                     }
-                    @keyframes slideUpFade {
-                        from { opacity: 0; transform: translateY(8px); }
-                        to { opacity: 1; transform: translateY(0); }
+                    .today-btn-premium:hover {
+                        background: var(--purple-main);
+                        color: white;
+                        box-shadow: 0 4px 15px var(--purple-glow);
+                    }
+                    @keyframes slideUpFadePortal {
+                        from { opacity: 0; transform: translateY(-90%) scale(0.98); }
+                        to { opacity: 1; transform: translateY(-100%) scale(1); }
+                    }
+                    @keyframes slideDownFadePortal {
+                        from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+                        to { opacity: 1; transform: translateY(0) scale(1); }
                     }
                 `}</style>
             </div>
         );
+
+        return createPortal(calendarContent, document.body);
     };
 
     return (

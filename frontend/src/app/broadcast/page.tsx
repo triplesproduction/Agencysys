@@ -7,6 +7,8 @@ import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { useAuth } from '@/context/AuthContext';
+import Button from '@/components/Button';
+import Input from '@/components/Input';
 
 interface Announcement {
     id: string;
@@ -138,27 +140,9 @@ export default function BroadcastPage() {
                 </div>
 
                 {isAdmin && (
-                    <button 
-                        onClick={() => setIsCreateModalOpen(true)}
-                        style={{
-                            background: 'var(--purple-main)',
-                            border: 'none',
-                            color: 'white',
-                            padding: '12px 24px',
-                            borderRadius: '12px',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            cursor: 'pointer',
-                            boxShadow: '0 10px 20px rgba(139, 92, 246, 0.2)',
-                            transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
+                    <Button onClick={() => setIsCreateModalOpen(true)} size="lg">
                         <Plus size={18} /> Launch Announcement
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -273,68 +257,75 @@ export default function BroadcastPage() {
 
             {/* Creation Modal */}
             {isCreateModalOpen && (
-                <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                    <GlassCard style={{ width: '100%', maxWidth: '500px', padding: '40px', border: '1px solid var(--purple-main)', boxShadow: '0 0 60px rgba(139,92,246,0.2)' }}>
+                <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <GlassCard style={{ width: '100%', maxWidth: '520px', padding: '40px', border: '1px solid rgba(139,92,246,0.3)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', borderRadius: '24px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <Plus size={24} strokeWidth={3} style={{ color: 'var(--purple-main)' }} /> Create Announcement
-                            </h2>
-                            <button onClick={() => setIsCreateModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={24} /></button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                    <Send size={24} style={{ color: 'var(--purple-main)' }} />
+                                </div>
+                                <div>
+                                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'white', letterSpacing: '-0.02em' }}>
+                                        Broadcast News
+                                    </h2>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Push a new update to the whole agency</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsCreateModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
                         </div>
 
-                        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '10px' }}>Title *</label>
-                                <input
+                                <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Announcement Title</label>
+                                <Input
                                     type="text"
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
-                                    placeholder="e.g. Office Closed on Monday"
-                                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', padding: '14px 18px', borderRadius: '12px', color: 'white', outline: 'none' }}
+                                    placeholder="e.g. Critical System Maintenance"
                                     required
+                                    style={{ background: 'rgba(0,0,0,0.3)' }}
                                 />
                             </div>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '10px' }}>Type</label>
+                                <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Category Type</label>
                                 <select
                                     value={type}
                                     onChange={e => setType(e.target.value)}
                                     className="filter-select"
-                                    style={{ width: '100%', height: '50px', borderRadius: '12px' }}
+                                    style={{ width: '100%', height: '48px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)' }}
                                 >
-                                    <option value="ANNOUNCEMENT">Announcement</option>
+                                    <option value="ANNOUNCEMENT">Standard Announcement</option>
                                     <option value="URGENT">Urgent Alert</option>
                                     <option value="SYSTEM">System Update</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '10px' }}>Message *</label>
+                                <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Message Content</label>
                                 <textarea
                                     value={message}
                                     onChange={e => setMessage(e.target.value)}
-                                    placeholder="Type your announcement contents..."
-                                    style={{ width: '100%', height: '160px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', padding: '14px 18px', borderRadius: '12px', color: 'white', outline: 'none', resize: 'none' }}
+                                    placeholder="Type your announcement contents here..."
+                                    style={{ width: '100%', height: '140px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', padding: '14px 18px', borderRadius: '12px', color: 'white', outline: 'none', resize: 'none', fontSize: '0.9rem', lineHeight: '1.6' }}
                                     required
                                 />
                             </div>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || !title || !message}
-                                style={{ 
-                                    background: 'var(--purple-main)', 
-                                    border: 'none', 
-                                    color: 'white', 
-                                    padding: '16px', 
-                                    borderRadius: '12px', 
-                                    cursor: 'pointer', 
-                                    fontWeight: 800, 
-                                    fontSize: '1rem',
-                                    marginTop: '10px',
-                                    boxShadow: '0 10px 20px rgba(139, 92, 246, 0.3)'
-                                }}
-                            >
-                                {isSubmitting ? 'Publishing...' : 'Publish Announcement'}
-                            </button>
+                            <div style={{ marginTop: '10px', display: 'flex', gap: '12px' }}>
+                                <Button
+                                    type="button"
+                                    variant="glass"
+                                    style={{ flex: 1 }}
+                                    onClick={() => setIsCreateModalOpen(false)}
+                                >
+                                    Discard
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={isSubmitting || !title || !message}
+                                    style={{ flex: 2 }}
+                                >
+                                    {isSubmitting ? 'Publishing...' : 'Launch Broadcast'}
+                                </Button>
+                            </div>
                         </form>
                     </GlassCard>
                 </div>

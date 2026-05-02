@@ -17,9 +17,21 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    min-height: 40px;
-    padding: 4px;
+    min-height: 52px;
+    padding: 8px 14px;
     align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    width: 100%;
+    backdrop-filter: blur(4px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.selected-members-bar:focus-within {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
 }
 
 .member-tag {
@@ -27,10 +39,35 @@
     align-items: center;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 2px 8px 2px 2px;
-    gap: 6px;
-    transition: all 0.2s;
+    border-radius: 24px;
+    padding: 2px 10px 2px 2px;
+    gap: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 32px;
+}
+
+.member-tag.is-collapsed {
+    padding: 2px;
+    gap: 0;
+    width: 32px;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.member-tag.is-collapsed .tag-remove {
+    display: none;
+}
+
+.member-tag.is-collapsed:hover {
+    width: auto;
+    padding-right: 8px;
+    gap: 4px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.member-tag.is-collapsed:hover .tag-remove {
+    display: flex;
 }
 
 .member-tag:hover {
@@ -91,18 +128,27 @@
 }
 
 .picker-dropdown {
-    position: absolute;
-    bottom: calc(100% + 8px); /* Open upwards */
-    left: 0;
-    width: 280px;
-    background: #1a1a20;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.5); /* Shadow adjusted for upward position */
-    z-index: 100;
-    max-height: 260px;
-    overflow-y: auto;
-    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    background: rgba(20, 20, 25, 0.9);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    max-height: 320px;
+}
+
+.picker-dropdown.upward {
+    box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideUpPortal {
+    from { opacity: 0; transform: translateY(12px) scale(0.99); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideDownPortal {
+    from { opacity: 0; transform: translateY(-12px) scale(0.99); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes slideUp {

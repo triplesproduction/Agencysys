@@ -74,9 +74,9 @@ export default function ProjectDetailPage() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    const loadData = async () => {
+    const loadData = async (silent = false) => {
         if (!id) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
         try {
             const [projData, tasksData, empsData] = await Promise.all([
                 api.getProjectById(String(id)),
@@ -128,9 +128,9 @@ export default function ProjectDetailPage() {
             setTasks(prev => prev.map(t => t.id === active.id ? { ...t, status: newStatus as any } : t));
             try {
                 await api.updateTaskStatus(active.id as string, newStatus);
-                loadData();
+                loadData(true);
             } catch (err: any) {
-                loadData();
+                loadData(true);
                 addNotification({ title: 'Sync Error', message: err.message, type: 'error' });
             }
         }
@@ -264,7 +264,11 @@ export default function ProjectDetailPage() {
                             {project.members && project.members.length > 0 ? project.members.map(m => (
                                 <div key={m.id} className="member-item">
                                     <div className="member-avatar">
-                                        {m.user?.profilePhoto ? <img src={m.user.profilePhoto} alt="" /> : <span style={{ fontWeight: 800 }}>{m.user?.firstName?.[0]}</span>}
+                                        {m.user?.profilePhoto && m.user.profilePhoto.trim() !== '' ? (
+                                            <img src={m.user.profilePhoto} alt={`${m.user.firstName} ${m.user.lastName}`} />
+                                        ) : (
+                                            <span>{m.user?.firstName?.[0] || '?'}</span>
+                                        )}
                                     </div>
                                     <div className="member-info">
                                         <h4>{m.user?.firstName} {m.user?.lastName}</h4>
@@ -279,14 +283,14 @@ export default function ProjectDetailPage() {
                 )}
             </div>
 
-            <AllocateTaskModal isOpen={isAllocateModalOpen} onClose={() => setIsAllocateModalOpen(false)} onSuccess={loadData} projectId={String(id)} />
-            <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={loadData} currentUserRole={userRole} />
+            <AllocateTaskModal isOpen={isAllocateModalOpen} onClose={() => setIsAllocateModalOpen(false)} onSuccess={() => loadData(true)} projectId={String(id)} />
+            <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={() => loadData(true)} currentUserRole={userRole} />
             {project && (
                 <ManageProjectMembersModal 
                     isOpen={isManageMembersOpen} 
                     onClose={() => setIsManageMembersOpen(false)} 
                     project={project}
-                    onRefresh={loadData}
+                    onRefresh={() => loadData(true)}
                 />
             )}
         </div>

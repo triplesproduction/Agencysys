@@ -195,6 +195,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
     return (
         <div className="wizard-overlay fade-in">
             <div className="wizard-card slide-up">
+                <div className="wizard-glow"></div>
                 
                 {/* Header */}
                 <div className="wizard-header">
@@ -214,7 +215,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                 </div>
 
                 {/* Body */}
-                <div className="wizard-body custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '65vh' }}>
+                <div className="wizard-body custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '75vh' }}>
                     
                     {/* ───── STEP 1: PROJECT DETAILS ───── */}
                     {step === 1 && (
@@ -227,18 +228,17 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                     value={name}
                                     autoFocus
                                     onChange={(e) => setName(e.target.value)}
-                                    style={{ fontSize: '1.1rem', fontWeight: 700, padding: '16px 20px' }}
                                 />
                                 <textarea 
                                     className="wizard-input"
                                     placeholder="Brief description of this project..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    style={{ minHeight: '100px', resize: 'none', lineHeight: 1.5, padding: '16px 20px', fontSize: '0.95rem' }}
+                                    rows={4}
                                 />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', alignItems: 'flex-start' }}>
                                 <div className="wizard-field-group">
                                     <label className="wizard-label"><Calendar size={12} style={{ marginRight: 6 }} /> Start Date</label>
                                     <DatePicker value={startDate} onChange={setStartDate} />
@@ -247,15 +247,14 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                     <label className="wizard-label"><Target size={12} style={{ marginRight: 6 }} /> Deadline</label>
                                     <DatePicker value={deadline} onChange={setDeadline} />
                                 </div>
-                            </div>
-
-                            <div className="wizard-field-group">
-                                <label className="wizard-label"><Users size={12} style={{ marginRight: 6 }} /> Team Members</label>
-                                <MultiMemberPicker 
-                                    selectedIds={selectedMemberIds}
-                                    members={employees as any}
-                                    onChange={setSelectedMemberIds}
-                                />
+                                <div className="wizard-field-group">
+                                    <label className="wizard-label"><Users size={12} style={{ marginRight: 6 }} /> Team Members</label>
+                                    <MultiMemberPicker 
+                                        selectedIds={selectedMemberIds}
+                                        members={employees as any}
+                                        onChange={setSelectedMemberIds}
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
@@ -560,7 +559,6 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                         <Button 
                             variant="secondary" 
                             size="lg"
-                            style={{ borderRadius: '14px', fontWeight: 700 }}
                             onClick={() => setStep(step - 1)} 
                             disabled={isSubmitting}
                         >
@@ -575,7 +573,6 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                             <Button 
                                 variant="primary" 
                                 size="lg"
-                                style={{ borderRadius: '14px', fontWeight: 800 }}
                                 onClick={() => setStep(step + 1)}
                                 disabled={step === 1 && !name}
                             >
@@ -585,7 +582,6 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                             <Button 
                                 variant="primary" 
                                 size="lg"
-                                style={{ borderRadius: '14px', fontWeight: 800 }}
                                 onClick={handleFinalLaunch}
                                 disabled={isSubmitting}
                             >

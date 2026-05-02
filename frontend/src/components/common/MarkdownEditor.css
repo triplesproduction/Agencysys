@@ -1,125 +1,90 @@
 .premium-editor-container {
     width: 100%;
-    background: #141419;
+    background: rgba(15, 15, 20, 0.3);
+    backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    border-radius: 14px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: border-color 0.2s;
+    transition: all 0.3s ease;
 }
 
 .premium-editor-container:focus-within {
     border-color: var(--purple-main);
-    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+    background: rgba(15, 15, 20, 0.5);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
 }
 
 .editor-toolbar {
     display: flex;
     align-items: center;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    gap: 4px;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .toolbar-group {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
 }
 
 .toolbar-btn {
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.6);
-    padding: 6px;
-    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 8px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 4px;
-    transition: all 0.2s;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.toolbar-btn.active {
-    background: rgba(139, 92, 246, 0.15);
-    color: var(--purple-main);
-    font-weight: 600;
-}
-
-.toolbar-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-}
-
-.toolbar-divider {
-    width: 1px;
-    height: 18px;
-    background: rgba(255, 255, 255, 0.1);
-    margin: 0 4px;
-}
-
-.toolbar-right {
-    margin-left: auto;
+.toolbar-group {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.markdown-badge {
-    opacity: 0.5;
+.toolbar-btn:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--purple-accent);
+    transform: translateY(-1px);
 }
 
-.markdown-badge:hover {
-    opacity: 1;
+.toolbar-btn.active {
+    background: var(--purple-glow);
+    color: var(--purple-accent);
+    box-shadow: 0 0 10px var(--purple-glow);
 }
 
-.editor-textarea {
-    width: 100%;
-    min-height: 180px;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: rgba(255, 255, 255, 0.9);
-    padding: 16px;
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    resize: vertical;
-    font-family: inherit;
-}
-
-.editor-textarea::placeholder {
-    color: rgba(255, 255, 255, 0.3);
-}
-
-.editor-preview {
-    width: 100%;
-    min-height: 180px;
-    padding: 16px;
-    color: rgba(255, 255, 255, 0.9);
-    overflow-y: auto;
-    background: rgba(0, 0, 0, 0.1);
-}
-
-/* Unified Inline Preview Editor */
 .unified-editor {
     position: relative;
-    min-height: 200px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 0 0 12px 12px;
-    overflow: hidden;
+    min-height: 220px;
+    background: transparent;
 }
 
 .editor-hl-overlay,
 .editor-textarea-base {
-    padding: 20px;
+    padding: 24px;
     font-family: inherit;
     font-size: 0.95rem;
-    line-height: 1.6;
+    line-height: 1.7;
     width: 100%;
     height: 100%;
-    min-height: 200px;
+    min-height: 220px;
     border: none;
     outline: none;
     white-space: pre-wrap;
@@ -128,11 +93,10 @@
 }
 
 .editor-hl-overlay {
-    position: relative; /* Base layer */
+    position: relative;
     color: rgba(255, 255, 255, 0.9);
     z-index: 1;
     pointer-events: none;
-    background: transparent;
 }
 
 .editor-textarea-base {
@@ -142,99 +106,40 @@
     z-index: 2;
     background: transparent !important;
     color: transparent !important;
-    caret-color: #a78bfa; /* Light purple caret */
+    caret-color: var(--purple-accent);
     resize: none;
-    overflow-y: hidden; /* textarea scrolling is handled by container or sync */
 }
 
-
-/* Markdown Styling Tokens */
-.md-tag {
-    opacity: 0;
+.placeholder {
+    color: rgba(255, 255, 255, 0.25);
+    font-style: normal;
     pointer-events: none;
-    letter-spacing: -1px; /* Tighter for symbols if needed, but usually 0 is safer for sync */
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    transition: opacity 0.2s;
 }
 
-.md-bold {
-    color: white;
-    font-weight: 700;
-}
-
-.md-italic {
-    color: rgba(255, 255, 255, 0.9);
-    font-style: italic;
+/* Color Updates for Highlighted Text */
+.md-tag {
+    color: var(--purple-accent);
+    opacity: 0.4;
 }
 
 .md-h1 {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #a78bfa; /* Keep purple for context, or white for super clean */
-    display: inline-block;
-    width: 100%;
-    margin-top: 10px;
-}
-
-.md-h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
     color: white;
-    display: inline-block;
-    width: 100%;
-    margin-top: 8px;
+    margin: 12px 0 8px;
+    display: block;
 }
-
 
 .md-list {
-    color: var(--purple-main);
-    font-weight: 600;
+    color: var(--purple-accent);
+    font-weight: 700;
 }
 
-.md-link {
-    color: #818cf8;
-    text-decoration: underline;
-}
-
-.md-strike {
-    text-decoration: line-through;
-    opacity: 0.5;
-}
-
-.placeholder {
-    color: rgba(255, 255, 255, 0.2);
-    font-style: italic;
-}
-
-.markdown-rendered h1 {
-    font-size: 1.5rem;
-    margin-bottom: 12px;
+.md-bold {
     color: white;
-}
-
-.markdown-rendered h2 {
-    font-size: 1.25rem;
-    margin-bottom: 10px;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.markdown-rendered strong {
-    color: white;
-}
-
-.markdown-rendered em {
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.markdown-rendered a {
-    color: var(--purple-main);
-    text-decoration: underline;
-}
-
-.markdown-rendered br {
-    display: block;
-    margin-bottom: 8px;
-    content: "";
-}
-
-.readonly .editor-textarea {
-    cursor: default;
+    font-weight: 700;
 }

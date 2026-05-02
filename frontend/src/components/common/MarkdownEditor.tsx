@@ -24,7 +24,7 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, r
 
     // Simple markdown highlighting function for the overlay
     const highlightMarkdown = (text: string) => {
-        if (!text) return '<span class="placeholder">' + (placeholder || 'Type description...') + '</span>';
+        if (!text) return '';
         
         let html = text
             .replace(/&/g, '&amp;')
@@ -179,7 +179,11 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, r
                 <div 
                     ref={previewRef}
                     className="editor-hl-overlay custom-scrollbar"
-                    dangerouslySetInnerHTML={{ __html: highlightMarkdown(value) }}
+                    dangerouslySetInnerHTML={{ 
+                        __html: value 
+                            ? highlightMarkdown(value) 
+                            : `<span class="placeholder">${placeholder || 'Add task details, instructions, or scope...'}</span>` 
+                    }}
                 />
                 <textarea
                     ref={textareaRef}
@@ -188,7 +192,6 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, r
                     onChange={(e) => onChange(e.target.value)}
                     onScroll={handleScroll}
                     onBlur={onBlur}
-                    placeholder={placeholder || 'Type here...'}
                     readOnly={readOnly}
                     spellCheck={false}
                 />
