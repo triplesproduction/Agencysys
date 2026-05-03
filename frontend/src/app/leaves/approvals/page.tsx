@@ -161,37 +161,37 @@ export default function LeaveApprovalsPage() {
 
             {/* Header Tier 2: Filters */}
             <div style={{ 
-                display: 'flex', 
-                gap: '16px', 
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: '20px', 
                 marginBottom: '32px', 
-                padding: '20px', 
+                padding: '24px', 
                 background: 'rgba(255,255,255,0.02)', 
-                borderRadius: '16px', 
+                borderRadius: '20px', 
                 border: '1px solid rgba(255,255,255,0.05)',
-                alignItems: 'flex-end',
-                flexWrap: 'wrap'
+                alignItems: 'end'
             }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                    <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Search Employee</label>
+                <div>
+                    <label className="input-label" style={{ marginBottom: '8px' }}>Search Employee</label>
                     <div style={{ position: 'relative' }}>
-                        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
+                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
                         <Input
                             type="text"
-                            placeholder="Search name or department..."
+                            placeholder="Name or department..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            style={{ paddingLeft: '36px', height: '42px', background: 'rgba(0,0,0,0.2)' }}
+                            style={{ paddingLeft: '38px', height: '42px', background: 'rgba(0,0,0,0.2)' }}
                         />
                     </div>
                 </div>
 
-                <div style={{ width: '160px' }}>
-                    <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.05em' }}>Status Filter</label>
+                <div>
+                    <label className="input-label" style={{ marginBottom: '8px' }}>Status Filter</label>
                     <select
                         className="filter-select"
                         value={filterStatus} 
                         onChange={e => setFilterStatus(e.target.value)}
-                        style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)', fontSize: '0.82rem' }}
+                        style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)' }}
                     >
                         <option value="">All Statuses</option>
                         <option value="PENDING">Pending Only</option>
@@ -200,20 +200,18 @@ export default function LeaveApprovalsPage() {
                     </select>
                 </div>
                 
-                <div style={{ width: '180px' }}>
+                <div>
                     <DatePicker 
                         label="From Date"
                         value={startDate}
                         onChange={setStartDate}
-                        className="approvals-datepicker"
                     />
                 </div>
-                <div style={{ width: '180px' }}>
+                <div>
                     <DatePicker 
                         label="To Date"
                         value={endDate}
                         onChange={setEndDate}
-                        className="approvals-datepicker"
                     />
                 </div>
             </div>

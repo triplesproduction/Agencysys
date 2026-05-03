@@ -201,13 +201,20 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
                                 </div>
                             </div>
 
-                            <div className="form-row">
-                                <div className="trello-section-label">Execution Instructions</div>
-                                <MarkdownEditor 
-                                    value={instructions}
-                                    onChange={setInstructions}
-                                    placeholder="Add specific instructions for this allocation..."
-                                />
+                            <div className="form-row" style={{ marginBottom: '32px' }}>
+                                <div className="trello-section-label" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.9)' }}>
+                                    <div style={{ background: 'rgba(139,92,246,0.1)', padding: '6px', borderRadius: '8px' }}>
+                                        <FileText size={16} color="var(--purple-main)" />
+                                    </div>
+                                    <span style={{ fontWeight: 700, letterSpacing: '0.02em', fontSize: '0.95rem' }}>Execution Instructions</span>
+                                </div>
+                                <div style={{ border: '1px solid var(--glass-border)', borderRadius: '16px', overflow: 'hidden', background: 'rgba(0,0,0,0.2)' }}>
+                                    <MarkdownEditor 
+                                        value={instructions}
+                                        onChange={setInstructions}
+                                        placeholder="Add specific instructions for this allocation..."
+                                    />
+                                </div>
                             </div>
 
                             <div className="form-row">

@@ -135,8 +135,10 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         }
 
         setIsUploading(true);
+        console.log('[Profile] Initiating photo sync for:', employee.id);
         try {
             const { url } = await api.uploadPhoto(file, profilePhoto || undefined);
+            console.log('[Profile] Photo storage success. Syncing DB...', url);
             await api.updateEmployee(employee.id, { profilePhoto: url });
             setProfilePhoto(url);
             addNotification({
@@ -144,9 +146,11 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                 message: 'Your profile photo has been synchronized.',
                 type: 'SYSTEM'
             });
+            console.log('[Profile] Full sync complete.');
             // Proactive notification for UI refresh if needed
             window.dispatchEvent(new CustomEvent('app:profile-updated', { detail: { employeeId: employee.id, profilePhoto: url } }));
         } catch (err: any) {
+            console.error('[Profile] Photo sync failed:', err);
             alert(`Failed to save photo: ${err.message}`);
         } finally {
             setIsUploading(false);
@@ -876,13 +880,62 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                             <button onClick={() => {
                                                 const win = window.open();
-                                                win?.document.write(`
-                                                    <html>
-                                                        <body style="margin:0; background: #1a1a1a; display: flex; justify-content: center; align-items: center;">
-                                                            <iframe src="${doc.content}" frameborder="0" style="width:100%; height:100%;" allowfullscreen></iframe>
-                                                        </body>
-                                                    </html>
-                                                `);
+                                                if (win) {
+                                                    const isImage = doc.fileType?.startsWith('image/') || doc.content.match(/\.(jpg|jpeg|png|webp|gif)/i);
+                                                    win.document.title = doc.name;
+                                                    win.document.write(`
+                                                        <html>
+                                                            <head>
+                                                                <style>
+                                                                    body { 
+                                                                        margin: 0; 
+                                                                        background: #0f0f14; 
+                                                                        display: flex; 
+                                                                        flex-direction: column;
+                                                                        align-items: center; 
+                                                                        min-height: 100vh; 
+                                                                        overflow-y: auto; 
+                                                                        font-family: sans-serif;
+                                                                        padding: 40px 20px;
+                                                                        box-sizing: border-box;
+                                                                    }
+                                                                    img { 
+                                                                        max-width: 100%; 
+                                                                        height: auto; 
+                                                                        display: block; 
+                                                                        border-radius: 12px; 
+                                                                        box-shadow: 0 30px 60px rgba(0,0,0,0.5); 
+                                                                        border: 1px solid rgba(255,255,255,0.1);
+                                                                    }
+                                                                    iframe { border: none; width: 100vw; height: 100vh; background: white; }
+                                                                    .toolbar { 
+                                                                        position: fixed; 
+                                                                        top: 20px; 
+                                                                        left: 50%;
+                                                                        transform: translateX(-50%);
+                                                                        background: rgba(0,0,0,0.7); 
+                                                                        backdrop-filter: blur(10px); 
+                                                                        padding: 10px 24px; 
+                                                                        border-radius: 30px; 
+                                                                        color: white; 
+                                                                        font-size: 13px; 
+                                                                        font-weight: 600;
+                                                                        z-index: 100; 
+                                                                        border: 1px solid rgba(255,255,255,0.1);
+                                                                    }
+                                                                </style>
+                                                            </head>
+                                                            <body>
+                                                                <div class="toolbar">${doc.name}</div>
+                                                                ${isImage 
+                                                                    ? `<img src="${doc.content}" alt="${doc.name}" />`
+                                                                    : `<iframe src="${doc.content}" allowfullscreen></iframe>`
+                                                                }
+                                                            </body>
+                                                        </html>
+                                                    `);
+                                                    win.document.close();
+                                                }
                                             }} className="secondary-button" style={{ padding: '6px' }} title="View"><Eye size={16} /></button>
                                             <a href={doc.content} download={doc.name} className="secondary-button" style={{ padding: '6px', display: 'flex' }} title="Download"><Download size={16} /></a>
                                         </div>

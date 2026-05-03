@@ -301,12 +301,12 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
 
     return (
         <div ref={containerRef} style={{ position: 'relative', width: '100%' }} className={className}>
-            {label && <label className="input-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.75rem', opacity: 0.6 }}>{label} {required && '*'}</label>}
+            {label && <label className="input-label" style={{ display: 'block', marginBottom: '8px' }}>{label} {required && '*'}</label>}
             
             <div 
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 style={{ 
-                    background: 'rgba(0,0,0,0.2)', 
+                    background: 'rgba(255,255,255,0.02)', 
                     border: isOpen ? '1px solid var(--purple-main)' : '1px solid var(--glass-border)',
                     borderRadius: '12px',
                     padding: '8px 16px',
@@ -319,18 +319,18 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
                     boxShadow: isOpen ? '0 0 20px rgba(139, 92, 246, 0.15)' : 'none',
                     opacity: disabled ? 0.6 : 1,
                     backdropFilter: 'blur(10px)',
-                    fontSize: '0.82rem',
-                    height: '40px',
+                    fontSize: '0.88rem',
+                    height: '42px',
                     userSelect: 'none'
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                    <CalendarIcon size={18} style={{ color: isOpen ? 'var(--purple-main)' : 'rgba(255,255,255,0.2)', transition: 'color 0.3s' }} />
+                    <CalendarIcon size={16} style={{ color: isOpen ? 'var(--purple-main)' : 'rgba(255,255,255,0.2)', transition: 'color 0.3s' }} />
                     <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : placeholder}
                     </span>
                 </div>
-                <ChevronDown size={16} style={{ opacity: 0.3, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+                <ChevronDown size={14} style={{ opacity: 0.3, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
             </div>
 
             {isOpen && renderCalendar()}

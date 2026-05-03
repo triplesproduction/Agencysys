@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy } from 'lucide-react';
+import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy, Image as ImageIcon } from 'lucide-react';
 import { api } from '../../lib/api';
 import DatePicker from '../common/DatePicker';
 
@@ -30,28 +30,12 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     const [copiedPassword, setCopiedPassword] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        personalEmail: '',
-        dob: '',
-        gender: 'MALE',
-        phone: '',
-        address: '',
-        emergencyContact: '',
-        department: '',
-        joinedAt: '',
-        workLocation: 'OFFICE',
-        roleId: 'EMPLOYEE', // System Role
-        designation: '', // Professional Role
-        status: 'ACTIVE',
-        employmentType: 'FULL_TIME',
-        internshipStatus: 'UNPAID',
-        internshipStipend: 0,
-        baseSalary: 0,
-        experience: 0
+        experience: 0,
+        profilePhoto: ''
     });
+
+    const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+    const photoInputRef = useRef<HTMLInputElement>(null);
 
     const [phoneError, setPhoneError] = useState('');
 
@@ -69,6 +53,23 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         } else {
             setPhoneError('');
         }
+    };
+
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Profile photo exceeds 2MB limit.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            setProfilePhotoPreview(event.target?.result as string);
+            setFormData(prev => ({ ...prev, profilePhoto: event.target?.result as string }));
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,10 +107,43 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                 <html>
                     <head>
                         <style>
-                            body { margin: 0; background: #0f0f14; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: auto; font-family: sans-serif; }
-                            img { max-width: 100%; height: auto; display: block; border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-                            iframe { border: none; width: 100vw; height: 100vh; }
-                            .toolbar { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 20px; color: white; font-size: 12px; z-index: 100; pointer-events: none; }
+                            body { 
+                                margin: 0; 
+                                background: #0f0f14; 
+                                display: flex; 
+                                flex-direction: column;
+                                align-items: center; 
+                                min-height: 100vh; 
+                                overflow-y: auto; 
+                                font-family: 'Inter', sans-serif;
+                                padding: 40px 20px;
+                                box-sizing: border-box;
+                            }
+                            img { 
+                                max-width: 100%; 
+                                height: auto; 
+                                display: block; 
+                                border-radius: 12px; 
+                                box-shadow: 0 30px 60px rgba(0,0,0,0.5); 
+                                border: 1px solid rgba(255,255,255,0.1);
+                            }
+                            iframe { border: none; width: 100vw; height: 100vh; background: white; }
+                            .toolbar { 
+                                position: fixed; 
+                                top: 20px; 
+                                left: 50%;
+                                transform: translateX(-50%);
+                                background: rgba(0,0,0,0.7); 
+                                backdrop-filter: blur(10px); 
+                                padding: 10px 24px; 
+                                border-radius: 30px; 
+                                color: white; 
+                                font-size: 13px; 
+                                font-weight: 600;
+                                z-index: 100; 
+                                border: 1px solid rgba(255,255,255,0.1);
+                                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                            }
                         </style>
                     </head>
                     <body>
@@ -179,7 +213,17 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         setProvisioningStatus('Initializing employee setup...');
 
         try {
-            // 1. Upload documents to storage first (Avoid heavy Base64 JSON payloads)
+            // 1. Handle Profile Photo Upload
+            let profilePhotoUrl = '';
+            if (profilePhotoPreview) {
+                setProvisioningStatus('Uploading profile photo...');
+                const blob = await (await fetch(profilePhotoPreview)).blob();
+                const file = new File([blob], 'profile.png', { type: 'image/png' });
+                const { url } = await api.uploadPhoto(file);
+                profilePhotoUrl = url;
+            }
+
+            // 2. Upload documents to storage first (Avoid heavy Base64 JSON payloads)
             const uploadedDocsMetadata = [];
             
             if (documents.length > 0) {
@@ -188,13 +232,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                     setProvisioningStatus(`Uploading document ${i + 1}/${documents.length}: ${doc.name}...`);
                     
                     try {
-                        // Use a timeout-wrapped fetch for Data URL conversion
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s safety timeout
-                        
-                        const response = await fetch(doc.content, { signal: controller.signal });
-                        clearTimeout(timeoutId);
-                        
+                        const response = await fetch(doc.content);
                         const blob = await response.blob();
                         const file = new File([blob], doc.name, { type: doc.fileType });
                         
@@ -206,15 +244,11 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                         });
                     } catch (uploadErr: any) {
                         console.error(`Upload failed for ${doc.name}:`, uploadErr);
-                        
-                        // Graceful recovery for small files if upload hangs/fails
                         const base64Data = doc.content.split(',')[1] || '';
-                        if (base64Data.length < 300000) { // 300KB threshold
+                        if (base64Data.length < 200000) { 
                             uploadedDocsMetadata.push(doc);
                         } else {
-                            throw new Error(uploadErr.name === 'AbortError' 
-                                ? `Upload timed out for ${doc.name}. Check your connection.` 
-                                : `Critical upload failure: ${doc.name} could not be securely stored.`);
+                            throw new Error(`Critical upload failure: ${doc.name} could not be securely stored.`);
                         }
                     }
                 }
@@ -223,27 +257,11 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             setProvisioningStatus('Provisioning work account & credentials...');
 
             const payload = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-                personalEmail: formData.personalEmail,
-                roleId: formData.roleId,
-                department: formData.department,
-                status: formData.status,
-                dob: formData.dob ? new Date(formData.dob).toISOString() : undefined,
-                gender: formData.gender,
-                phone: formData.phone,
-                address: formData.address,
-                emergencyContact: formData.emergencyContact,
-                designation: formData.designation,
-                workLocation: formData.workLocation,
-                joinedAt: formData.joinedAt ? new Date(formData.joinedAt).toISOString() : undefined,
-                employmentType: formData.employmentType,
-                internshipStatus: formData.internshipStatus,
-                internshipStipend: formData.internshipStipend,
-                baseSalary: formData.baseSalary,
-                experience: formData.experience,
-                documents: uploadedDocsMetadata
+                ...formData,
+                dob: formData.dob || undefined,
+                joinedAt: formData.joinedAt || undefined,
+                documents: uploadedDocsMetadata,
+                profilePhoto: profilePhotoUrl
             };
 
             setProvisioningStatus('Syncing system records (Final Step)...');
@@ -355,18 +373,56 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                     <form id="employeeForm" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         {/* STEP 1: PERSONAL DETAILS */}
                         <div style={{ display: step === 1 ? 'block' : 'none' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '16px' }}><User size={18} color="var(--purple-main)" /> Personal Details</h3>
+                            <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', marginBottom: '24px' }}>
+                                <div style={{ position: 'relative' }}>
+                                    <div 
+                                        onClick={() => photoInputRef.current?.click()}
+                                        style={{ 
+                                            width: '100px', 
+                                            height: '100px', 
+                                            borderRadius: '24px', 
+                                            background: 'rgba(255,255,255,0.03)', 
+                                            border: '2px dashed var(--glass-border)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            overflow: 'hidden',
+                                            transition: 'all 0.3s'
+                                        }}
+                                        className="hoverable"
+                                    >
+                                        {profilePhotoPreview ? (
+                                            <img src={profilePhotoPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <ImageIcon size={32} style={{ opacity: 0.3 }} />
+                                        )}
+                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }} className="photo-overlay">
+                                            <Plus size={20} color="white" />
+                                        </div>
+                                    </div>
+                                    <input type="file" ref={photoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoUpload} />
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '8px', fontWeight: 600, textTransform: 'uppercase' }}>Photo</div>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', marginBottom: '12px' }}><User size={18} color="var(--purple-main)" /> Personal Details</h3>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>Basic identification and contact information.</p>
+                                </div>
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                 <div><label className="input-label">First Name *</label><input name="firstName" value={formData.firstName} onChange={handleChange} className="input-field" placeholder="John" /></div>
                                 <div><label className="input-label">Last Name *</label><input name="lastName" value={formData.lastName} onChange={handleChange} className="input-field" placeholder="Doe" /></div>
-                                <DatePicker 
-                                    label="Date of Birth"
-                                    value={formData.dob}
-                                    onChange={(dt) => setFormData(prev => ({ ...prev, dob: dt }))}
-                                />
+                                <div>
+                                    <DatePicker 
+                                        label="Date of Birth"
+                                        value={formData.dob}
+                                        onChange={(dt) => setFormData(prev => ({ ...prev, dob: dt }))}
+                                    />
+                                </div>
                                 <div>
                                     <label className="input-label">Gender</label>
-                                                                        <select name="gender" value={formData.gender} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
+                                    <select name="gender" value={formData.gender} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>
                                         <option value="MALE">Male</option>
                                         <option value="FEMALE">Female</option>
                                         <option value="OTHER">Other</option>
@@ -515,12 +571,14 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                     />
                                 </div>
 
-                                <DatePicker 
-                                    label="Joining Date"
-                                    required
-                                    value={formData.joinedAt}
-                                    onChange={(dt) => setFormData(prev => ({ ...prev, joinedAt: dt }))}
-                                />
+                                <div>
+                                    <DatePicker 
+                                        label="Joining Date"
+                                        required
+                                        value={formData.joinedAt}
+                                        onChange={(dt) => setFormData(prev => ({ ...prev, joinedAt: dt }))}
+                                    />
+                                </div>
                                 <div>
                                     <label className="input-label">Location</label>
                                     <select name="workLocation" value={formData.workLocation} onChange={handleChange} className="filter-select" style={{ width: '100%' }}>

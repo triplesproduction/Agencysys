@@ -140,9 +140,27 @@ export default function BroadcastPage() {
                 </div>
 
                 {isAdmin && (
-                    <Button onClick={() => setIsCreateModalOpen(true)} size="lg">
-                        <Plus size={18} /> Launch Announcement
-                    </Button>
+                    <button 
+                        onClick={() => setIsCreateModalOpen(true)} 
+                        className="hoverable"
+                        style={{ 
+                            background: 'var(--purple-main)', 
+                            color: 'white',
+                            padding: '12px 28px', 
+                            borderRadius: '14px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '10px',
+                            border: 'none',
+                            fontWeight: 700,
+                            fontSize: '0.95rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 20px rgba(139, 92, 246, 0.3)',
+                            fontFamily: 'Outfit, sans-serif'
+                        }}
+                    >
+                        <Plus size={18} strokeWidth={2.5} /> Launch Announcement
+                    </button>
                 )}
             </div>
 
@@ -257,26 +275,61 @@ export default function BroadcastPage() {
 
             {/* Creation Modal */}
             {isCreateModalOpen && (
-                <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                    <GlassCard style={{ width: '100%', maxWidth: '520px', padding: '40px', border: '1px solid rgba(139,92,246,0.3)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', borderRadius: '24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                                    <Send size={24} style={{ color: 'var(--purple-main)' }} />
+                <div className="modal-overlay fade-in" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div className="slide-up" style={{ 
+                        width: '100%', 
+                        maxWidth: '560px', 
+                        padding: '40px', 
+                        background: 'var(--bg-dark)',
+                        border: '1px solid rgba(139,92,246,0.3)', 
+                        boxShadow: '0 30px 60px -12px rgba(0, 0, 0, 0.7)', 
+                        borderRadius: '32px',
+                        position: 'relative',
+                        fontFamily: 'Outfit, sans-serif'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '36px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                                <div style={{ background: 'var(--purple-main)', padding: '14px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(139, 92, 246, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Megaphone size={26} color="white" strokeWidth={2.5} />
                                 </div>
                                 <div>
-                                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'white', letterSpacing: '-0.02em' }}>
-                                        Broadcast News
+                                    <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'white', letterSpacing: '-0.03em' }}>
+                                        Broadcast Update
                                     </h2>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Push a new update to the whole agency</p>
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: '4px 0 0', opacity: 0.8 }}>Relay critical information to the team</p>
                                 </div>
                             </div>
-                            <button onClick={() => setIsCreateModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
+                            <button 
+                                onClick={() => setIsCreateModalOpen(false)} 
+                                style={{ 
+                                    background: 'rgba(255,255,255,0.04)', 
+                                    border: '1px solid rgba(255,255,255,0.1)', 
+                                    color: 'white', 
+                                    cursor: 'pointer', 
+                                    width: '40px', 
+                                    height: '40px', 
+                                    borderRadius: '50%', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    transition: 'all 0.3s ease' 
+                                }} 
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(239,68,68,0.2)';
+                                    e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                                }}
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
 
                         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Announcement Title</label>
+                                <label className="input-label" style={{ marginBottom: '8px' }}>Announcement Title</label>
                                 <Input
                                     type="text"
                                     value={title}
@@ -287,7 +340,7 @@ export default function BroadcastPage() {
                                 />
                             </div>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Category Type</label>
+                                <label className="input-label" style={{ marginBottom: '8px' }}>Category Type</label>
                                 <select
                                     value={type}
                                     onChange={e => setType(e.target.value)}
@@ -300,7 +353,7 @@ export default function BroadcastPage() {
                                 </select>
                             </div>
                             <div>
-                                <label className="input-label" style={{ marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Message Content</label>
+                                <label className="input-label" style={{ marginBottom: '8px' }}>Message Content</label>
                                 <textarea
                                     value={message}
                                     onChange={e => setMessage(e.target.value)}
