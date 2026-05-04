@@ -57,6 +57,8 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     const photoInputRef = useRef<HTMLInputElement>(null);
 
     const [phoneError, setPhoneError] = useState('');
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
     if (!isOpen) return null;
 
@@ -74,7 +76,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         }
     };
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -86,12 +88,23 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         const reader = new FileReader();
         reader.onload = (event) => {
             setProfilePhotoPreview(event.target?.result as string);
-            setFormData(prev => ({ ...prev, profilePhoto: event.target?.result as string }));
         };
         reader.readAsDataURL(file);
+
+        try {
+            setIsUploadingPhoto(true);
+            const { url } = await api.uploadPhoto(file);
+            setFormData(prev => ({ ...prev, profilePhoto: url }));
+        } catch (err: any) {
+            console.error('Photo upload failed', err);
+            alert('Failed to upload profile photo.');
+            setProfilePhotoPreview(null);
+        } finally {
+            setIsUploadingPhoto(false);
+        }
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -100,17 +113,23 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
+        try {
+            setIsUploadingDoc(true);
+            const { url } = await api.uploadFile(file);
             const newDoc: UploadedDocument = {
                 id: Math.random().toString(36).substr(2, 9),
                 name: file.name,
                 fileType: file.type,
-                content: event.target?.result as string
+                content: url
             };
             setDocuments(prev => [...prev, newDoc]);
-        };
-        reader.readAsDataURL(file);
+        } catch (err: any) {
+            console.error('Document upload failed', err);
+            alert(`Failed to upload ${file.name}.`);
+        } finally {
+            setIsUploadingDoc(false);
+            if (e.target) e.target.value = '';
+        }
     };
 
     const removeDocument = (id: string) => {
@@ -232,55 +251,14 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         setProvisioningStatus('Initializing employee setup...');
 
         try {
-            // 1. Handle Profile Photo Upload
-            let profilePhotoUrl = '';
-            if (profilePhotoPreview) {
-                setProvisioningStatus('Uploading profile photo...');
-                const blob = await (await fetch(profilePhotoPreview)).blob();
-                const file = new File([blob], 'profile.png', { type: 'image/png' });
-                const { url } = await api.uploadPhoto(file);
-                profilePhotoUrl = url;
-            }
-
-            // 2. Upload documents to storage first (Avoid heavy Base64 JSON payloads)
-            const uploadedDocsMetadata = [];
-            
-            if (documents.length > 0) {
-                for (let i = 0; i < documents.length; i++) {
-                    const doc = documents[i];
-                    setProvisioningStatus(`Uploading document ${i + 1}/${documents.length}: ${doc.name}...`);
-                    
-                    try {
-                        const response = await fetch(doc.content);
-                        const blob = await response.blob();
-                        const file = new File([blob], doc.name, { type: doc.fileType });
-                        
-                        const { url } = await api.uploadFile(file);
-                        uploadedDocsMetadata.push({
-                            name: doc.name,
-                            fileType: doc.fileType,
-                            content: url 
-                        });
-                    } catch (uploadErr: any) {
-                        console.error(`Upload failed for ${doc.name}:`, uploadErr);
-                        const base64Data = doc.content.split(',')[1] || '';
-                        if (base64Data.length < 200000) { 
-                            uploadedDocsMetadata.push(doc);
-                        } else {
-                            throw new Error(`Critical upload failure: ${doc.name} could not be securely stored.`);
-                        }
-                    }
-                }
-            }
-
             setProvisioningStatus('Provisioning work account & credentials...');
 
             const payload = {
                 ...formData,
                 dob: formData.dob || undefined,
                 joinedAt: formData.joinedAt || undefined,
-                documents: uploadedDocsMetadata,
-                profilePhoto: profilePhotoUrl
+                documents: documents,
+                profilePhoto: formData.profilePhoto
             };
 
             setProvisioningStatus('Syncing system records (Final Step)...');
@@ -416,9 +394,16 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                                         ) : (
                                             <ImageIcon size={32} style={{ opacity: 0.3 }} />
                                         )}
-                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }} className="photo-overlay">
-                                            <Plus size={20} color="white" />
-                                        </div>
+                                        {isUploadingPhoto ? (
+                                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Loader2 size={20} color="white" className="animate-spin" />
+                                            </div>
+                                        ) : (
+                                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }} className="photo-overlay">
+                                                <Plus size={20} color="white" />
+                                            </div>
+                                        )}
+
                                     </div>
                                     <input type="file" ref={photoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoUpload} />
                                     <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '8px', fontWeight: 600, textTransform: 'uppercase' }}>Photo</div>
@@ -622,35 +607,38 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                             </div>
                             
                             <div 
-                                onClick={() => fileInputRef.current?.click()}
+                                onClick={() => !isUploadingDoc && fileInputRef.current?.click()}
                                 style={{ 
                                     border: '2px dashed rgba(255,255,255,0.08)', 
                                     borderRadius: '20px', 
                                     padding: '40px 20px', 
                                     textAlign: 'center', 
-                                    cursor: 'pointer',
+                                    cursor: isUploadingDoc ? 'wait' : 'pointer',
                                     background: 'rgba(255,255,255,0.02)',
                                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                     marginTop: '24px',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: '12px'
+                                    gap: '12px',
+                                    opacity: isUploadingDoc ? 0.6 : 1
                                 }}
                                 onMouseEnter={e => {
+                                    if(isUploadingDoc) return;
                                     e.currentTarget.style.borderColor = 'var(--purple-main)';
                                     e.currentTarget.style.background = 'rgba(139,92,246,0.03)';
                                 }}
                                 onMouseLeave={e => {
+                                    if(isUploadingDoc) return;
                                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
                                     e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
                                 }}
                             >
                                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Plus size={24} style={{ color: 'rgba(255,255,255,0.4)' }} />
+                                    {isUploadingDoc ? <Loader2 size={24} className="animate-spin" style={{ color: 'var(--purple-main)' }} /> : <Plus size={24} style={{ color: 'rgba(255,255,255,0.4)' }} />}
                                 </div>
                                 <div>
-                                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>Click or drag to upload</div>
+                                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>{isUploadingDoc ? 'Uploading...' : 'Click or drag to upload'}</div>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '4px' }}>PDF, JPG, PNG up to 4MB</div>
                                 </div>
                                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} />
