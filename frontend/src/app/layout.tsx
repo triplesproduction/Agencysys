@@ -5,7 +5,7 @@ import { Providers } from './providers';
 import MainLayout from '@/components/MainLayout';
 
 export const metadata: Metadata = {
-    title: 'TripleS OS Phase 1',
+    title: 'TripleS OS',
     description: 'Internal Agency Operating System',
     icons: {
         icon: '/favicon.png',
