@@ -635,7 +635,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                     <GlassCard className="stat-card">
                         <div className="stat-label">Monthly Hours</div>
                         <div className="stat-value">{monthlyHours || 0}h</div>
-                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>Target: 160h</div>
+                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>Target: 200h</div>
                     </GlassCard>
                 </Link>
             </div>
@@ -709,7 +709,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
                                 <Activity size={16} color="#10B981" /> Month Pace
                             </h3>
-                            <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800 }}>{Math.round(((monthlyHours || 0) / 160) * 100)}%</span>
+                            <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800 }}>{Math.round(((monthlyHours || 0) / 200) * 100)}%</span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
@@ -720,7 +720,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                         <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
                             <div style={{
                                 height: '100%',
-                                width: `${Math.min(100, Math.max((Number(monthlyHours || 0) > 0 ? 2 : 0), (Number(monthlyHours || 0) / 160) * 100))}%`,
+                                width: `${Math.min(100, Math.max((Number(monthlyHours || 0) > 0 ? 2 : 0), (Number(monthlyHours || 0) / 200) * 100))}%`,
                                 background: 'linear-gradient(90deg, #10B981 0%, #3B82F6 100%)',
                                 transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
                                 borderRadius: '10px',
@@ -729,8 +729,8 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)' }}>
-                            <span>Target: 160h</span>
-                            <span>{160 - (monthlyHours || 0)}h left</span>
+                            <span>Target: 200h</span>
+                            <span>{Math.max(0, 200 - (monthlyHours || 0))}h left</span>
                         </div>
                     </div>
                 </div>
