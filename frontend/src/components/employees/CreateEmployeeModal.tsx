@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy, Image as ImageIcon } from 'lucide-react';
+import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import DatePicker from '../common/DatePicker';
 
