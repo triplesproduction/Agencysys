@@ -380,7 +380,7 @@ export default function BroadcastPage() {
                                 </Button>
                             </div>
                         </form>
-                    </GlassCard>
+                    </div>
                 </div>
             )}
         </div>
