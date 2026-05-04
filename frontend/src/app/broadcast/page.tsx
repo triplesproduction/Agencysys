@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Send, BellRing, Users, History, ShieldAlert, Trash2, ToggleLeft, ToggleRight, Loader2, Plus, X, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Send, BellRing, Users, History, ShieldAlert, Trash2, ToggleLeft, ToggleRight, Loader2, Plus, X, ShieldCheck, Megaphone } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 
 import { api } from '@/lib/api';
