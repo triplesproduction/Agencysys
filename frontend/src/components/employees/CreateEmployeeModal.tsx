@@ -49,7 +49,8 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         internshipStipend: 0,
         baseSalary: 0,
         experience: 0,
-        profilePhoto: ''
+        profilePhoto: '',
+        status: 'ACTIVE'
     });
 
     const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
