@@ -29,7 +29,25 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
     const [copiedEmail, setCopiedEmail] = useState(false);
     const [copiedPassword, setCopiedPassword] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
+    const [formData, setFormData] = useState({
+        email: '',
+        firstName: '',
+        lastName: '',
+        personalEmail: '',
+        roleId: 'EMPLOYEE',
+        department: '',
+        designation: '',
+        phone: '',
+        address: '',
+        dob: '',
+        gender: '',
+        workLocation: 'OFFICE',
+        emergencyContact: '',
+        joinedAt: new Date().toISOString().split('T')[0],
+        employmentType: 'FULL_TIME',
+        internshipStatus: '',
+        internshipStipend: 0,
+        baseSalary: 0,
         experience: 0,
         profilePhoto: ''
     });
