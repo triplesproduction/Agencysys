@@ -257,7 +257,7 @@ export default function EODPage() {
                             </div>
                             <textarea
                                 className="glass-textarea"
-                                rows={4}
+                                rows={6}
                                 disabled={!!todayReport}
                                 style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '14px', cursor: todayReport ? 'not-allowed' : 'text' }}
                                 placeholder="Write the tasks you completed today"
@@ -290,16 +290,16 @@ export default function EODPage() {
                                     Blockers / Impediments <span style={{ color: '#F87171' }}>*</span>
                                 </label>
                                 <div style={{ position: 'relative' }}>
-                                    <input
-                                        type="text"
+                                    <textarea
                                         disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem', cursor: todayReport ? 'not-allowed' : 'text' }}
+                                        rows={3}
+                                        style={{ fontSize: '0.8rem', lineHeight: '1.5', padding: '12px 12px 12px 2.2rem', cursor: todayReport ? 'not-allowed' : 'text', resize: 'vertical' }}
                                         placeholder="Anything slowing you down?"
                                         value={formData.blockers}
                                         onChange={e => setFormData({ ...formData, blockers: e.target.value })}
                                     />
-                                    <AlertTriangle size={11} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                                    <AlertTriangle size={11} style={{ position: 'absolute', left: '0.8rem', top: '16px', opacity: 0.3 }} />
                                 </div>
                             </div>
                         </div>
