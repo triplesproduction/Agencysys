@@ -120,6 +120,28 @@ function EODReviewsContent() {
             setIsLoading(true);
             const data = await api.getAllEODs();
             setReports(data);
+            
+            // Pre-fetch work hours for these reports to avoid showing 0h logged
+            if (data.length > 0) {
+                const logs = await Promise.all(data.map(async (report: any) => {
+                    if (!report.employee) return null;
+                    try {
+                        const date = new Date(report.reportDate).toISOString().split('T')[0];
+                        const log = await api.getWorkHoursByDate(report.employee.id, date);
+                        return { reportId: report.id, log };
+                    } catch (e) {
+                        return null;
+                    }
+                }));
+                
+                const newLogMap: Record<string, any> = {};
+                logs.forEach((item: any) => {
+                    if (item && item.log) {
+                        newLogMap[item.reportId] = item.log;
+                    }
+                });
+                setWorkLogMap(newLogMap);
+            }
         } catch (err: any) {
             addNotification({ type: 'ERROR', title: 'Load Failed', message: err.message || 'Could not fetch EOD reports.' });
         } finally {
