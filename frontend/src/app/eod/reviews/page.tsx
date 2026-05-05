@@ -49,6 +49,8 @@ function EODReviewsContent() {
     const [editHours, setEditHours] = useState<string>('');
     const [editNote, setEditNote] = useState<string>('');
     const [workLogMap, setWorkLogMap] = useState<Record<string, any>>({});
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+    const [employees, setEmployees] = useState<any[]>([]);
 
     // Handle deep link expansion
     useEffect(() => {
@@ -120,7 +122,7 @@ function EODReviewsContent() {
             setIsLoading(true);
             const data = await api.getAllEODs();
             setReports(data);
-            
+
             // Pre-fetch work hours for these reports to avoid showing 0h logged
             if (data.length > 0) {
                 const logs = await Promise.all(data.map(async (report: any) => {
@@ -133,7 +135,7 @@ function EODReviewsContent() {
                         return null;
                     }
                 }));
-                
+
                 const newLogMap: Record<string, any> = {};
                 logs.forEach((item: any) => {
                     if (item && item.log) {
@@ -152,6 +154,11 @@ function EODReviewsContent() {
     useEffect(() => {
         fetchReports();
         
+        // Fetch employees for filter
+        api.getEmployees({ limit: 1000 }).then(res => {
+            setEmployees(res.data || []);
+        });
+
         // Close dropdown on outside click
         const handleOutsideClick = () => setRatingMenuOpen(null);
         window.addEventListener('click', handleOutsideClick);
@@ -163,12 +170,14 @@ function EODReviewsContent() {
         const dept = r.employee?.department?.toLowerCase() || '';
         const q = search.toLowerCase();
         const matchSearch = name.includes(q) || dept.includes(q);
-        
+
         const reportDate = new Date(r.reportDate);
-        const matchDate = (!startDate || reportDate >= new Date(startDate)) && 
-                          (!endDate || reportDate <= new Date(endDate));
-                          
-        return matchSearch && matchDate;
+        const matchDate = (!startDate || reportDate >= new Date(startDate)) &&
+            (!endDate || reportDate <= new Date(endDate));
+
+        const matchEmployee = !selectedEmployeeId || r.employee?.id === selectedEmployeeId;
+
+        return matchSearch && matchDate && matchEmployee;
     });
 
     // Group by date
@@ -202,54 +211,82 @@ function EODReviewsContent() {
                                 placeholder="Name or department..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                style={{ 
-                                    background: 'rgba(255,255,255,0.05)', 
-                                    border: '1px solid var(--glass-border)', 
-                                    borderRadius: 'var(--radius-sm)', 
-                                    padding: '10px 14px 10px 36px', 
-                                    color: 'white', 
-                                    outline: 'none', 
-                                    width: '220px', 
+                                style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--glass-border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    padding: '10px 14px 10px 36px',
+                                    color: 'white',
+                                    outline: 'none',
+                                    width: '220px',
                                     fontSize: '0.875rem',
                                     height: '42px' // Match DatePicker height
                                 }}
                             />
                         </div>
                     </div>
-                    
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label className="input-label" style={{ margin: 0 }}>Employee</label>
+                        <select
+                            value={selectedEmployeeId}
+                            onChange={e => setSelectedEmployeeId(e.target.value)}
+                            style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid var(--glass-border)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '10px 14px',
+                                color: 'white',
+                                outline: 'none',
+                                width: '200px',
+                                fontSize: '0.875rem',
+                                height: '42px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="" style={{ background: '#1a1a2e' }}>All Employees</option>
+                            {employees.sort((a, b) => a.firstName.localeCompare(b.firstName)).map(emp => (
+                                <option key={emp.id} value={emp.id} style={{ background: '#1a1a2e' }}>
+                                    {emp.firstName} {emp.lastName}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div style={{ width: '180px' }}>
-                        <DatePicker 
+                        <DatePicker
                             label="From"
                             value={startDate}
                             onChange={setStartDate}
                         />
                     </div>
                     <div style={{ width: '180px' }}>
-                        <DatePicker 
+                        <DatePicker
                             label="To"
                             value={endDate}
                             onChange={setEndDate}
                         />
                     </div>
 
-                    <button 
+                    <button
                         onClick={() => {
                             setSearch('');
                             setStartDate('');
                             setEndDate('');
+                            setSelectedEmployeeId('');
                             fetchReports();
-                        }} 
-                        style={{ 
-                            background: 'rgba(139,92,246,0.15)', 
-                            border: '1px solid rgba(139,92,246,0.3)', 
-                            borderRadius: 'var(--radius-sm)', 
-                            padding: '0 16px', 
-                            color: 'var(--purple-main)', 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px', 
-                            fontSize: '0.875rem', 
+                        }}
+                        style={{
+                            background: 'rgba(139,92,246,0.15)',
+                            border: '1px solid rgba(139,92,246,0.3)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '0 16px',
+                            color: 'var(--purple-main)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.875rem',
                             fontWeight: 600,
                             height: '42px', // Match DatePicker height
                             transition: 'all 0.2s'
@@ -297,7 +334,7 @@ function EODReviewsContent() {
                                     const isExpanded = expandedId === report.id;
                                     const empName = report.employee ? `${report.employee.firstName} ${report.employee.lastName}` : 'Unknown Employee';
                                     return (
-                                        <GlassCard 
+                                        <GlassCard
                                             key={report.id}
                                             id={`eod-${report.id}`}
                                             style={{ padding: '0', overflow: (ratingMenuOpen === report.id || isExpanded) ? 'visible' : 'hidden', border: isExpanded ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.06)', transition: 'all 0.2s ease', cursor: 'pointer', position: 'relative', zIndex: ratingMenuOpen === report.id ? 100 : 1 }}
@@ -341,17 +378,17 @@ function EODReviewsContent() {
                                                     </div>
                                                     {/* Sentiment Rating Dropdown */}
                                                     <div style={{ position: 'relative' }}>
-                                                        <div 
-                                                            style={{ 
-                                                                display: 'flex', 
-                                                                alignItems: 'center', 
-                                                                gap: '5px', 
-                                                                fontSize: '0.75rem', 
-                                                                fontWeight: 600, 
-                                                                padding: '6px 14px', 
-                                                                borderRadius: '20px', 
-                                                                background: `${sentimentColor[report.sentiment] || '#6B7280'}15`, 
-                                                                border: `1px solid ${sentimentColor[report.sentiment] || '#6B7280'}40`, 
+                                                        <div
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '5px',
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 600,
+                                                                padding: '6px 14px',
+                                                                borderRadius: '20px',
+                                                                background: `${sentimentColor[report.sentiment] || '#6B7280'}15`,
+                                                                border: `1px solid ${sentimentColor[report.sentiment] || '#6B7280'}40`,
                                                                 color: sentimentColor[report.sentiment] || '#6B7280',
                                                                 cursor: 'pointer',
                                                                 userSelect: 'none',
@@ -370,17 +407,17 @@ function EODReviewsContent() {
                                                         </div>
 
                                                         {ratingMenuOpen === report.id && (
-                                                            <div 
-                                                                style={{ 
-                                                                    position: 'absolute', 
-                                                                    top: 'calc(100% + 8px)', 
-                                                                    right: 0, 
-                                                                    zIndex: 1000, 
-                                                                    width: '180px', 
-                                                                    background: 'rgba(15, 15, 20, 0.9)', 
-                                                                    backdropFilter: 'blur(25px)', 
-                                                                    borderRadius: '16px', 
-                                                                    border: '1px solid rgba(255, 255, 255, 0.12)', 
+                                                            <div
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    top: 'calc(100% + 8px)',
+                                                                    right: 0,
+                                                                    zIndex: 1000,
+                                                                    width: '180px',
+                                                                    background: 'rgba(15, 15, 20, 0.9)',
+                                                                    backdropFilter: 'blur(25px)',
+                                                                    borderRadius: '16px',
+                                                                    border: '1px solid rgba(255, 255, 255, 0.12)',
                                                                     boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(124, 58, 237, 0.1), inset 0 1px 0 rgba(255,255,255,0.05)',
                                                                     padding: '8px',
                                                                     display: 'flex',
@@ -392,7 +429,7 @@ function EODReviewsContent() {
                                                                 onClick={(e) => e.stopPropagation()}
                                                             >
                                                                 {['GREAT', 'GOOD', 'OKAY', 'BAD', 'TERRIBLE'].map(s => (
-                                                                    <div 
+                                                                    <div
                                                                         key={s}
                                                                         onClick={() => {
                                                                             api.updateEODSentiment(report.id, s)
@@ -403,10 +440,10 @@ function EODReviewsContent() {
                                                                                 })
                                                                                 .catch(err => addNotification({ type: 'ERROR', title: 'Update Failed', message: err.message }));
                                                                         }}
-                                                                        style={{ 
-                                                                            padding: '10px 14px', 
-                                                                            fontSize: '0.8125rem', 
-                                                                            fontWeight: 600, 
+                                                                        style={{
+                                                                            padding: '10px 14px',
+                                                                            fontSize: '0.8125rem',
+                                                                            fontWeight: 600,
                                                                             color: report.sentiment === s ? 'white' : 'rgba(255,255,255,0.6)',
                                                                             background: report.sentiment === s ? 'rgba(124, 58, 237, 0.2)' : 'transparent',
                                                                             borderRadius: '10px',
@@ -454,10 +491,10 @@ function EODReviewsContent() {
                                                                 displayTasks = tasks.map(t => typeof t === 'string' ? t : (t as any).title || '');
                                                             }
                                                             if (displayTasks.length === 0) {
-                                                                try { 
+                                                                try {
                                                                     const parsed = report.completedText ? JSON.parse(report.completedText) : [];
                                                                     if (Array.isArray(parsed)) displayTasks = parsed;
-                                                                } catch { 
+                                                                } catch {
                                                                     if (report.completedText) displayTasks = [report.completedText];
                                                                 }
                                                             }
@@ -476,7 +513,7 @@ function EODReviewsContent() {
                                                             let rawInProgress: string[] = [];
                                                             try { rawInProgress = report.inProgressText ? JSON.parse(report.inProgressText) : []; } catch { /* ignore */ }
                                                             const tasks = report.tasksInProgress.length > 0 ? report.tasksInProgress : rawInProgress;
-                                                            
+
                                                             if (tasks.length === 0) return null;
 
                                                             return (
@@ -525,17 +562,17 @@ function EODReviewsContent() {
                                                                 <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Adjusted Hours</label>
                                                                 <div style={{ position: 'relative' }}>
                                                                     <Clock size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
-                                                                    <input 
-                                                                        type="number" 
+                                                                    <input
+                                                                        type="number"
                                                                         step="0.5"
                                                                         value={editHours}
                                                                         onChange={e => setEditHours(e.target.value)}
-                                                                        style={{ 
-                                                                            width: '100%', 
-                                                                            background: 'rgba(0,0,0,0.2)', 
-                                                                            border: '1px solid rgba(255,255,255,0.1)', 
-                                                                            borderRadius: '10px', 
-                                                                            padding: '10px 10px 10px 36px', 
+                                                                        style={{
+                                                                            width: '100%',
+                                                                            background: 'rgba(0,0,0,0.2)',
+                                                                            border: '1px solid rgba(255,255,255,0.1)',
+                                                                            borderRadius: '10px',
+                                                                            padding: '10px 10px 10px 36px',
                                                                             color: 'white',
                                                                             fontSize: '0.9rem',
                                                                             outline: 'none'
@@ -546,16 +583,16 @@ function EODReviewsContent() {
                                                             </div>
                                                             <div>
                                                                 <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Admin Note (Visible to Employee)</label>
-                                                                <textarea 
+                                                                <textarea
                                                                     rows={1}
                                                                     value={editNote}
                                                                     onChange={e => setEditNote(e.target.value)}
-                                                                    style={{ 
-                                                                        width: '100%', 
-                                                                        background: 'rgba(0,0,0,0.2)', 
-                                                                        border: '1px solid rgba(255,255,255,0.1)', 
-                                                                        borderRadius: '10px', 
-                                                                        padding: '10px 14px', 
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        background: 'rgba(0,0,0,0.2)',
+                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                        borderRadius: '10px',
+                                                                        padding: '10px 14px',
                                                                         color: 'white',
                                                                         fontSize: '0.9rem',
                                                                         outline: 'none',
@@ -567,14 +604,14 @@ function EODReviewsContent() {
                                                         </div>
 
                                                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleReviewUpdate(report.id, 'APPROVED')}
                                                                 disabled={isUpdating === report.id}
                                                                 style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10B981', padding: '8px 16px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
                                                             >
                                                                 {isUpdating === report.id ? 'Saving...' : 'Mark as OK'}
                                                             </button>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleReviewUpdate(report.id, 'ADJUSTED')}
                                                                 disabled={isUpdating === report.id}
                                                                 style={{ background: 'var(--purple-main)', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)' }}
