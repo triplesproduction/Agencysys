@@ -107,16 +107,15 @@ export default function EODPage() {
             const existing = myReports.find(r => new Date(r.reportDate).toDateString() === today);
             
             if (existing) {
-                const completed = getCompletedItems(existing);
                 const matchingLog = workHourLogs.find(l => new Date(l.date).toDateString() === today);
                 const desc = matchingLog?.description || '';
                 // Block if admin has reviewed or if there's a status marker
                 const reviewed = desc.includes('Admin reviewed') || desc.includes('[Status:') || (existing as any).status === 'APPROVED' || (existing as any).status === 'REVIEWED';
 
                 setFormData({
-                    tasksCompleted: completed.join('\n'),
-                    blockers: existing.blockers || '',
-                    workHours: String(existing.workHours || matchingLog?.hoursLogged || ''),
+                    tasksCompleted: '',
+                    blockers: '',
+                    workHours: '',
                 });
                 
                 setTodayReport(existing);
@@ -202,6 +201,7 @@ export default function EODPage() {
                 console.warn('[EOD] Work hour sync skipped:', hourError?.message);
             }
 
+            setFormData({ tasksCompleted: '', blockers: '', workHours: '' });
             setSuccess(true);
             setTimeout(() => setSuccess(false), 5000);
 
