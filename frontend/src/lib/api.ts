@@ -837,33 +837,21 @@ export const api = {
 
     /** Get all conversations for a user, with last message and unread count */
     getConversations: async (myId: string, role?: string) => {
-        const isAdmin = ['ADMIN', 'MANAGER'].includes((role || '').toUpperCase());
-        logger.log('[Chat] getConversations called, isAdmin:', isAdmin, 'myId:', myId);
+        logger.log('[Chat] getConversations called, myId:', myId);
 
         let convIds: string[] = [];
 
-        if (isAdmin) {
-            // Admin fetches ALL conversations without restriction
-            const { data: allConvs, error: allErr } = await supabase
-                .from('conversations')
-                .select('id');
-            if (allErr) {
-                logger.error('[Chat] admin getConversations error:', allErr.message);
-                return [];
-            }
-            convIds = (allConvs || []).map((c: any) => c.id);
-        } else {
-            const { data: parts, error } = await supabase
-                .from('conversation_participants')
-                .select('conversation_id')
-                .eq('user_id', myId);
-            if (error) {
-                logger.error('[Chat] getConversations error (check RLS policies):', error.message);
-                return [];
-            }
-            if (!parts || parts.length === 0) return [];
-            convIds = parts.map((p: any) => p.conversation_id);
+        const { data: parts, error } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', myId);
+            
+        if (error) {
+            logger.error('[Chat] getConversations error (check RLS policies):', error.message);
+            return [];
         }
+        if (!parts || parts.length === 0) return [];
+        convIds = parts.map((p: any) => p.conversation_id);
         if (convIds.length === 0) return [];
 
         // 1. Get all other participants (their userId only)
