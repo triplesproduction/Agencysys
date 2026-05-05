@@ -437,7 +437,7 @@ function ManagerDashboard({
             <div className="ad2-bento-grid" style={{ marginTop: '32px' }}>
 
                 {/* Column 1: Manager Quick Actions & Team EOD Updates */}
-                <div className="ad2-col ad2-col-1" style={{ gridArea: 'col1' }}>
+                <div className="ad2-col ad2-col-1">
                     <div className="ad2-card" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), transparent)' }}>
                         <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Zap size={18} color="var(--purple-main)" /> Manager Toolkit
@@ -483,8 +483,8 @@ function ManagerDashboard({
                     </div>
                 </div>
 
-                {/* Column 2 & 3: Team Management & Activity */}
-                <div className="ad2-col ad2-col-23" style={{ gridColumn: 'span 2' }}>
+                {/* Column 2: Team Management & Activity */}
+                <div className="ad2-col ad2-col-2">
                     {/* Team Tasks Oversight */}
                     <div className="ad2-card" style={{ flex: 1 }}>
                         <div className="ad2-card-header">
@@ -516,7 +516,7 @@ function ManagerDashboard({
                 </div>
 
                 {/* Column 3: Communication & Rules */}
-                <div className="ad2-col ad2-col-4" style={{ gridArea: 'col4' }}>
+                <div className="ad2-col ad2-col-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <RecentMessagesWidget maxItems={10} />
                     <div style={{ marginTop: '12px' }}>
                         <AnnouncementsWidget maxItems={2} />
