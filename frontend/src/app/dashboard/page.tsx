@@ -388,17 +388,18 @@ function ManagerDashboard({
     tasks = [],
     teamKpis = [],
     recentKpiLogs = [],
-    recentEods = []
+    recentEods = [],
+    monthlyHours = 0
 }: {
     employee: any,
     tasks: TaskDTO[],
     kpis: any,
     teamKpis: any[],
     recentKpiLogs: any[],
-    recentEods?: any[]
+    recentEods?: any[],
+    monthlyHours?: number
 }) {
     const taskList = tasks || [];
-    const eodList = (recentEods || []).filter(e => e?.employee?.roleId !== 'ADMIN');
     const kpiLogList = recentKpiLogs || [];
 
     const activeTasksCount = taskList.filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED').length;
@@ -406,6 +407,9 @@ function ManagerDashboard({
 
     const managerName = employee?.firstName || 'Manager';
     const managerRole = employee?.roleId || 'Team Manager';
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasSubmittedToday = (recentEods || []).some(e => e && e.employeeId === employee.id && e.reportDate && e.reportDate.startsWith(todayStr));
 
     return (
         <div className="admin-dash-v2 admin-scrollable-layout fade-in">
@@ -443,42 +447,46 @@ function ManagerDashboard({
                             <Zap size={18} color="var(--purple-main)" /> Manager Toolkit
                         </h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <button className="ad2-btn-add" onClick={() => window.location.href = '/tasks'} style={{ width: '100%', justifyContent: 'center', background: 'var(--purple-main)', border: 'none' }}>
+                            <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && (window.location.href = '/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
+                            <button className="ad2-btn-add" onClick={() => window.location.href = '/tasks'} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
                                 <CheckSquare size={16} /> Oversee Tasks
                             </button>
-                            <button className="ad2-btn-add" onClick={() => window.location.href = '/leaves'} style={{ width: '100%', justifyContent: 'center' }}>
+                            <button className="ad2-btn-add" onClick={() => window.location.href = '/leaves'} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
                                 <CalendarDays size={16} /> Apply for Leave
                             </button>
-                            <button className="ad2-btn-add" onClick={() => window.location.href = '/rulebook'} style={{ width: '100%', justifyContent: 'center' }}>
+                            <button className="ad2-btn-add" onClick={() => window.location.href = '/rulebook'} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
                                 <BookOpen size={16} /> View Rulebook
                             </button>
                         </div>
                     </div>
 
-                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <div className="ad2-card-header">
-                            <h3>Team EOD Reports</h3>
-                            <span className="ad2-badge">{eodList.length}</span>
+                    <div className="ad2-card" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+                                <Activity size={16} color="#10B981" /> Month Pace
+                            </h3>
+                            <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800 }}>{Math.round(((monthlyHours || 0) / 200) * 100)}%</span>
                         </div>
-                        <div className="ad2-task-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', maxHeight: '400px' }}>
-                            {tasks.length === 0 ? (
-                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.2, padding: '40px 0' }}>No reports to show.</div>
-                            ) : (
-                                eodList.map((eod: any) => (
-                                    <div key={eod.id} className="ad2-task-list-item">
-                                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', flexShrink: 0 }}>
-                                            {eod.employee?.firstName?.charAt(0) || 'E'}
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div className="ad2-tli-title">{eod.employee?.firstName} {eod.employee?.lastName}</div>
-                                            <div className="ad2-tli-time">{eod.submittedAt ? new Date(eod.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}</div>
-                                        </div>
-                                        <Link href={`/eod/reviews?id=${eod.id}`} className="ad2-circle-btn">
-                                            <ChevronRight size={14} />
-                                        </Link>
-                                    </div>
-                                ))
-                            )}
+
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '2px 0' }}>
+                            <span style={{ fontSize: '1.4rem', color: 'white', fontWeight: 900 }}>{monthlyHours || 0}h</span>
+                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)' }}>logged this month</span>
+                        </div>
+
+                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${Math.min(100, Math.max((Number(monthlyHours || 0) > 0 ? 2 : 0), (Number(monthlyHours || 0) / 200) * 100))}%`,
+                                background: 'linear-gradient(90deg, #10B981 0%, #3B82F6 100%)',
+                                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
+                                borderRadius: '10px',
+                                boxShadow: '0 0 10px rgba(16, 185, 129, 0.3)'
+                            }}></div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.3)' }}>
+                            <span>Target: 200h</span>
+                            <span>{Math.max(0, 200 - (monthlyHours || 0))}h left</span>
                         </div>
                     </div>
                 </div>
@@ -988,6 +996,7 @@ export default function DashboardPage() {
                     teamKpis={allKpis}
                     recentKpiLogs={recentKpiLogs}
                     recentEods={recentEods}
+                    monthlyHours={monthlyHours}
                 />
             )}
             {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (
