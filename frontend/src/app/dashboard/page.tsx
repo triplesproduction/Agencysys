@@ -408,7 +408,8 @@ function ManagerDashboard({
     const managerRole = employee?.roleId || 'Team Manager';
 
     return (
-        <div className="admin-dash-v2 fade-in">
+        <div className="admin-dash-v2 admin-scrollable-layout fade-in">
+
 
             {/* Quick Stats */}
             <div className="quick-stats" style={{ marginTop: '16px' }}>
@@ -512,32 +513,6 @@ function ManagerDashboard({
                         </div>
                     </div>
 
-                    {/* Team Performance Feed */}
-                    <div className="ad2-card" style={{ flex: 1 }}>
-                        <div className="ad2-card-header">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Activity size={18} color="#10B981" /> Team Performance Feed
-                            </h3>
-                            <span className="ad2-badge">{kpiLogList.length} updates</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {kpiLogList.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>No recent performance logs.</div>
-                            ) : (
-                                kpiLogList.slice(0, 4).map((log: any) => (
-                                    <div key={log.id} style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ minWidth: 0 }}>
-                                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{log.employee?.firstName} {log.employee?.lastName}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{log.reason}</div>
-                                        </div>
-                                        <div style={{ fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444', fontSize: '0.85rem' }}>
-                                            {log.points_change > 0 ? '+' : ''}{log.points_change}
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Column 3: Communication & Rules */}
