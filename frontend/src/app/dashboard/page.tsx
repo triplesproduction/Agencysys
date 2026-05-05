@@ -409,31 +409,6 @@ function ManagerDashboard({
 
     return (
         <div className="admin-dash-v2 fade-in">
-            {/* Custom Manager Header */}
-            <header className="ad2-header">
-                <div className="ad2-header-left">
-                    <div className="ad2-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</div>
-                </div>
-                <div className="ad2-header-center">
-                    <div className="ad2-search-bar">
-                        <Search size={16} />
-                        <input type="text" placeholder="Search team tasks..." />
-                    </div>
-                </div>
-                <div className="ad2-header-right">
-                    <div className="ad2-icon-btn" onClick={() => window.location.href = '/messaging'}><MessageCircle size={18} /></div>
-                    <div className="ad2-icon-btn"><Bell size={18} /></div>
-                    <div className="ad2-user-profile">
-                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'white' }}>
-                            {managerName.charAt(0)}
-                        </div>
-                        <div className="ad2-user-info">
-                            <span className="ad2-user-name">{managerName}</span>
-                            <span className="ad2-user-role">{managerRole}</span>
-                        </div>
-                    </div>
-                </div>
-            </header>
 
             {/* Quick Stats */}
             <div className="quick-stats" style={{ marginTop: '16px' }}>
