@@ -242,33 +242,58 @@ export default function EODPage() {
             <section className="form-section" style={{ marginBottom: '48px' }}>
                 <GlassCard className="submission-card" style={{ padding: '24px 28px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15, 15, 20, 0.4)', opacity: todayReport ? 0.8 : 1 }}>
                     <form onSubmit={handleSubmit}>
-                        <div style={{ marginBottom: '20px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
-                                    Tasks Accomplished Today <span style={{ color: '#F87171' }}>*</span>
-                                </label>
-                                {isReviewed ? (
-                                    <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800, background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '4px' }}>REVIEWED BY ADMIN</span>
-                                ) : todayReport ? (
-                                    <span style={{ fontSize: '0.65rem', color: '#60A5FA', fontWeight: 800, background: 'rgba(96,165,250,0.1)', padding: '2px 8px', borderRadius: '4px' }}>SUBMITTED</span>
-                                ) : (
-                                    <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>Enter one task per line</span>
-                                )}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                            {/* Left Column: Tasks */}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                    <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
+                                        Tasks Accomplished Today <span style={{ color: '#F87171' }}>*</span>
+                                    </label>
+                                    {isReviewed ? (
+                                        <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800, background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '4px' }}>REVIEWED BY ADMIN</span>
+                                    ) : todayReport ? (
+                                        <span style={{ fontSize: '0.65rem', color: '#60A5FA', fontWeight: 800, background: 'rgba(96,165,250,0.1)', padding: '2px 8px', borderRadius: '4px' }}>SUBMITTED</span>
+                                    ) : (
+                                        <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>Enter one task per line</span>
+                                    )}
+                                </div>
+                                <textarea
+                                    className="glass-textarea"
+                                    rows={10}
+                                    disabled={!!todayReport}
+                                    style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '16px', cursor: todayReport ? 'not-allowed' : 'text', flex: 1, resize: 'vertical' }}
+                                    placeholder="Write the tasks you completed today"
+                                    value={formData.tasksCompleted}
+                                    onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
+                                />
                             </div>
-                            <textarea
-                                className="glass-textarea"
-                                rows={6}
-                                disabled={!!todayReport}
-                                style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '14px', cursor: todayReport ? 'not-allowed' : 'text' }}
-                                placeholder="Write the tasks you completed today"
-                                value={formData.tasksCompleted}
-                                onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
-                            />
+
+                            {/* Right Column: Blockers */}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                    <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
+                                        Blockers / Impediments <span style={{ color: '#F87171' }}>*</span>
+                                    </label>
+                                    <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>Anything slowing you down?</span>
+                                </div>
+                                <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                    <textarea
+                                        disabled={!!todayReport}
+                                        className="glass-textarea"
+                                        style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '16px 16px 16px 2.8rem', cursor: todayReport ? 'not-allowed' : 'text', flex: 1, resize: 'vertical' }}
+                                        placeholder="List any blockers here..."
+                                        value={formData.blockers}
+                                        onChange={e => setFormData({ ...formData, blockers: e.target.value })}
+                                    />
+                                    <AlertTriangle size={15} style={{ position: 'absolute', left: '1rem', top: '18px', opacity: 0.3 }} />
+                                </div>
+                            </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                            <div>
-                                <label className="input-label" style={{ marginBottom: '6px', fontSize: '0.65rem' }}>
+                        {/* Bottom Area: Hours & Button */}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ flexShrink: 0, width: '200px' }}>
+                                <label className="input-label" style={{ marginBottom: '8px', fontSize: '0.7rem', display: 'block' }}>
                                     Office Hours <span style={{ color: '#F87171' }}>*</span>
                                 </label>
                                 <div style={{ position: 'relative' }}>
@@ -276,49 +301,35 @@ export default function EODPage() {
                                         type="number"
                                         disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '2.2rem', paddingLeft: '2.2rem', fontSize: '0.8rem', cursor: todayReport ? 'not-allowed' : 'text' }}
+                                        style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '1rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 500 }}
                                         min="0" step="0.5" max="24"
                                         placeholder="8.5"
                                         value={formData.workHours}
                                         onChange={e => setFormData({ ...formData, workHours: e.target.value })}
                                     />
-                                    <Clock size={11} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                                    <Clock size={15} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
                                 </div>
                             </div>
-                            <div>
-                                <label className="input-label" style={{ marginBottom: '6px', fontSize: '0.65rem' }}>
-                                    Blockers / Impediments <span style={{ color: '#F87171' }}>*</span>
-                                </label>
-                                <div style={{ position: 'relative' }}>
-                                    <textarea
-                                        disabled={!!todayReport}
-                                        className="glass-textarea"
-                                        rows={3}
-                                        style={{ fontSize: '0.8rem', lineHeight: '1.5', padding: '12px 12px 12px 2.2rem', cursor: todayReport ? 'not-allowed' : 'text', resize: 'vertical' }}
-                                        placeholder="Anything slowing you down?"
-                                        value={formData.blockers}
-                                        onChange={e => setFormData({ ...formData, blockers: e.target.value })}
-                                    />
-                                    <AlertTriangle size={11} style={{ position: 'absolute', left: '0.8rem', top: '16px', opacity: 0.3 }} />
-                                </div>
+                            
+                            <div style={{ flex: 1 }}>
+                                <Button
+                                    type="submit"
+                                    disabled={loading || !!todayReport}
+                                    className="submit-btn"
+                                    style={{ 
+                                        width: '100%', 
+                                        height: '3.2rem', 
+                                        fontSize: '0.95rem',
+                                        fontWeight: 600,
+                                        background: todayReport ? 'rgba(255,255,255,0.05)' : undefined,
+                                        color: todayReport ? 'rgba(255,255,255,0.3)' : undefined,
+                                        border: todayReport ? '1px solid rgba(255,255,255,0.05)' : undefined
+                                     }}
+                                >
+                                    {loading ? 'Processing...' : todayReport ? 'Submitted for Today' : 'Publish Daily EOD'}
+                                </Button>
                             </div>
                         </div>
-
-                        <Button
-                            type="submit"
-                            disabled={loading || !!todayReport}
-                            className="submit-btn"
-                            style={{ 
-                                width: '100%', 
-                                height: '3rem', 
-                                fontSize: '0.9rem', 
-                                background: todayReport ? 'rgba(255,255,255,0.05)' : undefined,
-                                color: todayReport ? 'rgba(255,255,255,0.3)' : undefined,
-                                border: todayReport ? '1px solid rgba(255,255,255,0.05)' : undefined
-                             }}
-                        >
-                            {loading ? 'Processing...' : todayReport ? 'Submitted for Today' : 'Publish Daily EOD'}
-                        </Button>
 
                         {error && (
                             <div className="error-message" style={{ marginTop: '20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#FCA5A5', padding: '12px 16px', borderRadius: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
