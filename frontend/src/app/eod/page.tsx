@@ -301,7 +301,7 @@ export default function EODPage() {
                                         type="number"
                                         disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '1rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 500 }}
+                                        style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '0.9rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 500 }}
                                         min="0" step="0.5" max="24"
                                         placeholder="8.5"
                                         value={formData.workHours}
@@ -319,7 +319,7 @@ export default function EODPage() {
                                     style={{ 
                                         width: '100%', 
                                         height: '3.2rem', 
-                                        fontSize: '0.95rem',
+                                        fontSize: '0.9rem',
                                         fontWeight: 600,
                                         background: todayReport ? 'rgba(255,255,255,0.05)' : undefined,
                                         color: todayReport ? 'rgba(255,255,255,0.3)' : undefined,
