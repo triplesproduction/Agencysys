@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FileText, User, Calendar, CheckSquare, Clock, AlertTriangle, Smile, Meh, Frown, Search, RefreshCw } from 'lucide-react';
+import { FileText, User, Calendar, CheckSquare, Clock, AlertTriangle, Smile, Meh, Frown, Search, RefreshCw, ChevronDown } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 import DatePicker from '@/components/common/DatePicker';
 import { api } from '@/lib/api';
@@ -228,29 +228,35 @@ function EODReviewsContent() {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <label className="input-label" style={{ margin: 0 }}>Employee</label>
-                        <select
-                            value={selectedEmployeeId}
-                            onChange={e => setSelectedEmployeeId(e.target.value)}
-                            style={{
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid var(--glass-border)',
-                                borderRadius: 'var(--radius-sm)',
-                                padding: '10px 14px',
-                                color: 'white',
-                                outline: 'none',
-                                width: '200px',
-                                fontSize: '0.875rem',
-                                height: '42px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value="" style={{ background: '#1a1a2e' }}>All Employees</option>
-                            {employees.sort((a, b) => a.firstName.localeCompare(b.firstName)).map(emp => (
-                                <option key={emp.id} value={emp.id} style={{ background: '#1a1a2e' }}>
-                                    {emp.firstName} {emp.lastName}
-                                </option>
-                            ))}
-                        </select>
+                        <div style={{ position: 'relative' }}>
+                            <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                            <select
+                                value={selectedEmployeeId}
+                                onChange={e => setSelectedEmployeeId(e.target.value)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--glass-border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    padding: '10px 36px 10px 36px',
+                                    color: 'white',
+                                    outline: 'none',
+                                    width: '200px',
+                                    fontSize: '0.875rem',
+                                    height: '42px',
+                                    cursor: 'pointer',
+                                    appearance: 'none',
+                                    WebkitAppearance: 'none'
+                                }}
+                            >
+                                <option value="" style={{ background: '#1a1a2e' }}>All Employees</option>
+                                {employees.sort((a, b) => a.firstName.localeCompare(b.firstName)).map(emp => (
+                                    <option key={emp.id} value={emp.id} style={{ background: '#1a1a2e' }}>
+                                        {emp.firstName} {emp.lastName}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                        </div>
                     </div>
 
                     <div style={{ width: '180px' }}>
