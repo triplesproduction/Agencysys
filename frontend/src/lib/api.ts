@@ -404,6 +404,7 @@ export const api = {
             .from('eod_reports')
             .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)')
             .order('reportDate', { ascending: false })
+            .order('createdAt', { ascending: false })
             .limit(limit);
 
         handleSupabaseEvent(data, error, 'Fetch All EODs');

@@ -335,7 +335,7 @@ function EODReviewsContent() {
                                                         <span style={{ fontWeight: 600 }}>{workLogMap[report.id]?.hoursLogged || report.workHours || 0}h logged</span>
                                                         {(report.status || (workLogMap[report.id]?.description?.includes('Status:'))) && (
                                                             <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.8, background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                                                                {report.status || (workLogMap[report.id]?.description?.match(/Status: (.*?)\./)?.[1] || 'reviewed')}
+                                                                {(report.status === 'SUBMITTED' ? 'PENDING REVIEW' : report.status) || (workLogMap[report.id]?.description?.match(/Status: (.*?)\./)?.[1] || 'reviewed')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -515,7 +515,7 @@ function EODReviewsContent() {
                                                             </h4>
                                                             {(report.status || workLogMap[report.id]) && (
                                                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
-                                                                    Status: {report.status || (workLogMap[report.id]?.description?.includes('APPROVED') ? 'APPROVED' : (workLogMap[report.id]?.description?.includes('ADJUSTED') ? 'ADJUSTED' : 'LOGGED'))}
+                                                                    Status: {(report.status === 'SUBMITTED' ? 'PENDING REVIEW' : report.status) || (workLogMap[report.id]?.description?.includes('APPROVED') ? 'APPROVED' : (workLogMap[report.id]?.description?.includes('ADJUSTED') ? 'ADJUSTED' : 'LOGGED'))}
                                                                 </span>
                                                             )}
                                                         </div>
