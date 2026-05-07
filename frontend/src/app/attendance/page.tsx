@@ -299,7 +299,7 @@ export default function AttendancePage() {
                                 <select 
                                     className="select-premium-glass"
                                     value={selectedEmployeeId || ''}
-                                    onChange={(e) => setSelectedEmployeeId(Number(e.target.value))}
+                                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
                                 >
                                     {employees.map(emp => (
                                         <option key={emp.id} value={emp.id} className="bg-[#0f0f14]">
