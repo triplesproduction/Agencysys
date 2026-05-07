@@ -26,6 +26,7 @@ export interface EmployeeDTO {
     internshipStipend?: number;
     salaryHistory?: SalaryHistory[];
     baseSalary: number;
+    leave_balance: number;
     experience?: number; // Years of experience
 
     // Nested Relations (Optional for Grid)
@@ -142,13 +143,28 @@ export interface KPIMetricDTO {
 export interface LeaveApplicationDTO {
     id: string;
     employeeId: string;
-    leaveType: 'SICK' | 'CASUAL' | 'EARNED' | 'UNPAID';
+    leaveType: 'Paid Leave' | 'Unpaid Leave';
     startDate: string; // ISO Date
     endDate: string; // ISO Date
     reason: string;
     status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
     approverId?: string;
     appliedAt: string; // ISO DateTime
+}
+
+export interface HolidayDTO {
+    id: string;
+    date: string; // ISO Date
+    name: string;
+    is_working_day: boolean;
+}
+
+export interface AttendanceOverrideDTO {
+    id: string;
+    employee_id: string;
+    date: string; // ISO Date
+    status: 'PRESENT' | 'ABSENT' | 'PAID_LEAVE' | 'UNPAID_LEAVE' | 'HOLIDAY' | 'WORKED_ON_HOLIDAY';
+    reason?: string;
 }
 
 export interface WorkHourLogDTO {

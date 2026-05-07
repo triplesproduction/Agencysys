@@ -41,6 +41,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Task Allocation', href: '/tasks', icon: CheckSquare },
         { name: 'EOD Reviews', href: '/eod/reviews', icon: FileText },
+        { name: 'Attendance', href: '/attendance', icon: CalendarDays },
         { name: 'Employee Management', href: '/employees', icon: UserPlus },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Announcements', href: '/broadcast', icon: Megaphone },
@@ -55,6 +56,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Team Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
+        { name: 'Attendance', href: '/attendance', icon: CalendarDays },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Announcements', href: '/broadcast', icon: Megaphone },
         { name: 'Project Notes', href: '/notes', icon: FileText },
@@ -67,6 +69,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Announcements', href: '/broadcast', icon: Megaphone },
         { name: 'Work Log', href: '/logs', icon: Clock },
+        { name: 'Attendance', href: '/attendance', icon: CalendarDays },
         { name: 'Company Rulebook', href: '/rulebook', icon: BookOpen },
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
     ]

@@ -540,6 +540,64 @@ export const api = {
         return data as LeaveApplicationDTO;
     },
 
+    // --- Attendance & Holidays ---
+    getHolidays: async (year?: number) => {
+        let query = supabase.from('holidays').select('*');
+        if (year) {
+            query = query.gte('date', `${year}-01-01`).lte('date', `${year}-12-31`);
+        }
+        const { data, error } = await query.order('date', { ascending: true });
+        handleSupabaseEvent(data, error, 'Fetch Holidays');
+        return (data || []) as HolidayDTO[];
+    },
+    addHoliday: async (holiday: Partial<HolidayDTO>) => {
+        const { data, error } = await supabase.from('holidays').insert(holiday).select().single();
+        handleSupabaseEvent(data, error, 'Add Holiday');
+        return data as HolidayDTO;
+    },
+    deleteHoliday: async (id: string) => {
+        const { error } = await supabase.from('holidays').delete().eq('id', id);
+        handleSupabaseEvent(null, error, 'Delete Holiday');
+    },
+    getAttendanceOverrides: async (employeeId: string, monthYear: string) => {
+        const date = new Date(monthYear + '-01');
+        const startOfMonth = `${monthYear}-01`;
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+        
+        const { data, error } = await supabase
+            .from('attendance_overrides')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .gte('date', startOfMonth)
+            .lte('date', endOfMonth);
+        handleSupabaseEvent(data, error, 'Fetch Attendance Overrides');
+        return (data || []) as AttendanceOverrideDTO[];
+    },
+    setAttendanceOverride: async (override: Partial<AttendanceOverrideDTO>) => {
+        const { data, error } = await supabase.from('attendance_overrides').upsert(override).select().single();
+        handleSupabaseEvent(data, error, 'Set Attendance Override');
+        return data as AttendanceOverrideDTO;
+    },
+    getAttendanceReport: async (employeeId: string, monthYear: string) => {
+        const date = new Date(monthYear + '-01');
+        const startOfMonth = `${monthYear}-01`;
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+
+        const [eods, leaves, holidays, overrides] = await Promise.all([
+            supabase.from('eod_reports').select('*').eq('employeeId', employeeId).gte('reportDate', startOfMonth).lte('reportDate', endOfMonth),
+            supabase.from('leaves').select('*').eq('employeeId', employeeId).eq('status', 'APPROVED').or(`startDate.lte.${endOfMonth},endDate.gte.${startOfMonth}`),
+            supabase.from('holidays').select('*').gte('date', startOfMonth).lte('date', endOfMonth),
+            supabase.from('attendance_overrides').select('*').eq('employee_id', employeeId).gte('date', startOfMonth).lte('date', endOfMonth)
+        ]);
+
+        return {
+            eods: (eods.data || []) as EODSubmissionDTO[],
+            leaves: (leaves.data || []) as LeaveApplicationDTO[],
+            holidays: (holidays.data || []) as HolidayDTO[],
+            overrides: (overrides.data || []) as AttendanceOverrideDTO[]
+        };
+    },
+
     // KPIs
     getEmployeeKPIs: async (employeeId: string) => {
         // Fallback or legacy, returning old if needed, but primary is getKpiProfile now
