@@ -11,7 +11,9 @@ import {
     KpiProfileDTO,
     KpiAuditLogDTO,
     ProjectDTO,
-    ProjectMemberDTO
+    ProjectMemberDTO,
+    HolidayDTO,
+    AttendanceOverrideDTO
 } from '../types/dto';
 import { supabase } from './supabase';
 
