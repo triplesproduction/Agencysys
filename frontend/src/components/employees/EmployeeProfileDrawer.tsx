@@ -44,6 +44,11 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     const [newPassword, setNewPassword] = useState('');
     const [showPasswordInput, setShowPasswordInput] = useState(false);
     
+    // KPI Sync State
+    const [isSyncingKPI, setIsSyncingKPI] = useState(false);
+    const [syncMonth, setSyncMonth] = useState(new Date().toISOString().substring(0, 7));
+    const [kpiProfile, setKpiProfile] = useState<any>(null);
+    
     const [profilePhoto, setProfilePhoto] = useState(employee.profilePhoto);
     const [editData, setEditData] = useState({
         firstName: employee.firstName,
@@ -84,8 +89,10 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             loadActivityLogs();
         } else if (activeTab === 'LEAVES') {
             loadLeaves();
+        } else if (activeTab === 'PERFORMANCE') {
+            loadKpiProfile();
         }
-    }, [activeTab, employee.id]);
+    }, [activeTab, employee.id, syncMonth]);
 
     const loadActivityLogs = async () => {
         setIsLoadingTabData(true);
@@ -96,6 +103,37 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             console.error('Failed to load activity logs:', err);
         } finally {
             setIsLoadingTabData(false);
+        }
+    };
+
+    const loadKpiProfile = async () => {
+        setIsLoadingTabData(true);
+        try {
+            const profile = await api.getKpiProfile(employee.id, syncMonth);
+            setKpiProfile(profile);
+        } catch (err) {
+            console.error('Failed to load KPI profile:', err);
+        } finally {
+            setIsLoadingTabData(false);
+        }
+    };
+
+    const handleSyncKPI = async () => {
+        if (!isAdminUser) return;
+        setIsSyncingKPI(true);
+        try {
+            await api.recalculateKpiProfile(employee.id, syncMonth);
+            addNotification({
+                title: 'KPI Synced',
+                message: `Performance metrics for ${syncMonth} have been recalculated from raw data.`,
+                type: 'PERFORMANCE'
+            });
+            await loadKpiProfile();
+            if (activeTab === 'ATTENDANCE') await loadActivityLogs();
+        } catch (err: any) {
+            alert('Failed to sync KPI: ' + err.message);
+        } finally {
+            setIsSyncingKPI(false);
         }
     };
 
@@ -1105,11 +1143,80 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             case 'PERFORMANCE':
                 return (
                     <div className="fade-in">
-                        <h3 style={{ marginBottom: '24px' }}>Performance Trajectory</h3>
-                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--glass-border)' }}>
-                            <TrendingUp size={32} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                            Enterprise Charting module hook pending.
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <h3 style={{ margin: 0 }}>Performance Analysis</h3>
+                            {isAdminUser && (
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <input 
+                                        type="month" 
+                                        value={syncMonth} 
+                                        onChange={(e) => setSyncMonth(e.target.value)}
+                                        className="input-field"
+                                        style={{ padding: '6px 12px', width: '160px', height: '36px', fontSize: '0.85rem' }}
+                                    />
+                                    <button 
+                                        onClick={handleSyncKPI}
+                                        disabled={isSyncingKPI}
+                                        className="primary-button" 
+                                        style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
+                                        <RefreshCw size={16} className={isSyncingKPI ? 'spin' : ''} />
+                                        {isSyncingKPI ? 'Syncing...' : 'Sync KPI'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
+
+                        {isLoadingTabData && !isSyncingKPI ? (
+                            <div style={{ padding: '64px', textAlign: 'center' }}>
+                                <div className="spinner-mini" style={{ margin: '0 auto 16px' }}></div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Analyzing performance vectors...</div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                {/* Current Score Card */}
+                                <div style={{ 
+                                    padding: '32px', 
+                                    background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(0,0,0,0.2) 100%)', 
+                                    borderRadius: '20px', 
+                                    border: '1px solid var(--glass-border)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
+                                    <div>
+                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Performance Index ({syncMonth})</div>
+                                        <div style={{ fontSize: '3rem', fontWeight: 800, color: 'white', marginTop: '8px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                            {kpiProfile?.current_score?.toFixed(1) || '50.0'}
+                                            <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 400 }}>/ 100</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ width: '100px', height: '100px', borderRadius: '50%', border: '8px solid rgba(255,255,255,0.05)', borderTopColor: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                        <TrendingUp size={32} color="var(--purple-main)" />
+                                        <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: '2px solid rgba(139,92,246,0.2)' }}></div>
+                                    </div>
+                                </div>
+
+                                {/* Metrics Breakdown */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                    <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Efficiency Points</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>+{kpiProfile?.extra_points || 0}</div>
+                                    </div>
+                                    <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Quality Adjustments</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: (kpiProfile?.current_score || 50) >= 50 ? '#10B981' : '#EF4444', marginTop: '4px' }}>
+                                            {(kpiProfile?.current_score || 50).toFixed(1)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--glass-border)' }}>
+                                    <TrendingUp size={32} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                                    Detailed trend visualization module hook pending Phase 6.
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'CHAT':

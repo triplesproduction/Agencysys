@@ -68,9 +68,12 @@ function EODReviewsContent() {
     useEffect(() => {
         if (expandedId) {
             const report = reports.find(r => r.id === expandedId);
-            if (report && report.employee) {
-                const date = new Date(report.reportDate).toISOString().split('T')[0];
-                api.getWorkHoursByDate(report.employee.id, date).then(log => {
+            if (report && report.employeeId) {
+                const dateStr = typeof report.reportDate === 'string' 
+                    ? report.reportDate.split('T')[0] 
+                    : new Date(report.reportDate).toLocaleDateString('en-CA');
+                
+                api.getWorkHoursByDate(report.employeeId, dateStr).then(log => {
                     if (log) {
                         setWorkLogMap(prev => ({ ...prev, [report.id]: log }));
                         setEditHours(String(log.hoursLogged));
@@ -96,7 +99,9 @@ function EODReviewsContent() {
             const hours = parseFloat(editHours);
             if (isNaN(hours)) throw new Error('Please enter a valid number for hours.');
 
-            const reportDateStr = new Date(report.reportDate).toISOString().split('T')[0];
+            const reportDateStr = typeof report.reportDate === 'string' 
+                ? report.reportDate.split('T')[0] 
+                : new Date(report.reportDate).toLocaleDateString('en-CA');
 
             await api.reviewEOD(reportId, {
                 employeeId: report.employee.id,
@@ -121,17 +126,25 @@ function EODReviewsContent() {
         try {
             setIsLoading(true);
             const data = await api.getAllEODs();
-            setReports(data);
+            // Sort by createdAt desc to ensure "recently submitted" is always first
+            const sorted = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setReports(sorted);
 
             // Pre-fetch work hours for these reports to avoid showing 0h logged
             if (data.length > 0) {
+                console.log('[EOD Review] Pre-fetching work logs for', data.length, 'reports');
                 const logs = await Promise.all(data.map(async (report: any) => {
-                    if (!report.employee) return null;
+                    if (!report.employeeId) return null;
                     try {
-                        const date = new Date(report.reportDate).toISOString().split('T')[0];
-                        const log = await api.getWorkHoursByDate(report.employee.id, date);
+                        // Extract date string YYYY-MM-DD directly from the reportDate
+                        const dateStr = typeof report.reportDate === 'string' 
+                            ? report.reportDate.split('T')[0] 
+                            : new Date(report.reportDate).toLocaleDateString('en-CA');
+                        
+                        const log = await api.getWorkHoursByDate(report.employeeId, dateStr);
                         return { reportId: report.id, log };
                     } catch (e) {
+                        console.error('[EOD Review] Failed to fetch log for report', report.id, e);
                         return null;
                     }
                 }));
@@ -142,6 +155,7 @@ function EODReviewsContent() {
                         newLogMap[item.reportId] = item.log;
                     }
                 });
+                console.log('[EOD Review] Work log map populated:', Object.keys(newLogMap).length, 'logs found');
                 setWorkLogMap(newLogMap);
             }
         } catch (err: any) {
@@ -203,54 +217,56 @@ function EODReviewsContent() {
                 </div>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="input-label" style={{ margin: 0 }}>Search</label>
+                        <label className="input-label" style={{ margin: 0, fontSize: '0.65rem' }}>Search Reports</label>
                         <div style={{ position: 'relative' }}>
                             <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                             <input
                                 type="text"
-                                placeholder="Name or department..."
+                                placeholder="Search by name..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                                 style={{
-                                    background: 'rgba(255,255,255,0.05)',
+                                    background: 'var(--glass-bg)',
                                     border: '1px solid var(--glass-border)',
-                                    borderRadius: 'var(--radius-sm)',
+                                    borderRadius: '12px',
                                     padding: '10px 14px 10px 36px',
                                     color: 'white',
                                     outline: 'none',
-                                    width: '220px',
-                                    fontSize: '0.875rem',
-                                    height: '42px' // Match DatePicker height
+                                    width: '240px',
+                                    fontSize: '0.85rem',
+                                    height: '42px',
+                                    transition: 'all 0.2s'
                                 }}
                             />
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="input-label" style={{ margin: 0 }}>Employee</label>
+                        <label className="input-label" style={{ margin: 0, fontSize: '0.65rem' }}>Team Member</label>
                         <div style={{ position: 'relative' }}>
                             <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                             <select
                                 value={selectedEmployeeId}
                                 onChange={e => setSelectedEmployeeId(e.target.value)}
                                 style={{
-                                    background: 'rgba(255,255,255,0.05)',
+                                    background: 'var(--glass-bg)',
                                     border: '1px solid var(--glass-border)',
-                                    borderRadius: 'var(--radius-sm)',
+                                    borderRadius: '12px',
                                     padding: '10px 36px 10px 36px',
                                     color: 'white',
                                     outline: 'none',
                                     width: '200px',
-                                    fontSize: '0.875rem',
+                                    fontSize: '0.85rem',
                                     height: '42px',
                                     cursor: 'pointer',
                                     appearance: 'none',
-                                    WebkitAppearance: 'none'
+                                    WebkitAppearance: 'none',
+                                    transition: 'all 0.2s'
                                 }}
                             >
-                                <option value="" style={{ background: '#1a1a2e' }}>All Employees</option>
+                                <option value="" style={{ background: '#0a0a0c' }}>All Members</option>
                                 {employees.sort((a, b) => a.firstName.localeCompare(b.firstName)).map(emp => (
-                                    <option key={emp.id} value={emp.id} style={{ background: '#1a1a2e' }}>
+                                    <option key={emp.id} value={emp.id} style={{ background: '#0a0a0c' }}>
                                         {emp.firstName} {emp.lastName}
                                     </option>
                                 ))}
@@ -283,22 +299,38 @@ function EODReviewsContent() {
                             fetchReports();
                         }}
                         style={{
-                            background: 'rgba(139,92,246,0.15)',
-                            border: '1px solid rgba(139,92,246,0.3)',
-                            borderRadius: 'var(--radius-sm)',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: '12px',
                             padding: '0 16px',
-                            color: 'var(--purple-main)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.875rem',
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.8rem',
                             fontWeight: 600,
-                            height: '42px', // Match DatePicker height
+                            cursor: 'pointer',
+                            height: '42px',
                             transition: 'all 0.2s'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.25)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(139,92,246,0.15)'}
+                    >
+                        Clear
+                    </button>
+                    
+                    <button
+                        onClick={() => fetchReports()}
+                        style={{
+                            background: 'rgba(139,92,246,0.1)',
+                            border: '1px solid rgba(139,92,246,0.2)',
+                            borderRadius: '12px',
+                            padding: '0 16px',
+                            color: 'white',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            height: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }}
                     >
                         <RefreshCw size={14} /> Refresh
                     </button>
@@ -373,14 +405,31 @@ function EODReviewsContent() {
                                                         </div>
                                                     )}
                                                     {/* Work Hours Header Info */}
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: (workLogMap[report.id]?.description?.includes('APPROVED') || report.status === 'APPROVED') ? '#10B981' : ((workLogMap[report.id]?.description?.includes('ADJUSTED') || report.status === 'ADJUSTED') ? '#F59E0B' : 'var(--text-secondary)') }}>
-                                                        <Clock size={14} />
-                                                        <span style={{ fontWeight: 600 }}>{workLogMap[report.id]?.hoursLogged || report.workHours || 0}h logged</span>
-                                                        {(report.status || (workLogMap[report.id]?.description?.includes('Status:'))) && (
-                                                            <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.8, background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                                                                {(report.status === 'SUBMITTED' ? 'PENDING REVIEW' : report.status) || (workLogMap[report.id]?.description?.match(/Status: (.*?)\./)?.[1] || 'reviewed')}
-                                                            </span>
-                                                        )}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: (workLogMap[report.id]?.description?.includes('APPROVED') || report.status === 'APPROVED') ? '#10B981' : ((workLogMap[report.id]?.description?.includes('ADJUSTED') || report.status === 'ADJUSTED') ? '#F59E0B' : 'var(--text-secondary)') }}>
+                                                            <Clock size={14} />
+                                                            <span style={{ fontWeight: 600 }}>{workLogMap[report.id]?.hoursLogged || report.workHours || 0}h logged</span>
+                                                        </div>
+                                                        {(() => {
+                                                            const status = report.status || (workLogMap[report.id]?.description?.match(/Status: (.*?)\./)?.[1] || 'SUBMITTED');
+                                                            const displayStatus = status === 'SUBMITTED' ? 'PENDING REVIEW' : status;
+                                                            const statusColor = displayStatus === 'PENDING REVIEW' ? '#F59E0B' : (displayStatus === 'APPROVED' ? '#10B981' : '#6B7280');
+                                                            return (
+                                                                <span style={{ 
+                                                                    fontSize: '0.6rem', 
+                                                                    fontWeight: 800,
+                                                                    textTransform: 'uppercase', 
+                                                                    color: statusColor,
+                                                                    background: `${statusColor}15`, 
+                                                                    padding: '4px 10px', 
+                                                                    borderRadius: '8px',
+                                                                    border: `1px solid ${statusColor}30`,
+                                                                    letterSpacing: '0.05em'
+                                                                }}>
+                                                                    {displayStatus}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                     {/* Sentiment Rating Dropdown */}
                                                     <div style={{ position: 'relative' }}>

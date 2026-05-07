@@ -123,6 +123,19 @@ function AdminDashboard({
                 eodId: eod?.id,
                 submittedAt: eod?.submittedAt
             };
+        })
+        .sort((a, b) => {
+            // Submitted first
+            if (a.eodStatus === 'SUBMITTED' && b.eodStatus !== 'SUBMITTED') return -1;
+            if (a.eodStatus !== 'SUBMITTED' && b.eodStatus === 'SUBMITTED') return 1;
+            
+            // If both submitted, sort by time desc
+            if (a.eodStatus === 'SUBMITTED' && b.eodStatus === 'SUBMITTED') {
+                return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+            }
+            
+            // Otherwise alphabetical
+            return a.firstName.localeCompare(b.firstName);
         });
 
     const pendingCount = employeeEodstatus.filter(e => e.eodStatus === 'PENDING').length;
@@ -227,7 +240,7 @@ function AdminDashboard({
                                                     gap: '4px'
                                                 }}>
                                                     {isSub ? (
-                                                        <>SUBMITTED AT {status.submittedAt ? new Date(status.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TODAY'}</>
+                                                        <>PENDING REVIEW · {status.submittedAt ? new Date(status.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TODAY'}</>
                                                     ) : (
                                                         <>PENDING SUBMISSION</>
                                                     )}

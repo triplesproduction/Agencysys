@@ -3,20 +3,19 @@
 import { useEffect, useState } from 'react';
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
-import { KPIMetricDTO } from '@/types/dto';
-import { TrendingUp, Target, Award, Calendar, AlertCircle, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Target, Award, Calendar, AlertCircle, ArrowLeft, Clock, CheckSquare, Coffee } from 'lucide-react';
 import Link from 'next/link';
-
 import { useAuth } from '@/context/AuthContext';
 
 export default function KPIsPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();
-    const [kpis, setKpis] = useState<KPIMetricDTO[]>([]);
+    const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
 
     useEffect(() => {
-        async function fetchKPIs() {
+        async function fetchKPIProfile() {
             if (!authEmployee) {
                 if (!authLoading) {
                     setError('Unable to identify current user. Please ensure you are logged in.');
@@ -27,12 +26,11 @@ export default function KPIsPage() {
 
             try {
                 setLoading(true);
-                const userId = authEmployee.id;
-                const data = await api.getEmployeeKPIs(userId);
-                setKpis(data || []);
+                const data = await api.getKpiProfile(authEmployee.id, selectedMonth);
+                setProfile(data);
                 setError(null);
             } catch (err: any) {
-                console.error('Failed to fetch KPIs:', err);
+                console.error('Failed to fetch KPI profile:', err);
                 setError(err.message || 'Failed to load performance metrics.');
             } finally {
                 setLoading(false);
@@ -40,9 +38,16 @@ export default function KPIsPage() {
         }
 
         if (!authLoading) {
-            fetchKPIs();
+            fetchKPIProfile();
         }
-    }, [authEmployee, authLoading]);
+    }, [authEmployee, authLoading, selectedMonth]);
+
+    const getGradeColor = (grade: string) => {
+        if (grade?.includes('A')) return '#10B981';
+        if (grade?.includes('B')) return '#8B5CF6';
+        if (grade?.includes('C')) return '#F59E0B';
+        return '#EF4444';
+    };
 
     if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
 
@@ -53,70 +58,139 @@ export default function KPIsPage() {
                     <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-main)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600, marginBottom: '12px' }}>
                         <ArrowLeft size={16} /> Back to Dashboard
                     </Link>
-                    <h1 className="greeting">Performance Metrics</h1>
-                    <p className="subtitle">Track your growth and mission objectives.</p>
+                    <h1 className="greeting">Performance Scorecard</h1>
+                    <p className="subtitle">Monthly performance vectors and mission efficiency.</p>
                 </div>
-                <GlassCard style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ background: 'rgba(124, 58, 237, 0.15)', padding: '10px', borderRadius: '12px' }}>
-                        <Award size={24} color="var(--purple-main)" />
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Performance</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>
-                            {kpis.length > 0 ? (kpis.reduce((acc, curr) => acc + curr.currentValue, 0) / kpis.length).toFixed(1) : '0'}/100
-                        </div>
-                    </div>
-                </GlassCard>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <input 
+                        type="month" 
+                        value={selectedMonth} 
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="input-field"
+                        style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white' }}
+                    />
+                </div>
             </header>
 
-            {error ? (
-                <GlassCard style={{ padding: '3rem', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                    <AlertCircle size={48} color="#EF4444" style={{ marginBottom: '1rem' }} />
-                    <h3 style={{ color: 'white', marginBottom: '8px' }}>Performance Snapshot Unavailable</h3>
-                    <p style={{ color: 'var(--text-secondary)' }}>{error}</p>
-                </GlassCard>
-            ) : kpis.length === 0 ? (
+            {!profile ? (
                 <GlassCard style={{ padding: '4rem', textAlign: 'center' }}>
                     <Target size={64} color="rgba(255, 255, 255, 0.1)" style={{ marginBottom: '1.5rem' }} />
-                    <h3 style={{ color: 'white', marginBottom: '8px' }}>No KPI Metrics Found</h3>
+                    <h3 style={{ color: 'white', marginBottom: '8px' }}>No Data for {selectedMonth}</h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto' }}>
-                        Your performance targets haven't been configured by the admin council yet. Continue your excellence in the meantime!
+                        Performance records for this month are not yet initialized. Continue your excellence!
                     </p>
                 </GlassCard>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                    {kpis.map(kpi => (
-                        <GlassCard key={kpi.id} style={{ padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                                <div>
-                                    <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'white', marginBottom: '4px' }}>{kpi.metricName}</h3>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--purple-accent)', fontWeight: 600, textTransform: 'uppercase' }}>{kpi.period} Target</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        {/* Main Score Card */}
+                        <GlassCard style={{ padding: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(0,0,0,0) 100%)' }}>
+                            <div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--purple-light)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Monthly Performance Index</div>
+                                <div style={{ fontSize: '5rem', fontWeight: 900, color: 'white', margin: '1rem 0', display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                                    {profile.current_score?.toFixed(1)}
+                                    <span style={{ fontSize: '1.5rem', color: 'var(--text-secondary)', fontWeight: 400 }}>/ 100</span>
                                 </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#8B5CF6' }}>{kpi.currentValue}%</div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Goal: {kpi.targetValue}%</div>
+                                <div style={{ 
+                                    padding: '8px 20px', 
+                                    background: `${getGradeColor(profile.grade)}20`, 
+                                    color: getGradeColor(profile.grade),
+                                    borderRadius: '30px',
+                                    border: `1px solid ${getGradeColor(profile.grade)}40`,
+                                    display: 'inline-block',
+                                    fontWeight: 700,
+                                    fontSize: '0.9rem'
+                                }}>
+                                    Current Grade: {profile.grade}
                                 </div>
                             </div>
-
-                            {/* Progress Bar */}
-                            <div style={{ background: 'rgba(255, 255, 255, 0.05)', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '1rem' }}>
-                                <div style={{
-                                    width: `${Math.min(100, (kpi.currentValue / kpi.targetValue) * 100)}%`,
-                                    height: '100%',
-                                    background: 'linear-gradient(90deg, #7C3AED, #A78BFA)',
-                                    boxShadow: '0 0 10px rgba(124, 58, 237, 0.5)'
-                                }}></div>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Calendar size={14} />
-                                    Last Updated: {new Date(kpi.lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            <div style={{ position: 'relative', width: '180px', height: '180px' }}>
+                                <svg width="180" height="180" viewBox="0 0 180 180">
+                                    <circle cx="90" cy="90" r="80" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
+                                    <circle cx="90" cy="90" r="80" fill="none" stroke="var(--purple-main)" strokeWidth="12" 
+                                        strokeDasharray={`${(profile.current_score / 100) * 502.6} 502.6`} 
+                                        strokeLinecap="round" transform="rotate(-90 90 90)" 
+                                        style={{ filter: 'drop-shadow(0 0 8px var(--purple-main))' }}
+                                    />
+                                </svg>
+                                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <TrendingUp size={48} color="var(--purple-main)" />
                                 </div>
-                                <TrendingUp size={18} color={kpi.currentValue >= kpi.targetValue ? '#10B981' : '#F59E0B'} />
                             </div>
                         </GlassCard>
-                    ))}
+
+                        {/* Metrics Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                            <GlassCard style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                                    <CheckSquare size={20} color="#10B981" />
+                                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Task Velocity</span>
+                                </div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'white' }}>{profile.tasks_completed} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 400 }}>Done</span></div>
+                                <div style={{ fontSize: '0.85rem', color: '#EF4444', marginTop: '8px' }}>{profile.tasks_late} Late submissions</div>
+                            </GlassCard>
+
+                            <GlassCard style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                                    <Clock size={20} color="var(--purple-main)" />
+                                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Resource Hours</span>
+                                </div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'white' }}>{profile.total_hours_worked?.toFixed(1)} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 400 }}>Hrs</span></div>
+                                <div style={{ fontSize: '0.85rem', color: '#F59E0B', marginTop: '8px' }}>{profile.late_login_count} Late check-ins</div>
+                            </GlassCard>
+
+                            <GlassCard style={{ padding: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                                    <Coffee size={20} color="#3B82F6" />
+                                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Attendance</span>
+                                </div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'white' }}>{profile.leaves_taken} <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 400 }}>Leaves</span></div>
+                                <div style={{ fontSize: '0.85rem', color: '#3B82F6', marginTop: '8px' }}>{profile.unpaid_leaves} Unpaid periods</div>
+                            </GlassCard>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <GlassCard style={{ padding: '1.5rem' }}>
+                            <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Award size={18} color="var(--purple-main)" /> Efficiency Breakdown
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Baseline Score</span>
+                                    <span style={{ fontWeight: 600 }}>50.0</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Efficiency Bonus</span>
+                                    <span style={{ color: '#10B981', fontWeight: 600 }}>+{profile.extra_points?.toFixed(1)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Direct Awards</span>
+                                    <span style={{ color: '#10B981', fontWeight: 600 }}>+{profile.bonus_points?.toFixed(1)}</span>
+                                </div>
+                                <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 0' }}></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                                    <span>Calculated Total</span>
+                                    <span>{profile.current_score?.toFixed(1)}</span>
+                                </div>
+                            </div>
+                        </GlassCard>
+
+                        <GlassCard style={{ padding: '1.5rem' }}>
+                            <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Target size={18} color="var(--purple-main)" /> Quality Standard
+                            </h4>
+                            <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'white' }}>{profile.average_quality_rating || '0.0'}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Average Task Rating</div>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '12px' }}>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <div key={star} style={{ width: '8px', height: '8px', borderRadius: '50%', background: star <= (profile.average_quality_rating || 0) ? 'var(--purple-main)' : 'rgba(255,255,255,0.1)' }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                        </GlassCard>
+                    </div>
                 </div>
             )}
 

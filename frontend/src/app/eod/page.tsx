@@ -158,14 +158,17 @@ export default function EODPage() {
             return;
         }
 
+        console.log('[EOD] Starting submission sequence...');
         setLoading(true);
+        
         try {
             const empId = authEmployee.id;
             const completedList = formData.tasksCompleted.split('\n').filter(t => t && t.trim() !== '');
+            const todayDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 
             const payload: Partial<EODSubmissionDTO> = {
                 employeeId: empId,
-                reportDate: new Date().toISOString(),
+                reportDate: todayDate,
                 tasksCompleted: completedList,
                 tasksInProgress: [],
                 blockers: formData.blockers || undefined,
@@ -173,23 +176,26 @@ export default function EODPage() {
                 workHours: hours
             };
 
+            console.log('[EOD] Submitting report to database...', payload);
             const createdReport = await api.submitEOD(payload);
+            console.log('[EOD] Report created successfully:', createdReport?.id);
 
             // Sync/Update work hours log
             try {
-                const todayDate = new Date().toISOString().split('T')[0];
-                const existingLog = workHourLogs.find(l => new Date(l.date).toDateString() === new Date().toDateString());
+                console.log('[EOD] Syncing work hours...');
+                const existingLog = workHourLogs.find(l => l.date === todayDate);
                 
                 if (existingLog) {
-                    // Update existing log
-                    await api.reviewEOD(createdReport.id, { // api.reviewEOD is basically a "upsert work hour log" with review metadata
+                    console.log('[EOD] Updating existing work log:', existingLog.id);
+                    await api.reviewEOD(createdReport.id, {
                          employeeId: empId,
                          date: todayDate,
                          workHours: hours,
-                         adminNote: 'Updated by employee',
+                         adminNote: 'Updated by employee during EOD submission',
                          status: 'PENDING'
                     });
                 } else {
+                    console.log('[EOD] Creating new work log...');
                     await api.logWorkHours({
                         employeeId: empId,
                         date: todayDate,
@@ -198,9 +204,10 @@ export default function EODPage() {
                     });
                 }
             } catch (hourError: any) {
-                console.warn('[EOD] Work hour sync skipped:', hourError?.message);
+                console.warn('[EOD] Work hour sync warning (non-fatal):', hourError?.message);
             }
 
+            console.log('[EOD] Submission complete, clearing form.');
             setFormData({ tasksCompleted: '', blockers: '', workHours: '' });
             setSuccess(true);
             setTimeout(() => setSuccess(false), 5000);
@@ -208,9 +215,10 @@ export default function EODPage() {
             // Refresh submissions list
             fetchMyReports();
         } catch (err: any) {
-            console.error('[EOD TRACE] Submission Error:', err);
-            setError(err.message || 'Submission failed.');
+            console.error('[EOD] CRITICAL ERROR during submission:', err);
+            setError(err.message || 'Submission failed. Please check your connection and try again.');
         } finally {
+            console.log('[EOD] Submission process ended.');
             setLoading(false);
         }
     };
@@ -293,7 +301,7 @@ export default function EODPage() {
                         {/* Bottom Area: Hours & Button */}
                         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ flexShrink: 0, width: '200px' }}>
-                                <label className="input-label" style={{ marginBottom: '8px', fontSize: '0.7rem', display: 'block' }}>
+                                <label className="input-label" style={{ marginBottom: '8px', fontSize: '0.65rem', display: 'block' }}>
                                     Office Hours <span style={{ color: '#F87171' }}>*</span>
                                 </label>
                                 <div style={{ position: 'relative' }}>
@@ -301,7 +309,7 @@ export default function EODPage() {
                                         type="number"
                                         disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '0.9rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 500 }}
+                                        style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '0.75rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 600 }}
                                         min="0" step="0.5" max="24"
                                         placeholder="8.5"
                                         value={formData.workHours}
@@ -319,8 +327,10 @@ export default function EODPage() {
                                     style={{ 
                                         width: '100%', 
                                         height: '3.2rem', 
-                                        fontSize: '0.9rem',
-                                        fontWeight: 600,
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
                                         background: todayReport ? 'rgba(255,255,255,0.05)' : undefined,
                                         color: todayReport ? 'rgba(255,255,255,0.3)' : undefined,
                                         border: todayReport ? '1px solid rgba(255,255,255,0.05)' : undefined

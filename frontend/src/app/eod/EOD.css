@@ -40,6 +40,12 @@
     color: #fff;
     width: 100%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.9rem;
+}
+
+.glass-textarea::placeholder {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.3);
 }
 
 .glass-textarea:focus {

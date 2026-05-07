@@ -337,7 +337,7 @@ export const api = {
     submitEOD: async (payload: Partial<EODSubmissionDTO>) => {
         const data = { ...payload };
         
-        // Whitelist mapping for eod_reports table (mapping camelCase DTO to snake_case DB columns)
+        // Whitelist mapping for eod_reports table
         const dbPayload: any = {
             employeeId: data.employeeId,
             reportDate: data.reportDate,
@@ -345,17 +345,18 @@ export const api = {
             tasksInProgress: data.tasksInProgress,
             blockers: data.blockers,
             sentiment: data.sentiment,
-            status: data.status
+            status: data.status,
+            work_hours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
         
-        // Map back to DTO
-        if (res && (res as any).work_hours !== undefined) {
+        handleSupabaseEvent(res, error, 'Submit EOD');
+        
+        if (res) {
             (res as any).workHours = (res as any).work_hours;
         }
-
-        handleSupabaseEvent(res, error, 'Submit EOD');
+        
         return res as unknown as EODSubmissionDTO;
     },
     updateEOD: async (id: string, payload: Partial<EODSubmissionDTO>) => {
@@ -369,24 +370,25 @@ export const api = {
             tasksInProgress: data.tasksInProgress,
             blockers: data.blockers,
             sentiment: data.sentiment,
-            status: data.status
+            status: data.status,
+            work_hours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status').single();
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
         
-        // Map back to DTO
-        if (res && (res as any).work_hours !== undefined) {
+        handleSupabaseEvent(res, error, 'Update EOD');
+
+        if (res) {
             (res as any).workHours = (res as any).work_hours;
         }
 
-        handleSupabaseEvent(res, error, 'Update EOD');
         return res as unknown as EODSubmissionDTO;
     },
     getMyEODs: async (userId: string) => {
         if (!userId) throw new Error('Not authenticated');
         
         // Use the actual columns found in the DB (tasksCompleted/InProgress are arrays)
-        const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', userId).order('reportDate', { ascending: false });
+        const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', userId).order('reportDate', { ascending: false }).order('createdAt', { ascending: false });
         
         handleSupabaseEvent(data, error, 'Fetch My EODs');
         
@@ -496,7 +498,7 @@ export const api = {
     // Work Hours
     logWorkHours: async (data: Partial<WorkHourLogDTO>) => {
         const { data: res, error } = await supabase.from('work_hours').insert(data).select().single();
-        handleSupabaseEvent(data, error, 'Log Work Hours');
+        handleSupabaseEvent(res, error, 'Log Work Hours');
         return res as WorkHourLogDTO;
     },
 
@@ -604,6 +606,14 @@ export const api = {
             p_reason: reason
         });
         handleSupabaseEvent(null, error, 'Override KPI Score');
+        return { success: true };
+    },
+    recalculateKpiProfile: async (employeeId: string, monthYear: string) => {
+        const { error } = await supabase.rpc('recalculate_kpi_profile', {
+            p_employee_id: employeeId,
+            p_month_year: monthYear
+        });
+        handleSupabaseEvent(null, error, 'Recalculate KPI Profile');
         return { success: true };
     },
     addWorkHourLog: async (data: Partial<WorkHourLogDTO>) => {
