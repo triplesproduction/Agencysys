@@ -404,7 +404,7 @@ export const api = {
     getAllEODs: async (limit: number = 15) => {
         const { data, error } = await supabase
             .from('eod_reports')
-            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto)')
+            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto, department, roleId)')
             .order('reportDate', { ascending: false })
             .order('createdAt', { ascending: false })
             .limit(limit);

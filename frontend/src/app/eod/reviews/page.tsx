@@ -10,13 +10,14 @@ import { useNotifications } from '@/components/notifications/NotificationProvide
 
 interface EODReport {
     id: string;
+    employeeId: string;
     reportDate: string;
     blockers: string | null;
     sentiment: string;
     completedText: string | null;
     inProgressText: string | null;
     createdAt: string;
-    employee: { id: string; firstName: string; lastName: string; department: string | null; roleId: string } | null;
+    employee: { id: string; firstName: string; lastName: string; department: string | null; roleId: string; profilePhoto: string | null } | null;
     tasksCompleted: { id: string; title: string }[];
     tasksInProgress: { id: string; title: string }[];
     workHours: number | null;
