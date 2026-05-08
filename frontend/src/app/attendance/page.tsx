@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
     Calendar as CalendarIcon, 
     ChevronLeft, 
@@ -52,7 +52,6 @@ export default function AttendancePage() {
     const [loading, setLoading] = useState(true);
     const [showHolidayModal, setShowHolidayModal] = useState(false);
     const [newHoliday, setNewHoliday] = useState({ date: '', name: '', is_working_day: false });
-    const cache = useRef<Record<string, AttendanceReportDTO>>({});
 
     const isAdmin = useMemo(() => {
         if (!employee?.roleId) return false;
@@ -124,35 +123,20 @@ export default function AttendancePage() {
             addNotification({ title: 'Holiday Registered', message: 'Holiday successfully added to the system', type: 'SUCCESS' });
             setShowHolidayModal(false);
             setNewHoliday({ date: '', name: '', is_working_day: false });
-            refreshData(true);
+            refreshData();
         } catch {
             addNotification({ title: 'Registration Failed', message: 'Could not register holiday', type: 'ERROR' });
         }
     };
 
-    const refreshData = async (force: boolean = false) => {
+    const refreshData = async () => {
         if (!selectedEmployeeId) return;
         const monthYear = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
-        const cacheKey = `${selectedEmployeeId}-${monthYear}`;
-
-        if (!force && cache.current[cacheKey]) {
-            setData(cache.current[cacheKey]);
-            return;
-        }
 
         setLoading(true);
         try {
-            const [reportRes] = await Promise.all([
-                api.getAttendanceReport(selectedEmployeeId, monthYear),
-                force ? api.getEmployees({ limit: 100 }) : Promise.resolve(null)
-            ]);
-
-            cache.current[cacheKey] = reportRes;
+            const reportRes = await api.getAttendanceReport(selectedEmployeeId, monthYear);
             setData(reportRes);
-            
-            if (force) {
-                api.getEmployees({ limit: 100 }).then(res => setEmployees((res.data || []).filter(e => e.roleId !== 'ADMIN')));
-            }
         } finally {
             setLoading(false);
         }
