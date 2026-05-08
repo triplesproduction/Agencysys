@@ -24,7 +24,6 @@ interface AccountSecurityHubProps {
 }
 
 export default function AccountSecurityHub({ employees }: AccountSecurityHubProps) {
-    const [search, setSearch] = useState('');
     const [newPasswords, setNewPasswords] = useState<Record<string, string>>({});
     const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
     const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
@@ -33,14 +32,6 @@ export default function AccountSecurityHub({ employees }: AccountSecurityHubProp
     const [verifying, setVerifying] = useState(false);
     const { addNotification } = useNotifications();
     const { employee: authEmployee } = useAuth();
-
-    const filteredEmployees = useMemo(() => {
-        return employees.filter(emp => 
-            emp.firstName.toLowerCase().includes(search.toLowerCase()) ||
-            emp.lastName.toLowerCase().includes(search.toLowerCase()) ||
-            emp.email.toLowerCase().includes(search.toLowerCase())
-        );
-    }, [employees, search]);
 
     const generateRandomPassword = (empId: string) => {
         const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -161,18 +152,12 @@ export default function AccountSecurityHub({ employees }: AccountSecurityHubProp
                     flexShrink: 0
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-                        <div className="emp-search" style={{ maxWidth: '350px', background: 'rgba(0,0,0,0.2)' }}>
-                            <Search size={15} />
-                            <input
-                                type="text"
-                                placeholder="Search by name, email or department..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
+                        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'white', letterSpacing: '-0.01em' }}>
+                            Personnel Security Override
                         </div>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
-                        {filteredEmployees.length} Personnel Accounts Found
+                        {employees.length} Personnel Accounts Found
                     </div>
                 </div>
 
@@ -233,14 +218,15 @@ export default function AccountSecurityHub({ employees }: AccountSecurityHubProp
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredEmployees.length === 0 ? (
+                            {employees.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} style={{ padding: '80px', textAlign: 'center' }}>
-                                        <div style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.9rem' }}>No accounts matched your search criteria.</div>
+                                    <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
+                                        <AlertTriangle size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                                        <div>No personnel records found for security override.</div>
                                     </td>
                                 </tr>
                             ) : (
-                                filteredEmployees.map((emp) => (
+                                employees.map((emp) => (
                                     <tr key={emp.id} className="emp-row" style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                         <td style={{ padding: '10px 24px' }}>
                                             <div className="emp-row-identity">

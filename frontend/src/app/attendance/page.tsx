@@ -1,39 +1,39 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     Calendar as CalendarIcon, 
     ChevronLeft, 
     ChevronRight, 
     Plus, 
     Trash2, 
-    ShieldCheck, 
     X, 
     Info,
     User as UserIcon,
     BarChart3,
-    Palette
+    Palette,
+    Settings,
+    ShieldAlert
 } from 'lucide-react';
-import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
-import { HolidayDTO, AttendanceOverrideDTO, EODSubmissionDTO, LeaveApplicationDTO, EmployeeDTO } from '@/types/dto';
+import { HolidayDTO, AttendanceOverrideDTO, EODSubmissionDTO, LeaveApplicationDTO, EmployeeDTO, AttendanceReportDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import './Attendance.css';
 
 type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'PAID_LEAVE' | 'UNPAID_LEAVE' | 'HOLIDAY' | 'WORKED_ON_HOLIDAY' | 'NONE';
 
-const statusConfig: Record<AttendanceStatus, { label: string, color: string, bg: string, glow: string }> = {
-    PRESENT: { label: 'Present', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', glow: '0 0 12px rgba(16, 185, 129, 0.3)' },
-    ABSENT: { label: 'Absent', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)', glow: '0 0 12px rgba(239, 68, 68, 0.3)' },
-    PAID_LEAVE: { label: 'Paid Leave', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.15)', glow: '0 0 12px rgba(124, 58, 237, 0.3)' },
-    UNPAID_LEAVE: { label: 'Unpaid Leave', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)', glow: '0 0 12px rgba(249, 115, 22, 0.3)' },
-    HOLIDAY: { label: 'Holiday', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.1)', glow: 'none' },
-    WORKED_ON_HOLIDAY: { label: 'Holiday Work', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)', glow: '0 0 12px rgba(139, 92, 246, 0.3)' },
-    NONE: { label: 'Pending', color: 'transparent', bg: 'transparent', glow: 'none' }
+const statusConfig: Record<AttendanceStatus, { label: string, color: string, bg: string }> = {
+    PRESENT: { label: 'Present', color: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
+    ABSENT: { label: 'Unpaid Leave', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
+    PAID_LEAVE: { label: 'Paid Leave', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' },
+    UNPAID_LEAVE: { label: 'Unpaid Leave', color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)' },
+    HOLIDAY: { label: 'Holiday', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.05)' },
+    WORKED_ON_HOLIDAY: { label: 'Holiday Work', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.1)' },
+    NONE: { label: 'Pending', color: 'transparent', bg: 'transparent' }
 };
 
-const MIN_DATE = new Date(2025, 3, 1); // April 2025
+const MIN_DATE = new Date(2025, 3, 1);
 
 export default function AttendancePage() {
     const { employee } = useAuth();
@@ -42,469 +42,328 @@ export default function AttendancePage() {
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-    const [data, setData] = useState<{
-        eods: EODSubmissionDTO[],
-        leaves: LeaveApplicationDTO[],
-        holidays: HolidayDTO[],
-        overrides: AttendanceOverrideDTO[]
-    }>({ eods: [], leaves: [], holidays: [], overrides: [] });
+    const [data, setData] = useState<AttendanceReportDTO>({
+        eods: [],
+        leaves: [],
+        holidays: [],
+        overrides: []
+    });
     
-    const [isLoading, setIsLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [showHolidayModal, setShowHolidayModal] = useState(false);
-    const [showOverrideModal, setShowOverrideModal] = useState<{ day: Date, status: AttendanceStatus } | null>(null);
-    const [overrideReason, setOverrideReason] = useState('');
     const [newHoliday, setNewHoliday] = useState({ date: '', name: '', is_working_day: false });
+    const cache = useRef<Record<string, AttendanceReportDTO>>({});
 
-    const isAdmin = employee?.roleId === 'ADMIN';
+    const isAdmin = useMemo(() => {
+        if (!employee?.roleId) return false;
+        return employee.roleId.toUpperCase().includes('ADMIN');
+    }, [employee]);
 
     useEffect(() => {
-        if (isAdmin) {
-            api.getEmployees({ limit: 100 }).then(res => {
-                setEmployees(res.data);
-                if (res.data.length > 0 && !selectedEmployeeId) {
-                    setSelectedEmployeeId(employee?.id || res.data[0].id);
-                }
-            });
-        } else {
-            setSelectedEmployeeId(employee?.id || '');
-        }
+        setLoading(true);
+        api.getEmployees({ limit: 100 }).then(res => {
+            const list = (res.data || []).filter(e => e.roleId !== 'ADMIN');
+            setEmployees(list);
+            if (list.length > 0 && !selectedEmployeeId) {
+                setSelectedEmployeeId(isAdmin ? list[0].id : (employee?.id || ''));
+            } else if (!isAdmin) {
+                setSelectedEmployeeId(employee?.id || '');
+            }
+            setLoading(false);
+        });
     }, [isAdmin, employee]);
 
     useEffect(() => {
         if (selectedEmployeeId) {
-            if (selectedMonth < MIN_DATE) {
-                setSelectedMonth(MIN_DATE);
-                return;
-            }
-            const monthYear = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
-            setIsLoading(true);
-            api.getAttendanceReport(selectedEmployeeId, monthYear).then(res => {
-                setData(res);
-                setIsLoading(false);
-            }).catch(err => {
-                console.error(err);
-                setIsLoading(false);
-            });
+            refreshData();
         }
     }, [selectedEmployeeId, selectedMonth]);
 
     const calendarDays = useMemo(() => {
         const year = selectedMonth.getFullYear();
         const month = selectedMonth.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
+        const firstDay = new Date(year, month, 1).getDay();
+        const lastDate = new Date(year, month + 1, 0).getDate();
         
         const days = [];
-        for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
-        for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
+        for (let i = 0; i < firstDay; i++) days.push(null);
+        for (let i = 1; i <= lastDate; i++) days.push(new Date(year, month, i));
         return days;
     }, [selectedMonth]);
 
     const getDayStatus = (date: Date): AttendanceStatus => {
         const dateStr = date.toLocaleDateString('en-CA');
-        
-        const override = data.overrides.find(o => o.date === dateStr);
+        const override = data.overrides.find((o: AttendanceOverrideDTO) => o.date === dateStr);
         if (override) return override.status as AttendanceStatus;
 
-        const eod = data.eods.find(e => e.reportDate === dateStr);
-        const holiday = data.holidays.find(h => h.date === dateStr);
+        const eod = data.eods.find((e: EODSubmissionDTO) => e.reportDate === dateStr);
+        const holiday = data.holidays.find((h: HolidayDTO) => h.date === dateStr);
         const isSunday = date.getDay() === 0;
 
-        if (eod) {
-            if (holiday || isSunday) return 'WORKED_ON_HOLIDAY';
-            return 'PRESENT';
-        }
+        const leave = data.leaves.find((l: LeaveApplicationDTO) => l.status === 'APPROVED' && dateStr >= l.startDate && dateStr <= l.endDate);
+        if (leave) return leave.leaveType === 'Paid Leave' ? 'PAID_LEAVE' : 'UNPAID_LEAVE';
 
+        if (eod) return (holiday || isSunday) ? 'WORKED_ON_HOLIDAY' : 'PRESENT';
+        
         if (holiday || isSunday) return 'HOLIDAY';
-
-        const leave = data.leaves.find(l => dateStr >= l.startDate && dateStr <= l.endDate);
-        if (leave) {
-            return leave.leaveType === 'Paid Leave' ? 'PAID_LEAVE' : 'UNPAID_LEAVE';
-        }
 
         const today = new Date();
         today.setHours(0,0,0,0);
-        if (date < today) return 'ABSENT';
+        
+        if (date < today) {
+            return 'UNPAID_LEAVE'; 
+        }
         
         return 'NONE';
     };
 
     const handleAddHoliday = async () => {
-        if (!newHoliday.name || !newHoliday.date) {
-            addNotification({ title: 'Input Required', message: 'Please fill all fields', type: 'error' });
-            return;
-        }
-        const hDate = new Date(newHoliday.date);
-        if (hDate < MIN_DATE) {
-            addNotification({ title: 'Invalid Date', message: 'Cannot register holidays before April 2025', type: 'error' });
-            return;
-        }
+        if (!newHoliday.name || !newHoliday.date) return;
         try {
             await api.addHoliday(newHoliday);
-            addNotification({ title: 'Success', message: 'Holiday added', type: 'success' });
+            addNotification({ title: 'Holiday Registered', message: 'Holiday successfully added to the system', type: 'SUCCESS' });
             setShowHolidayModal(false);
             setNewHoliday({ date: '', name: '', is_working_day: false });
-            refreshData();
-        } catch (err) {
-            addNotification({ title: 'Error', message: 'Failed to add holiday', type: 'error' });
+            refreshData(true);
+        } catch {
+            addNotification({ title: 'Registration Failed', message: 'Could not register holiday', type: 'ERROR' });
         }
     };
 
-    const handleSetOverride = async () => {
-        if (!showOverrideModal) return;
-        try {
-            await api.setAttendanceOverride({
-                employee_id: selectedEmployeeId,
-                date: showOverrideModal.day.toLocaleDateString('en-CA'),
-                status: showOverrideModal.status as any,
-                reason: overrideReason
-            });
-            addNotification({ title: 'Saved', message: 'Override saved', type: 'success' });
-            setShowOverrideModal(null);
-            setOverrideReason('');
-            refreshData();
-        } catch (err) {
-            addNotification({ title: 'Failed', message: 'Failed to save override', type: 'error' });
-        }
-    };
-
-    const refreshData = () => {
+    const refreshData = async (force: boolean = false) => {
+        if (!selectedEmployeeId) return;
         const monthYear = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
-        api.getAttendanceReport(selectedEmployeeId, monthYear).then(setData);
+        const cacheKey = `${selectedEmployeeId}-${monthYear}`;
+
+        if (!force && cache.current[cacheKey]) {
+            setData(cache.current[cacheKey]);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const [reportRes] = await Promise.all([
+                api.getAttendanceReport(selectedEmployeeId, monthYear),
+                force ? api.getEmployees({ limit: 100 }) : Promise.resolve(null)
+            ]);
+
+            cache.current[cacheKey] = reportRes;
+            setData(reportRes);
+            
+            if (force) {
+                api.getEmployees({ limit: 100 }).then(res => setEmployees((res.data || []).filter(e => e.roleId !== 'ADMIN')));
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     const stats = useMemo(() => {
-        const counts = { PRESENT: 0, ABSENT: 0, PAID_LEAVE: 0, UNPAID_LEAVE: 0, HOLIDAY: 0, WORKED_ON_HOLIDAY: 0 };
+        const counts = { PRESENT: 0, PAID_LEAVE: 0, UNPAID_LEAVE: 0, HOLIDAY: 0, WORKED_ON_HOLIDAY: 0 };
         calendarDays.forEach(day => {
             if (day) {
-                const status = getDayStatus(day);
-                if (status !== 'NONE') counts[status as keyof typeof counts]++;
+                const s = getDayStatus(day);
+                if (s !== 'NONE' && s in counts) counts[s as keyof typeof counts]++;
             }
         });
         return counts;
-    }, [calendarDays, data]);
+    }, [calendarDays, data, getDayStatus]);
 
     return (
-        <div className="attendance-container">
-            <header className="attendance-header">
-                <div className="header-title-section">
+        <div className="attendance-root">
+            <div className="attendance-hero">
+                <div className="hero-text">
                     <h1>Attendance & Leaves</h1>
-                    <p>Track presence, monitor leave balances, and manage official holidays.</p>
+                    <p>Track team presence and manage institutional holidays.</p>
                 </div>
 
-                <div className="header-actions">
-                    <div className="month-navigator">
+                <div className="hero-controls">
+                    <div className="month-picker-glass">
                         <button 
-                            onClick={() => {
-                                const newDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1);
-                                if (newDate >= MIN_DATE) setSelectedMonth(newDate);
-                            }} 
-                            className="nav-btn"
-                            disabled={new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1) < MIN_DATE}
-                            style={{ opacity: new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1) < MIN_DATE ? 0.3 : 1 }}
+                            className="nav-arrow"
+                            onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))}
+                            disabled={selectedMonth <= MIN_DATE}
                         >
                             <ChevronLeft size={18} />
                         </button>
-                        <div className="current-month">
+                        <div className="current-month-display">
                             {selectedMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
                         </div>
-                        <button onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))} className="nav-btn">
+                        <button 
+                            className="nav-arrow"
+                            onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))}
+                        >
                             <ChevronRight size={18} />
                         </button>
                     </div>
 
                     {isAdmin && (
-                        <button onClick={() => setShowHolidayModal(true)} className="primary-button">
-                            <Plus size={18} />
-                            Manage Holidays
+                        <button className="primary-button" onClick={() => setShowHolidayModal(true)}>
+                            <Plus size={18} /> Manage Holidays
                         </button>
                     )}
                 </div>
-            </header>
+            </div>
 
-            <div className="attendance-main-layout">
-                {/* Main Calendar Content */}
-                <div className="calendar-section">
-                    <div className="calendar-wrapper">
-                        <div className="calendar-header-grid">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                                <div key={d} className="day-name">{d}</div>
-                            ))}
-                        </div>
-                        <div className="calendar-days-grid">
-                            {calendarDays.map((day, idx) => {
-                                if (!day) return <div key={idx} className="calendar-day-cell empty" />;
-                                
-                                const dateStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-                                const status = getDayStatus(day);
-                                const isToday = new Date().toDateString() === day.toDateString();
-                                const holiday = data.holidays.find(h => h.date === dateStr);
+            <div className="attendance-grid">
+                {/* ── CALENDAR ── */}
+                <div className="calendar-card">
+                    <div className="calendar-header-strip">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                            <div key={d} className="day-header">{d}</div>
+                        ))}
+                    </div>
+                    <div className="calendar-body-grid">
+                        {calendarDays.map((day, idx) => {
+                            if (!day) return <div key={`empty-${idx}`} className="date-cell empty" />;
+                            
+                            const dateStr = day.toLocaleDateString('en-CA');
+                            const status = getDayStatus(day);
+                            const config = statusConfig[status] || statusConfig.NONE;
+                            const holiday = data.holidays.find((h: HolidayDTO) => h.date === dateStr);
+                            const isToday = new Date().toDateString() === day.toDateString();
 
-                                return (
-                                    <div key={idx} className={`calendar-day-cell ${isToday ? 'today' : ''}`}>
-                                        <div className="day-number-wrapper">
-                                            <span className="day-number">{day.getDate()}</span>
-                                            {status !== 'NONE' && (
-                                                <div 
-                                                    className="status-indicator-dot" 
-                                                    style={{ background: statusConfig[status].color }} 
-                                                />
-                                            )}
-                                        </div>
-                                        
+                            return (
+                                <div key={dateStr} className={`date-cell ${isToday ? 'today' : ''}`}>
+                                    <div className="cell-top">
+                                        <span className="cell-num">{day.getDate()}</span>
                                         {status !== 'NONE' && (
-                                            <div className="day-status-pill" style={{ color: statusConfig[status].color, background: statusConfig[status].bg }}>
-                                                {statusConfig[status].label}
-                                            </div>
-                                        )}
-
-                                        {holiday && (
-                                            <span className="holiday-label">{holiday.name}</span>
-                                        )}
-
-                                        {isAdmin && (
-                                            <div className="cell-overlay">
-                                                <button 
-                                                    className="override-trigger-btn"
-                                                    onClick={() => setShowOverrideModal({ day, status })}
-                                                >
-                                                    Override
-                                                </button>
-                                            </div>
+                                            <div className="status-dot" style={{ background: config.color }} />
                                         )}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    
+                                    {status !== 'NONE' && (
+                                        <div className="status-label-pill" style={{ color: config.color, background: config.bg }}>
+                                            {config.label}
+                                        </div>
+                                    )}
+
+                                    {holiday && <div className="holiday-name-tag">{holiday.name}</div>}
+
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Sidebar Stats & Info */}
+                {/* ── SIDEBAR ── */}
                 <div className="attendance-sidebar">
-                    {/* Widget 1: Personnel Profile */}
-                    <GlassCard className="sidebar-widget-premium">
-                        <div className="widget-header-compact">
-                            <div className="widget-icon-wrapper">
-                                <UserIcon size={18} />
+                    <div className="sidebar-glass-card">
+                        <div className="widget-title">
+                            <UserIcon size={18} /> Personnel Context
+                        </div>
+                        <div className="member-select-wrap">
+                            <label className="stat-v-label">Selected Employee</label>
+                            <select 
+                                className="liquid-select"
+                                value={selectedEmployeeId}
+                                onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                            >
+                                {employees.map(emp => (
+                                    <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="stat-v-item full-width">
+                            <span className="stat-v-label">Remaining Paid Leaves</span>
+                            <span className="stat-v-value">
+                                {employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId)?.leave_balance || 0}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="sidebar-glass-card">
+                        <div className="widget-title">
+                            <BarChart3 size={18} /> Monthly Insights
+                        </div>
+                        <div className="stats-v-grid">
+                            <div className="stat-v-item">
+                                <span className="stat-v-label">Present</span>
+                                <span className="stat-v-value" style={{ color: '#10B981' }}>{stats.PRESENT}</span>
                             </div>
-                            <div className="widget-title-group">
-                                <h3 className="widget-title-premium">Personnel Profile</h3>
-                                <p className="widget-subtitle-premium">Member Leave Metrics</p>
+                            <div className="stat-v-item">
+                                <span className="stat-v-label">Unpaid Leave</span>
+                                <span className="stat-v-value" style={{ color: '#EF4444' }}>{stats.UNPAID_LEAVE}</span>
+                            </div>
+                            <div className="stat-v-item">
+                                <span className="stat-v-label">Paid Leave</span>
+                                <span className="stat-v-value" style={{ color: '#7C3AED' }}>{stats.PAID_LEAVE}</span>
+                            </div>
+                            <div className="stat-v-item">
+                                <span className="stat-v-label">Holiday OT</span>
+                                <span className="stat-v-value" style={{ color: '#8B5CF6' }}>{stats.WORKED_ON_HOLIDAY}</span>
                             </div>
                         </div>
-
-                        <div className="widget-content-stacked">
-                            <div className="selection-section">
-                                <label className="field-label-premium">Select Team Member</label>
-                                <select 
-                                    className="select-premium-glass"
-                                    value={selectedEmployeeId || ''}
-                                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                                >
-                                    {employees.map(emp => (
-                                        <option key={emp.id} value={emp.id} className="bg-[#0f0f14]">
-                                            {emp.firstName} {emp.lastName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="leave-balance-card-premium">
-                                <div className="leave-balance-row">
-                                    <span className="leave-label">Available Leave Balance</span>
-                                    <div className="leave-badge-premium">
-                                        {employees.find(e => e.id === selectedEmployeeId)?.leave_balance || 0} Days
-                                    </div>
-                                </div>
-                                <div className="leave-progress-container">
-                                    <div 
-                                        className="leave-progress-bar-fill" 
-                                        style={{ width: `${Math.min(100, ((employees.find(e => e.id === selectedEmployeeId)?.leave_balance || 0) / 20) * 100)}%` }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </GlassCard>
-
-                    {/* Widget 2: Monthly Insights */}
-                    <GlassCard className="sidebar-widget-premium">
-                        <div className="widget-header-compact">
-                            <div className="widget-icon-wrapper stats-accent">
-                                <BarChart3 size={18} />
-                            </div>
-                            <div className="widget-title-group">
-                                <h3 className="widget-title-premium">Monthly Insights</h3>
-                                <p className="widget-subtitle-premium">{selectedMonth.toLocaleString('default', { month: 'long' })} Overview</p>
-                            </div>
-                        </div>
-
-                        <div className="widget-content-stacked">
-                            <div className="stats-compact-grid">
-                                <div className="stat-pill-premium">
-                                    <span className="stat-pill-label">Present</span>
-                                    <span className="stat-pill-value text-emerald-400">{stats.PRESENT}</span>
-                                </div>
-                                <div className="stat-pill-premium">
-                                    <span className="stat-pill-label">Absent</span>
-                                    <span className="stat-pill-value text-red-400">{stats.ABSENT}</span>
-                                </div>
-                                <div className="stat-pill-premium">
-                                    <span className="stat-pill-label">Leaves</span>
-                                    <span className="stat-pill-value text-purple-400">{stats.PAID_LEAVE}</span>
-                                </div>
-                                <div className="stat-pill-premium">
-                                    <span className="stat-pill-label">OT</span>
-                                    <span className="stat-pill-value text-blue-400">{stats.WORKED_ON_HOLIDAY}</span>
-                                </div>
-                            </div>
-
-                            <div className="legend-premium-section">
-                                <div className="legend-header-compact">
-                                    <Palette size={12} className="text-gray-400" />
-                                    <span className="field-label-premium mb-0">Status Guide</span>
-                                </div>
-                                <div className="legend-items-wrap">
-                                    {Object.entries(statusConfig).map(([key, cfg]) => (
-                                        key !== 'NONE' && (
-                                            <div key={key} className="legend-item-pill">
-                                                <div className="legend-indicator" style={{ background: cfg.color }} />
-                                                <span>{cfg.label}</span>
-                                            </div>
-                                        )
-                                    ))}
-                                </div>
-                            </div>
-
-                            {isAdmin && (
-                                <button onClick={() => setShowHolidayModal(true)} className="action-button-premium">
-                                    <Plus size={16} /> Manage Holidays
-                                </button>
-                            )}
-                        </div>
-                    </GlassCard>
+                    </div>
                 </div>
             </div>
 
-            {/* Holiday Manager Modal */}
+            {/* ── HOLIDAY MODAL ── */}
             {showHolidayModal && (
-                <div className="modal-overlay">
-                    <GlassCard className="modal-content wide p-0 overflow-hidden">
-                        <div className="modal-header-premium">
-                            <div>
-                                <h2 className="modal-title-gradient">Holiday Management</h2>
-                                <p className="modal-subtitle">Register and manage official holidays for the organization.</p>
-                            </div>
-                            <button onClick={() => setShowHolidayModal(false)} className="close-btn-premium"><X size={20} /></button>
+                <div className="glass-modal-overlay" onClick={() => setShowHolidayModal(false)}>
+                    <div className="correction-modal-card" onClick={e => e.stopPropagation()}>
+                        <div className="correction-header">
+                            <h3>Institution Holidays</h3>
+                            <button className="nav-arrow" onClick={() => setShowHolidayModal(false)}>
+                                <X size={20} />
+                            </button>
                         </div>
                         
-                        <div className="p-8">
-                            <div className="holiday-modal-body">
-                                <div className="holiday-form-side space-y-6">
-                                    <span className="modal-section-title">New Holiday Entry</span>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Holiday Name</label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="e.g. Independence Day"
-                                            className="employee-select-glass"
-                                            value={newHoliday.name}
-                                            onChange={e => setNewHoliday({...newHoliday, name: e.target.value})}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Observance Date</label>
-                                        <input 
-                                            type="date" 
-                                            className="employee-select-glass"
-                                            value={newHoliday.date}
-                                            onChange={e => setNewHoliday({...newHoliday, date: e.target.value})}
-                                        />
-                                    </div>
-                                    <button onClick={handleAddHoliday} className="primary-button w-full mt-4">
-                                        <Plus size={18} /> Register Holiday
-                                    </button>
-                                </div>
-
-                                <div className="holiday-list-side">
-                                    <span className="modal-section-title">Registered Holidays</span>
-                                    <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-3">
-                                        {data.holidays.length === 0 ? (
-                                            <div className="text-center py-12 opacity-30">
-                                                <Info size={32} className="mx-auto mb-2" />
-                                                <p className="text-sm">No holidays registered yet</p>
-                                            </div>
-                                        ) : (
-                                            data.holidays.map(h => (
-                                                <div key={h.id} className="holiday-item-glass">
-                                                    <div className="holiday-info">
-                                                        <h4>{h.name}</h4>
-                                                        <p>{new Date(h.date).toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                                                    </div>
-                                                    <button 
-                                                        onClick={async () => {
-                                                            if(confirm('Delete holiday?')) {
-                                                                await api.deleteHoliday(h.id);
-                                                                refreshData();
-                                                            }
-                                                        }}
-                                                        className="delete-holiday-btn"
-                                                        title="Remove Holiday"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
+                        <div className="correction-body" style={{ paddingBottom: '0' }}>
+                            <div className="modal-input-group">
+                                <label className="input-label">Holiday Name</label>
+                                <input 
+                                    className="correction-textarea"
+                                    style={{ minHeight: 'unset', padding: '12px 16px', marginBottom: '16px' }}
+                                    type="text" 
+                                    placeholder="e.g. Diwali"
+                                    value={newHoliday.name}
+                                    onChange={e => setNewHoliday({...newHoliday, name: e.target.value})}
+                                />
                             </div>
-                        </div>
-                    </GlassCard>
-                </div>
-            )}
-
-            {/* Override Modal */}
-            {showOverrideModal && (
-                <div className="modal-overlay">
-                    <GlassCard className="modal-content p-0 overflow-hidden" style={{ maxWidth: '520px' }}>
-                        <div className="modal-header-premium">
-                            <div>
-                                <h2 className="modal-title-gradient">Attendance Correction</h2>
-                                <p className="modal-subtitle">Record adjustment for {showOverrideModal.day.toLocaleDateString('default', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                            </div>
-                            <button onClick={() => setShowOverrideModal(null)} className="close-btn-premium"><X size={20} /></button>
-                        </div>
-                        
-                        <div className="p-8 space-y-6">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase mb-3 block letter-spacing-widest">Correction Status</label>
-                                <select 
-                                    value={showOverrideModal.status}
-                                    onChange={(e) => setShowOverrideModal({ ...showOverrideModal, status: e.target.value as AttendanceStatus })}
-                                    className="employee-select-glass"
-                                >
-                                    {Object.entries(statusConfig).filter(([k]) => k !== 'NONE').map(([key, cfg]) => (
-                                        <option key={key} value={key} className="bg-[#0f0f14]">{cfg.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase mb-3 block letter-spacing-widest">Adjustment Rationale</label>
-                                <textarea 
-                                    value={overrideReason}
-                                    onChange={(e) => setOverrideReason(e.target.value)}
-                                    placeholder="Briefly explain this manual override for audit purposes..."
-                                    className="employee-select-glass h-32 resize-none p-4"
+                            <div className="modal-input-group">
+                                <label className="input-label">Date</label>
+                                <input 
+                                    className="correction-textarea"
+                                    style={{ minHeight: 'unset', padding: '12px 16px', marginBottom: '16px' }}
+                                    type="date"
+                                    value={newHoliday.date}
+                                    onChange={e => setNewHoliday({...newHoliday, date: e.target.value})}
                                 />
                             </div>
 
-                            <div className="flex gap-4 pt-4">
-                                <button onClick={() => setShowOverrideModal(null)} className="secondary-button flex-1 py-4">Discard</button>
-                                <button onClick={handleSetOverride} className="primary-button flex-1 py-4">Apply Changes</button>
+                            <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                                <label className="input-label">Active Holidays</label>
+                                <div className="active-holidays-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                    {data.holidays.length === 0 && <div style={{ opacity: 0.3, fontSize: '0.8rem', textAlign: 'center', padding: '20px' }}>No holidays registered</div>}
+                                    {data.holidays.map((h: HolidayDTO) => (
+                                        <div key={h.id} className="holiday-list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '12px', marginBottom: '8px' }}>
+                                            <div>
+                                                <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'white' }}>{h.name}</div>
+                                                <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>{h.date}</div>
+                                            </div>
+                                            <button 
+                                                className="nav-arrow" 
+                                                style={{ color: '#EF4444' }}
+                                                onClick={async () => { if(confirm('Delete holiday?')) { await api.deleteHoliday(h.id); refreshData(); } }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </GlassCard>
+
+                        <div className="correction-footer" style={{ marginTop: '20px' }}>
+                            <button className="correction-btn-cancel" onClick={() => setShowHolidayModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="correction-btn-apply" onClick={handleAddHoliday}>
+                                Register Holiday
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

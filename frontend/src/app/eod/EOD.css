@@ -49,22 +49,54 @@
 }
 
 .glass-textarea:focus {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border-color: rgba(139, 92, 246, 0.3) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(139, 92, 246, 0.4) !important;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
     outline: none;
+}
+
+/* Custom Scrollbar for Textareas */
+.glass-textarea::-webkit-scrollbar {
+    width: 6px;
+}
+
+.glass-textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.glass-textarea::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.glass-textarea::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.success-pulse {
+    animation: pulseSuccess 2s infinite;
+}
+
+@keyframes pulseSuccess {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 .report-log-item {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-bottom: 1px solid rgba(255,255,255,0.02);
 }
 
 .report-log-item:hover {
     background: rgba(255,255,255,0.03) !important;
-    transform: translateY(-1px);
+    transform: translateX(4px);
 }
 
 .report-log-item.active {
     box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+    background: rgba(139, 92, 246, 0.05) !important;
+    border-left: 3px solid var(--purple-main);
 }
 
 @keyframes fadeIn {

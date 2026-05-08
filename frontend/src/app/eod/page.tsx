@@ -103,19 +103,16 @@ export default function EODPage() {
     // Sync today's data into the form if it exists
     useEffect(() => {
         if (!reportsLoading && myReports.length > 0) {
-            const today = new Date().toDateString();
-            const existing = myReports.find(r => new Date(r.reportDate).toDateString() === today);
+            const today = new Date().toLocaleDateString('en-CA');
+            const existing = myReports.find(r => r.reportDate === today);
             
             if (existing) {
-                const matchingLog = workHourLogs.find(l => new Date(l.date).toDateString() === today);
-                const desc = matchingLog?.description || '';
-                // Block if admin has reviewed or if there's a status marker
-                const reviewed = desc.includes('Admin reviewed') || desc.includes('[Status:') || (existing as any).status === 'APPROVED' || (existing as any).status === 'REVIEWED';
+                const reviewed = existing.status === 'APPROVED' || existing.status === 'REVIEWED';
 
                 setFormData({
-                    tasksCompleted: '',
-                    blockers: '',
-                    workHours: '',
+                    tasksCompleted: (existing.tasksCompleted as string[]).join('\n') || (existing as any).completedText || '',
+                    blockers: existing.blockers || '',
+                    workHours: (existing.workHours || (existing as any).work_hours || '').toString(),
                 });
                 
                 setTodayReport(existing);
@@ -125,15 +122,15 @@ export default function EODPage() {
                 setIsReviewed(false);
             }
         }
-    }, [myReports, workHourLogs, reportsLoading]);
+    }, [myReports, reportsLoading]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setSuccess(false);
 
-        if (todayReport) {
-            setError('You have already submitted your EOD for today. It cannot be modified.');
+        if (isReviewed) {
+            setError('This report has already been reviewed by admin and cannot be modified.');
             return;
         }
 
@@ -148,8 +145,8 @@ export default function EODPage() {
         }
 
         const hours = parseFloat(formData.workHours);
-        if (isNaN(hours) || hours <= 0) {
-            setError('Please enter your total work hours for today.');
+        if (isNaN(hours) || hours <= 0 || hours > 24) {
+            setError('Please enter valid work hours (0.5 - 24).');
             return;
         }
 
@@ -164,51 +161,44 @@ export default function EODPage() {
         try {
             const empId = authEmployee.id;
             const completedList = formData.tasksCompleted.split('\n').filter(t => t && t.trim() !== '');
-            const todayDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+            const todayDate = new Date().toLocaleDateString('en-CA');
 
-            const payload: Partial<EODSubmissionDTO> = {
+            const payload: any = {
                 employeeId: empId,
                 reportDate: todayDate,
                 tasksCompleted: completedList,
+                completedText: formData.tasksCompleted, // Fallback for long-form
                 tasksInProgress: [],
-                blockers: formData.blockers || undefined,
+                blockers: formData.blockers,
                 sentiment: 'GOOD',
                 workHours: hours
             };
 
-            console.log('[EOD] Submitting report to database...', payload);
-            const createdReport = await api.submitEOD(payload);
-            console.log('[EOD] Report created successfully:', createdReport?.id);
+            let result;
+            if (todayReport) {
+                console.log('[EOD] Updating existing report...', todayReport.id);
+                result = await api.updateEOD(todayReport.id, payload);
+            } else {
+                console.log('[EOD] Submitting new report...', payload);
+                result = await api.submitEOD(payload);
+            }
+
+            console.log('[EOD] Report saved successfully:', result?.id);
 
             // Sync/Update work hours log
             try {
                 console.log('[EOD] Syncing work hours...');
-                const existingLog = workHourLogs.find(l => l.date === todayDate);
-                
-                if (existingLog) {
-                    console.log('[EOD] Updating existing work log:', existingLog.id);
-                    await api.reviewEOD(createdReport.id, {
-                         employeeId: empId,
-                         date: todayDate,
-                         workHours: hours,
-                         adminNote: 'Updated by employee during EOD submission',
-                         status: 'PENDING'
-                    });
-                } else {
-                    console.log('[EOD] Creating new work log...');
-                    await api.logWorkHours({
+                await api.reviewEOD(result.id, {
                         employeeId: empId,
                         date: todayDate,
-                        hoursLogged: hours,
-                        description: 'EOD Daily Submission',
-                    });
-                }
+                        workHours: hours,
+                        adminNote: 'Updated by employee during EOD submission',
+                        status: 'PENDING'
+                });
             } catch (hourError: any) {
                 console.warn('[EOD] Work hour sync warning (non-fatal):', hourError?.message);
             }
 
-            console.log('[EOD] Submission complete, clearing form.');
-            setFormData({ tasksCompleted: '', blockers: '', workHours: '' });
             setSuccess(true);
             setTimeout(() => setSuccess(false), 5000);
 
@@ -216,7 +206,7 @@ export default function EODPage() {
             fetchMyReports();
         } catch (err: any) {
             console.error('[EOD] CRITICAL ERROR during submission:', err);
-            setError(err.message || 'Submission failed. Please check your connection and try again.');
+            setError(err.message || 'Submission failed. Your entry might be too large or there is a connection issue.');
         } finally {
             console.log('[EOD] Submission process ended.');
             setLoading(false);
@@ -257,20 +247,17 @@ export default function EODPage() {
                                     <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
                                         Tasks Accomplished Today <span style={{ color: '#F87171' }}>*</span>
                                     </label>
-                                    {isReviewed ? (
-                                        <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800, background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '4px' }}>REVIEWED BY ADMIN</span>
-                                    ) : todayReport ? (
-                                        <span style={{ fontSize: '0.65rem', color: '#60A5FA', fontWeight: 800, background: 'rgba(96,165,250,0.1)', padding: '2px 8px', borderRadius: '4px' }}>SUBMITTED</span>
-                                    ) : (
-                                        <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>Enter one task per line</span>
-                                    )}
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        {isReviewed && <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800, background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '4px' }}>REVIEWED BY ADMIN</span>}
+                                        <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>{formData.tasksCompleted.length} chars</span>
+                                    </div>
                                 </div>
                                 <textarea
                                     className="glass-textarea"
-                                    rows={10}
-                                    disabled={!!todayReport}
-                                    style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '16px', cursor: todayReport ? 'not-allowed' : 'text', flex: 1, resize: 'vertical' }}
-                                    placeholder="Write the tasks you completed today"
+                                    rows={15}
+                                    disabled={isReviewed}
+                                    style={{ fontSize: '0.9rem', lineHeight: '1.6', padding: '20px', cursor: isReviewed ? 'not-allowed' : 'text', flex: 1, resize: 'vertical', minHeight: '300px' }}
+                                    placeholder="List everything you achieved today. Long-form entries are fully supported."
                                     value={formData.tasksCompleted}
                                     onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
                                 />
@@ -282,18 +269,19 @@ export default function EODPage() {
                                     <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
                                         Blockers / Impediments <span style={{ color: '#F87171' }}>*</span>
                                     </label>
-                                    <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>Anything slowing you down?</span>
+                                    <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>{formData.blockers.length} chars</span>
                                 </div>
                                 <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
                                     <textarea
-                                        disabled={!!todayReport}
+                                        disabled={isReviewed}
                                         className="glass-textarea"
-                                        style={{ fontSize: '0.9rem', lineHeight: '1.5', padding: '16px 16px 16px 2.8rem', cursor: todayReport ? 'not-allowed' : 'text', flex: 1, resize: 'vertical' }}
-                                        placeholder="List any blockers here..."
+                                        rows={15}
+                                        style={{ fontSize: '0.9rem', lineHeight: '1.6', padding: '20px 20px 20px 2.8rem', cursor: isReviewed ? 'not-allowed' : 'text', flex: 1, resize: 'vertical', minHeight: '300px' }}
+                                        placeholder="Any obstacles or issues today? Describe them in detail."
                                         value={formData.blockers}
                                         onChange={e => setFormData({ ...formData, blockers: e.target.value })}
                                     />
-                                    <AlertTriangle size={15} style={{ position: 'absolute', left: '1rem', top: '18px', opacity: 0.3 }} />
+                                    <AlertTriangle size={15} style={{ position: 'absolute', left: '1rem', top: '22px', opacity: 0.3 }} />
                                 </div>
                             </div>
                         </div>
@@ -322,7 +310,7 @@ export default function EODPage() {
                             <div style={{ flex: 1 }}>
                                 <Button
                                     type="submit"
-                                    disabled={loading || !!todayReport}
+                                    disabled={loading || isReviewed}
                                     className="submit-btn"
                                     style={{ 
                                         width: '100%', 
@@ -331,12 +319,12 @@ export default function EODPage() {
                                         fontWeight: 700,
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em',
-                                        background: todayReport ? 'rgba(255,255,255,0.05)' : undefined,
-                                        color: todayReport ? 'rgba(255,255,255,0.3)' : undefined,
-                                        border: todayReport ? '1px solid rgba(255,255,255,0.05)' : undefined
+                                        background: isReviewed ? 'rgba(255,255,255,0.05)' : todayReport ? 'var(--purple-main)' : undefined,
+                                        color: isReviewed ? 'rgba(255,255,255,0.3)' : undefined,
+                                        border: isReviewed ? '1px solid rgba(255,255,255,0.05)' : undefined
                                      }}
                                 >
-                                    {loading ? 'Processing...' : todayReport ? 'Submitted for Today' : 'Publish Daily EOD'}
+                                    {loading ? 'Processing...' : isReviewed ? 'Report Reviewed (Locked)' : todayReport ? 'Update Today\'s EOD' : 'Publish Daily EOD'}
                                 </Button>
                             </div>
                         </div>

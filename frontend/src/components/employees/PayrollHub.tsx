@@ -12,8 +12,13 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
-    Users
+    Users,
+    Download,
+    Plus,
+    Save
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import GlassCard from '@/components/GlassCard';
 import { EmployeeDTO } from '@/types/dto';
 import { api } from '@/lib/api';
@@ -24,6 +29,7 @@ interface PayrollHubProps {
 }
 
 interface PayrollRecord {
+    id?: string;
     employee: EmployeeDTO;
     workingDays: number;
     daysPresent: number;
@@ -33,6 +39,10 @@ interface PayrollRecord {
     deductions: number;
     netPayable: number;
     formula: string;
+    bonus: number;
+    travelExpenses: number;
+    adjustmentsNote: string;
+    status: string;
 }
 
 export default function PayrollHub({ employees }: PayrollHubProps) {
@@ -92,18 +102,21 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
             
             const results: PayrollRecord[] = employees.map(emp => {
                 // Check if we have a finalized record for this employee
-                const saved = finalizedRecords.find(r => r.employee_id === emp.id);
+                const saved = finalizedRecords.find(r => r.employeeid === emp.id);
                 if (saved) {
                     return {
                         id: saved.id,
                         employee: emp,
-                        baseSalary: saved.base_salary,
-                        deductions: saved.deductions,
-                        netPayable: saved.net_payable,
-                        workingDays: saved.working_days,
-                        daysPresent: saved.days_present,
-                        approvedLeaves: saved.approved_leaves,
-                        unpaidAbsences: saved.unpaid_absences,
+                        baseSalary: Number(saved.basesalary),
+                        deductions: Number(saved.deductions),
+                        netPayable: Number(saved.netpayable),
+                        workingDays: Number(saved.workingdays),
+                        daysPresent: Number(saved.dayspresent),
+                        approvedLeaves: Number(saved.approvedleaves),
+                        unpaidAbsences: Number(saved.unpaidabsences),
+                        bonus: Number(saved.bonus || 0),
+                        travelExpenses: Number(saved.travel_expenses || 0),
+                        adjustmentsNote: saved.adjustments_note || '',
                         formula: saved.formula,
                         status: saved.status
                     };
@@ -147,7 +160,11 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                     baseSalary: base,
                     deductions,
                     netPayable,
-                    formula: `${base} - (${unpaidAbsences} days  ${dailyRate.toFixed(2)})`
+                    bonus: 0,
+                    travelExpenses: 0,
+                    adjustmentsNote: '',
+                    status: 'DRAFT',
+                    formula: `${base} - (${unpaidAbsences} days * ${dailyRate.toFixed(2)})`
                 };
             });
 
@@ -323,13 +340,13 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                 <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
                     <table className="emp-table" style={{ background: 'transparent', tableLayout: 'fixed' }}>
                         <thead>
-                            <tr style={{ background: 'rgba(0,0,0,0.2)', position: 'sticky', top: 0, zIndex: 10 }}>
-                                <th style={{ padding: '16px 24px', width: '25%' }}>Employee</th>
-                                <th style={{ width: '15%' }}>Base</th>
-                                <th style={{ width: '20%' }}>Attendance</th>
-                                <th style={{ width: '15%' }}>Adjustments</th>
-                                <th style={{ width: '15%' }}>Payout</th>
-                                <th style={{ paddingRight: '24px', width: '10%', textAlign: 'right' }}>Actions</th>
+                            <tr style={{ background: 'rgba(13, 13, 18, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10 }}>
+                                <th style={{ padding: '16px 24px', width: '25%', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--glass-border)' }}>Employee</th>
+                                <th style={{ padding: '16px 12px', width: '15%', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--glass-border)' }}>Base</th>
+                                <th style={{ padding: '16px 12px', width: '20%', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--glass-border)' }}>Attendance</th>
+                                <th style={{ padding: '16px 12px', width: '15%', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--glass-border)' }}>Adjustments</th>
+                                <th style={{ padding: '16px 12px', width: '15%', textAlign: 'left', fontSize: '0.7rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--glass-border)' }}>Payout</th>
+                                <th style={{ padding: '16px 24px', width: '10%', textAlign: 'right', fontSize: '0.7rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--glass-border)' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -347,7 +364,7 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                             ) : (
                                 filteredPayroll.map((record) => (
                                     <tr key={record.employee.id} className="emp-row" style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                        <td style={{ padding: '12px 24px' }}>
+                                        <td style={{ padding: '14px 24px' }}>
                                             <div className="emp-row-identity">
                                                 <div className="emp-row-avatar" style={{ borderRadius: '10px', width: '36px', height: '36px' }}>
                                                     {record.employee.profilePhoto ? <img src={record.employee.profilePhoto} alt="" /> : record.employee.firstName.charAt(0)}
@@ -358,11 +375,11 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td style={{ padding: '14px 12px' }}>
                                             <div style={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>{record.baseSalary.toLocaleString()}</div>
                                             <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>FIXED</div>
                                         </td>
-                                        <td>
+                                        <td style={{ padding: '14px 12px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{record.daysPresent}d</div>
                                                 <div style={{ height: '3px', width: '30px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden' }}>
@@ -371,14 +388,14 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                                             </div>
                                             <div style={{ fontSize: '0.65rem', color: record.approvedLeaves > 1 ? '#EF4444' : '#FBBF24', marginTop: '1px' }}>{record.approvedLeaves} Leaves</div>
                                         </td>
-                                        <td>
+                                        <td style={{ padding: '14px 12px' }}>
                                             {record.deductions > 0 ? (
                                                 <div style={{ color: '#EF4444', fontWeight: 600, fontSize: '0.85rem' }}>-{record.deductions.toLocaleString()}</div>
                                             ) : (
                                                 <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.8rem' }}>None</span>
                                             )}
                                         </td>
-                                        <td>
+                                        <td style={{ padding: '14px 12px' }}>
                                             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10B981' }}>{record.netPayable.toLocaleString()}</div>
                                         </td>
                                         <td style={{ textAlign: 'right', paddingRight: '24px' }}>
@@ -398,124 +415,282 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                 </div>
                      {/* Breakup Drawer Portaled */}
             {selectedBreakup && typeof document !== 'undefined' && ReactDOM.createPortal(
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', zIndex: 100000, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.2s' }} onClick={() => setSelectedBreakup(null)}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', zIndex: 100000, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.2s' }} onClick={() => setSelectedBreakup(null)}>
                     <div 
                         className="slide-left"
                         style={{ 
-                            background: 'rgba(10, 10, 12, 0.95)', 
+                            background: 'rgba(12, 12, 16, 0.98)', 
                             width: '100%', 
-                            maxWidth: '440px', 
+                            maxWidth: '480px', 
                             height: '100%', 
                             borderLeft: '1px solid var(--glass-border)', 
                             display: 'flex', 
                             flexDirection: 'column', 
-                            boxShadow: '-40px 0 80px rgba(0,0,0,0.6)', 
+                            boxShadow: '-40px 0 100px rgba(0,0,0,0.8)', 
                             overflow: 'hidden',
-                            backdropFilter: 'blur(25px)'
+                            backdropFilter: 'blur(30px)'
                         }}
                         onClick={e => e.stopPropagation()}
                     >
-                        <div style={{ padding: '36px 32px 28px', borderBottom: '1px solid var(--glass-border)', position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '180px', height: '180px', background: 'var(--purple-main)', filter: 'blur(70px)', opacity: 0.15 }}></div>
+                        <div style={{ padding: '40px 36px 28px', borderBottom: '1px solid var(--glass-border)', position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '220px', height: '220px', background: 'var(--purple-main)', filter: 'blur(90px)', opacity: 0.12 }}></div>
                             
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-accent)', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                                    <Activity size={13} /> Secure Audit Trail
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-accent)', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+                                    <Activity size={13} /> Integrated Ledger System
                                 </div>
-                                <button onClick={() => setSelectedBreakup(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}></button>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button 
+                                        onClick={() => {
+                                            const doc = new jsPDF() as any;
+                                            const { employee: emp } = selectedBreakup;
+                                            
+                                            // Add header
+                                            doc.setFillColor(139, 92, 246);
+                                            doc.rect(0, 0, 210, 40, 'F');
+                                            doc.setTextColor(255, 255, 255);
+                                            doc.setFontSize(22);
+                                            doc.text('PAYSLIP', 105, 25, { align: 'center' });
+                                            
+                                            doc.setTextColor(0, 0, 0);
+                                            doc.setFontSize(10);
+                                            doc.text(`Employee: ${emp.firstName} ${emp.lastName}`, 20, 50);
+                                            doc.text(`ID: ${emp.id.slice(0, 8)}`, 20, 55);
+                                            doc.text(`Period: ${monthNames[selectedMonth]} ${selectedYear}`, 140, 50);
+                                            
+                                            const tableData = [
+                                                ['Description', 'Calculation', 'Amount'],
+                                                ['Base Salary', 'Fixed Rate', `Rs. ${selectedBreakup.baseSalary.toLocaleString()}`],
+                                                ['Attendance', `${selectedBreakup.daysPresent}/${selectedBreakup.workingDays} days`, ''],
+                                                ['Deductions', `${selectedBreakup.unpaidAbsences} Unpaid Absences`, `- Rs. ${selectedBreakup.deductions.toLocaleString()}`],
+                                                ['Bonus', 'Performance/Special', `+ Rs. ${selectedBreakup.bonus.toLocaleString()}`],
+                                                ['Travel Expenses', 'Reimbursements', `+ Rs. ${selectedBreakup.travelExpenses.toLocaleString()}`],
+                                                ['TOTAL NET PAYABLE', '', `Rs. ${selectedBreakup.netPayable.toLocaleString()}`]
+                                            ];
+                                            
+                                            (doc as any).autoTable({
+                                                startY: 70,
+                                                head: [tableData[0]],
+                                                body: tableData.slice(1),
+                                                theme: 'grid',
+                                                headStyles: { fillColor: [139, 92, 246] },
+                                                columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } }
+                                            });
+                                            
+                                            doc.save(`Payslip_${emp.firstName}_${monthNames[selectedMonth]}.pdf`);
+                                        }}
+                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', padding: '6px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                        <Download size={13} /> PDF Slip
+                                    </button>
+                                    <button onClick={() => setSelectedBreakup(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', width: '32px', height: '32px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                </div>
                             </div>
 
-                            <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'white', margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Financial Snapshot</h2>
-                            <p style={{ color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontSize: '0.8rem', fontWeight: 500 }}>Ledger archive for {monthNames[selectedMonth]} {selectedYear}</p>
+                            <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'white', margin: 0, letterSpacing: '-0.04em' }}>Ledger Snapshot</h2>
+                            <p style={{ color: 'rgba(255,255,255,0.3)', marginTop: '6px', fontSize: '0.8rem' }}>Verification cycle for {monthNames[selectedMonth]} {selectedYear}</p>
 
-                            <div style={{ 
-                                marginTop: '28px', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '14px', 
-                                background: 'rgba(255,255,255,0.03)', 
-                                padding: '16px', 
-                                borderRadius: '18px', 
-                                border: '1px solid var(--glass-border)',
-                                boxShadow: 'inset 0 0 20px rgba(255,255,255,0.02)'
-                            }}>
-                                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, boxShadow: '0 8px 16px -4px rgba(0,0,0,0.4)', flexShrink: 0 }}>
-                                    {selectedBreakup.employee.profilePhoto ? <img src={selectedBreakup.employee.profilePhoto} style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }} /> : selectedBreakup.employee.firstName.charAt(0)}
+                            <div style={{ marginTop: '32px', display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '22px', border: '1px solid var(--glass-border)', boxShadow: 'inset 0 0 30px rgba(255,255,255,0.02)' }}>
+                                <div style={{ width: '50px', height: '50px', borderRadius: '14px', background: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.2rem', boxShadow: '0 8px 20px -5px rgba(0,0,0,0.5)', flexShrink: 0 }}>
+                                    {selectedBreakup.employee.profilePhoto ? <img src={selectedBreakup.employee.profilePhoto} style={{ width: '100%', height: '100%', borderRadius: '14px', objectFit: 'cover' }} /> : selectedBreakup.employee.firstName.charAt(0)}
                                 </div>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedBreakup.employee.firstName} {selectedBreakup.employee.lastName}</div>
-                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '1px', fontWeight: 600 }}>{selectedBreakup.employee.designation || 'Specialist'}</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedBreakup.employee.firstName} {selectedBreakup.employee.lastName}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px', fontWeight: 700 }}>{selectedBreakup.employee.department} • {selectedBreakup.employee.designation || 'Specialist'}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
-                                <div style={{ textAlign: 'center', padding: '14px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
-                                    <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '4px', letterSpacing: '0.08em' }}>Cycle</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white' }}>{selectedBreakup.workingDays}d</div>
+                        <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '32px' }}>
+                                <div style={{ textAlign: 'center', padding: '16px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '18px', border: '1px solid var(--glass-border)' }}>
+                                    <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', fontWeight: 900, marginBottom: '6px', letterSpacing: '0.1em' }}>Cycle</div>
+                                    <input 
+                                        type="number" 
+                                        value={selectedBreakup.workingDays} 
+                                        onChange={(e) => {
+                                            const wd = Number(e.target.value) || 1;
+                                            const dailyRate = selectedBreakup.baseSalary / wd;
+                                            const unpaid = wd - selectedBreakup.daysPresent - selectedBreakup.approvedLeaves;
+                                            const deductions = Math.max(0, unpaid * dailyRate);
+                                            const net = selectedBreakup.baseSalary - deductions + (selectedBreakup.bonus || 0) + (selectedBreakup.travelExpenses || 0);
+                                            setSelectedBreakup({
+                                                ...selectedBreakup, 
+                                                workingDays: wd, 
+                                                deductions, 
+                                                netPayable: net,
+                                                unpaidAbsences: Math.max(0, unpaid),
+                                                formula: `${selectedBreakup.baseSalary} - (${Math.max(0, unpaid)} days * ${dailyRate.toFixed(2)})`
+                                            });
+                                        }}
+                                        style={{ background: 'transparent', border: 'none', color: 'white', fontWeight: 900, fontSize: '1.25rem', textAlign: 'center', width: '100%', outline: 'none' }}
+                                    />
                                 </div>
-                                <div style={{ textAlign: 'center', padding: '14px 6px', background: 'rgba(52, 211, 153, 0.04)', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.12)' }}>
-                                    <div style={{ fontSize: '0.55rem', color: '#10B981', textTransform: 'uppercase', fontWeight: 800, marginBottom: '4px', opacity: 0.8 }}>Present</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#10B981' }}>{selectedBreakup.daysPresent}d</div>
+                                <div style={{ textAlign: 'center', padding: '16px 8px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '18px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                                    <div style={{ fontSize: '0.55rem', color: '#10B981', textTransform: 'uppercase', fontWeight: 900, marginBottom: '6px', opacity: 0.8 }}>Present</div>
+                                    <input 
+                                        type="number" 
+                                        value={selectedBreakup.daysPresent} 
+                                        onChange={(e) => {
+                                            const dp = Number(e.target.value);
+                                            const wd = selectedBreakup.workingDays;
+                                            const al = selectedBreakup.approvedLeaves;
+                                            const dailyRate = selectedBreakup.baseSalary / wd;
+                                            const unpaid = wd - dp - al;
+                                            const deductions = Math.max(0, unpaid * dailyRate);
+                                            const net = selectedBreakup.baseSalary - deductions + (selectedBreakup.bonus || 0) + (selectedBreakup.travelExpenses || 0);
+                                            setSelectedBreakup({
+                                                ...selectedBreakup, 
+                                                daysPresent: dp, 
+                                                deductions, 
+                                                netPayable: net,
+                                                unpaidAbsences: Math.max(0, unpaid),
+                                                formula: `${selectedBreakup.baseSalary} - (${Math.max(0, unpaid)} days * ${dailyRate.toFixed(2)})`
+                                            });
+                                        }}
+                                        style={{ background: 'transparent', border: 'none', color: '#10B981', fontWeight: 900, fontSize: '1.25rem', textAlign: 'center', width: '100%', outline: 'none' }}
+                                    />
                                 </div>
-                                <div style={{ textAlign: 'center', padding: '14px 6px', background: 'rgba(247, 185, 36, 0.04)', borderRadius: '16px', border: '1px solid rgba(247, 185, 36, 0.12)' }}>
-                                    <div style={{ fontSize: '0.55rem', color: '#FBBF24', textTransform: 'uppercase', fontWeight: 800, marginBottom: '4px', opacity: 0.8 }}>Leaves</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#FBBF24' }}>{selectedBreakup.approvedLeaves}d</div>
+                                <div style={{ textAlign: 'center', padding: '16px 8px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: '18px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+                                    <div style={{ fontSize: '0.55rem', color: '#F59E0B', textTransform: 'uppercase', fontWeight: 900, marginBottom: '6px', opacity: 0.8 }}>Leaves</div>
+                                    <input 
+                                        type="number" 
+                                        value={selectedBreakup.approvedLeaves} 
+                                        onChange={(e) => {
+                                            const al = Number(e.target.value);
+                                            const wd = selectedBreakup.workingDays;
+                                            const dp = selectedBreakup.daysPresent;
+                                            const dailyRate = selectedBreakup.baseSalary / wd;
+                                            const unpaid = wd - dp - al;
+                                            const deductions = Math.max(0, unpaid * dailyRate);
+                                            const net = selectedBreakup.baseSalary - deductions + (selectedBreakup.bonus || 0) + (selectedBreakup.travelExpenses || 0);
+                                            setSelectedBreakup({
+                                                ...selectedBreakup, 
+                                                approvedLeaves: al, 
+                                                deductions, 
+                                                netPayable: net,
+                                                unpaidAbsences: Math.max(0, unpaid),
+                                                formula: `${selectedBreakup.baseSalary} - (${Math.max(0, unpaid)} days * ${dailyRate.toFixed(2)})`
+                                            });
+                                        }}
+                                        style={{ background: 'transparent', border: 'none', color: '#F59E0B', fontWeight: 900, fontSize: '1.25rem', textAlign: 'center', width: '100%', outline: 'none' }}
+                                    />
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {[
-                                    { l: 'Base Compensation Rate', v: `${selectedBreakup.baseSalary.toLocaleString()}` },
-                                    { l: 'Effective Daily Yield', v: `${(selectedBreakup.baseSalary / selectedBreakup.workingDays).toFixed(2)}` },
-                                    { l: 'Loss of Pay Adjustments', v: selectedBreakup.unpaidAbsences > 0 ? `-${selectedBreakup.deductions.toLocaleString()}` : '', c: selectedBreakup.unpaidAbsences > 0 ? '#EF4444' : 'rgba(255,255,255,0.15)' }
-                                ].map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
-                                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', fontWeight: 500 }}>{item.l}</span>
-                                        <span style={{ color: item.c || 'white', fontWeight: 800, fontSize: '0.9rem' }}>{item.v}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.12em', paddingLeft: '4px' }}>Base & Deductions</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 24px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', fontWeight: 600 }}>Standard Rate</span>
+                                    <span style={{ color: 'white', fontWeight: 800, fontSize: '1rem' }}>₹{selectedBreakup.baseSalary.toLocaleString()}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 24px', background: 'rgba(239, 68, 68, 0.03)', borderRadius: '20px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                                    <span style={{ color: '#EF4444', fontSize: '0.85rem', fontWeight: 600, opacity: 0.8 }}>LOP Adjustments</span>
+                                    <span style={{ color: '#EF4444', fontWeight: 800, fontSize: '1rem' }}>-₹{selectedBreakup.deductions.toLocaleString()}</span>
+                                </div>
+
+                                <div style={{ marginTop: '12px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.12em', paddingLeft: '4px' }}>Beyond-Salary Compensation</div>
+                                
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--glass-border)', padding: '16px 20px' }}>
+                                        <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>Performance Bonus</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.9rem', fontWeight: 800 }}>₹</span>
+                                            <input 
+                                                type="number" 
+                                                value={selectedBreakup.bonus || ''} 
+                                                onChange={(e) => {
+                                                    const b = Number(e.target.value);
+                                                    const net = selectedBreakup.baseSalary - selectedBreakup.deductions + b + (selectedBreakup.travelExpenses || 0);
+                                                    setSelectedBreakup({...selectedBreakup, bonus: b, netPayable: net});
+                                                }}
+                                                placeholder="0.00"
+                                                style={{ background: 'transparent', border: 'none', color: '#10B981', fontWeight: 900, fontSize: '1.1rem', outline: 'none', width: '100%' }}
+                                            />
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--glass-border)', padding: '16px 20px' }}>
+                                        <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>Travel Expenses</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.9rem', fontWeight: 800 }}>₹</span>
+                                            <input 
+                                                type="number" 
+                                                value={selectedBreakup.travelExpenses || ''} 
+                                                onChange={(e) => {
+                                                    const te = Number(e.target.value);
+                                                    const net = selectedBreakup.baseSalary - selectedBreakup.deductions + (selectedBreakup.bonus || 0) + te;
+                                                    setSelectedBreakup({...selectedBreakup, travelExpenses: te, netPayable: net});
+                                                }}
+                                                placeholder="0.00"
+                                                style={{ background: 'transparent', border: 'none', color: '#10B981', fontWeight: 900, fontSize: '1.1rem', outline: 'none', width: '100%' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div style={{ 
-                                marginTop: '28px', 
-                                padding: '18px', 
-                                borderRadius: '16px', 
-                                background: 'rgba(124, 58, 237, 0.04)', 
-                                border: '1px dashed rgba(139, 92, 246, 0.2)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '8px'
-                            }}>
-                                <div style={{ fontSize: '0.6rem', color: 'var(--purple-accent)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.12em' }}>Algorithmic Derivation</div>
-                                <div style={{ fontFamily: '"Roboto Mono", monospace', fontSize: '0.9rem', color: 'white', fontWeight: 640, background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>{selectedBreakup.formula}</div>
+                                <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--glass-border)', padding: '16px 20px' }}>
+                                    <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>Adjustment / Audit Notes</div>
+                                    <textarea 
+                                        value={selectedBreakup.adjustmentsNote || ''}
+                                        onChange={(e) => setSelectedBreakup({...selectedBreakup, adjustmentsNote: e.target.value})}
+                                        placeholder="Add context for bonuses or deductions..."
+                                        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', outline: 'none', width: '100%', resize: 'none', height: '60px', fontFamily: 'inherit' }}
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div style={{ padding: '28px 32px 36px', borderTop: '1px solid var(--glass-border)', background: 'linear-gradient(180deg, transparent 0%, rgba(16, 185, 129, 0.04) 100%)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                        <div style={{ padding: '32px 36px 40px', borderTop: '1px solid var(--glass-border)', background: 'linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.05) 100%)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
                                 <div>
-                                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Net Disbursement Amount</div>
-                                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', letterSpacing: '-0.04em', lineHeight: 1 }}>{selectedBreakup.netPayable.toLocaleString()}</div>
+                                    <div style={{ color: 'var(--purple-accent)', fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '6px' }}>Verified Net Disbursement</div>
+                                    <div style={{ fontSize: '2.75rem', fontWeight: 900, color: 'white', letterSpacing: '-0.05em', lineHeight: 1 }}>₹{Math.round(selectedBreakup.netPayable).toLocaleString()}</div>
                                 </div>
                                 <div style={{ 
-                                    padding: '6px 14px', 
-                                    background: 'rgba(16, 185, 129, 0.1)', 
-                                    color: '#10B981', 
-                                    borderRadius: '10px', 
-                                    fontSize: '0.7rem', 
+                                    padding: '8px 16px', 
+                                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)', 
+                                    color: 'var(--purple-accent)', 
+                                    borderRadius: '12px', 
+                                    fontSize: '0.75rem', 
                                     fontWeight: 900, 
-                                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                                    letterSpacing: '0.02em',
-                                    boxShadow: '0 4px 12px -4px rgba(16, 185, 129, 0.3)'
+                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                    boxShadow: '0 8px 20px -8px rgba(139, 92, 246, 0.5)'
                                 }}>
-                                    READY
+                                    {selectedBreakup.status === 'FINALIZED' ? 'LOCKED' : 'DRAFT'}
                                 </div>
                             </div>
-                            <button className="emp-action-btn-primary" style={{ width: '100%', height: '52px', borderRadius: '16px', fontSize: '0.95rem', fontWeight: 800, boxShadow: '0 12px 24px -10px var(--shadow-purple)' }} onClick={() => setSelectedBreakup(null)}>
-                                Close Review View
-                            </button>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '12px' }}>
+                                <button className="emp-action-btn" style={{ height: '56px', borderRadius: '18px', justifyContent: 'center' }} onClick={() => setSelectedBreakup(null)}>
+                                    Discard
+                                </button>
+                                <button 
+                                    className="emp-action-btn-primary" 
+                                    style={{ height: '56px', borderRadius: '18px', fontSize: '1rem', fontWeight: 800, justifyContent: 'center' }} 
+                                    onClick={async () => {
+                                        setIsFinalizing(true);
+                                        try {
+                                            await api.savePayrollRecord({
+                                                ...selectedBreakup,
+                                                employeeId: selectedBreakup.employee.id,
+                                                month: selectedMonth,
+                                                year: selectedYear,
+                                                status: 'FINALIZED'
+                                            });
+                                            addNotification({ title: 'Record Locked', message: `Payroll for ${selectedBreakup.employee.firstName} finalized.`, type: 'SYSTEM' });
+                                            // Update local state
+                                            const updated = await api.getPayrollRecords(selectedMonth, selectedYear);
+                                            setFinalizedRecords(updated || []);
+                                            setSelectedBreakup(null);
+                                        } catch (err: any) {
+                                            addNotification({ title: 'Lock Failed', message: err.message, type: 'ERROR' });
+                                        } finally {
+                                            setIsFinalizing(false);
+                                        }
+                                    }}
+                                >
+                                    <Save size={18} /> {isFinalizing ? 'Locking...' : 'Save & Lock Record'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>,

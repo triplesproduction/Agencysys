@@ -239,19 +239,22 @@ export const api = {
         const { data, error } = await supabase
             .from('payroll_records')
             .upsert({
-                employeeId: record.employeeId,
+                employeeid: record.employeeId,
                 month: record.month,
                 year: record.year,
-                baseSalary: record.baseSalary,
+                basesalary: record.baseSalary,
                 deductions: record.deductions,
-                netPayable: record.netPayable,
-                workingDays: record.workingDays,
-                daysPresent: record.daysPresent,
-                approvedLeaves: record.approvedLeaves,
-                unpaidAbsences: record.unpaidAbsences,
+                netpayable: record.netPayable,
+                workingdays: record.workingDays,
+                dayspresent: record.daysPresent,
+                approvedleaves: record.approvedLeaves,
+                unpaidabsences: record.unpaidAbsences,
+                bonus: record.bonus || 0,
+                travel_expenses: record.travelExpenses || 0,
+                adjustments_note: record.adjustmentsNote || '',
                 formula: record.formula,
                 status: record.status
-            })
+            }, { onConflict: 'employeeid,month,year' })
             .select()
             .single();
         if (error) throw error;
@@ -349,15 +352,17 @@ export const api = {
         const dbPayload: any = {
             employeeId: data.employeeId,
             reportDate: data.reportDate,
-            tasksCompleted: data.tasksCompleted,
-            tasksInProgress: data.tasksInProgress,
+            tasksCompleted: data.tasksCompleted || [],
+            tasksInProgress: data.tasksInProgress || [],
+            completedText: (data as any).completedText || null,
+            inProgressText: (data as any).inProgressText || null,
             blockers: data.blockers,
-            sentiment: data.sentiment,
-            status: data.status,
+            sentiment: data.sentiment || 'GOOD',
+            status: data.status || 'SUBMITTED',
             work_hours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
+        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, completedText, inProgressText, blockers, sentiment, status, work_hours').single();
         
         handleSupabaseEvent(res, error, 'Submit EOD');
         
@@ -376,13 +381,15 @@ export const api = {
             reportDate: data.reportDate,
             tasksCompleted: data.tasksCompleted,
             tasksInProgress: data.tasksInProgress,
+            completedText: (data as any).completedText,
+            inProgressText: (data as any).inProgressText,
             blockers: data.blockers,
             sentiment: data.sentiment,
             status: data.status,
             work_hours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, blockers, sentiment, status, work_hours').single();
+        const { data: res, error } = await supabase.from('eod_reports').update(dbPayload).eq('id', id).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, completedText, inProgressText, blockers, sentiment, status, work_hours').single();
         
         handleSupabaseEvent(res, error, 'Update EOD');
 
@@ -449,17 +456,21 @@ export const api = {
         }
 
         // 2. Sync with work hour log
-        // Find existing work hour log for this date and employee
-        const { data: logs } = await supabase.from('work_hours').select('*').eq('employeeId', payload.employeeId).eq('date', payload.date);
+        // Also sync to work_hours table
+        const { data: logs, error: selectError } = await supabase.from('work_hours').select('*').eq('employeeId', payload.employeeId).eq('date', payload.date);
         
+        if (selectError) {
+            logger.error('[API] Error fetching work hours for sync:', selectError.message);
+        }
+
         if (logs && logs.length > 0) {
-            // Update existing
-            const note = payload.adminNote ? `[Review Note: ${payload.adminNote}]` : '';
+            // Update the first log found for that date
+            const note = payload.adminNote ? ` [Note: ${payload.adminNote}]` : '';
             const statusStr = payload.status ? ` [Status: ${payload.status}]` : '';
             const { data, error } = await supabase.from('work_hours')
                 .update({ 
                     hoursLogged: payload.workHours, 
-                    description: `Admin updated on ${new Date().toLocaleDateString()}. ${note}${statusStr}` 
+                    description: `Synced from EOD on ${new Date().toLocaleDateString()}.${note}${statusStr}` 
                 })
                 .eq('id', logs[0].id)
                 .select().single();
@@ -467,14 +478,15 @@ export const api = {
             return data;
         } else {
             // Create new
-            const note = payload.adminNote ? `[Review Note: ${payload.adminNote}]` : '';
+            const note = payload.adminNote ? ` [Note: ${payload.adminNote}]` : '';
             const statusStr = payload.status ? ` [Status: ${payload.status}]` : '';
-            const data = await api.addWorkHourLog({
+            const { data, error } = await supabase.from('work_hours').insert({
                 employeeId: payload.employeeId,
                 date: payload.date,
                 hoursLogged: payload.workHours,
-                description: `Admin updated on ${new Date().toLocaleDateString()}. ${note}${statusStr}`
-            });
+                description: `EOD Submission Sync on ${new Date().toLocaleDateString()}.${note}${statusStr}`
+            }).select().single();
+            handleSupabaseEvent(data, error, 'Create Work Hours via Review');
             return data;
         }
     },

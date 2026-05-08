@@ -260,3 +260,10 @@ export interface PayrollRecord {
     status: 'DRAFT' | 'FINALIZED' | 'PAID';
     createdAt: string;
 }
+
+export interface AttendanceReportDTO {
+    eods: EODSubmissionDTO[];
+    leaves: LeaveApplicationDTO[];
+    holidays: HolidayDTO[];
+    overrides: AttendanceOverrideDTO[];
+}
