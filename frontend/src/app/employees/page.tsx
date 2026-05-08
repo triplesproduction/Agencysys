@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, Download, Upload, MoreVertical, Trash2, Mail, Phone, UserX, UserCheck, Eye, CreditCard, Users, CheckCircle } from 'lucide-react';
+import { Search, Plus, Download, Upload, MoreVertical, Trash2, Mail, Phone, UserX, UserCheck, Eye, CreditCard, Users, CheckCircle, Shield } from 'lucide-react';
 import { api } from '@/lib/api';
 import { EmployeeDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
 import EmployeeProfileDrawer from '@/components/employees/EmployeeProfileDrawer';
 import PayrollHub from '@/components/employees/PayrollHub';
+import AccountSecurityHub from '@/components/employees/AccountSecurityHub';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import './Employees.css';
 
@@ -34,7 +35,7 @@ export default function EmployeesPage() {
     const [selectedEmployee, setSelectedEmployee] = useState<EmployeeDTO | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [activeView, setActiveView] = useState<'DIRECTORY' | 'PAYROLL'>('DIRECTORY');
+    const [activeView, setActiveView] = useState<'DIRECTORY' | 'PAYROLL' | 'SECURITY'>('DIRECTORY');
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -72,7 +73,7 @@ export default function EmployeesPage() {
                     roleId: roleFilter || undefined,
                     department: deptFilter || undefined,
                     status: statusFilter || undefined,
-                    excludeAdmin: true,
+                    excludeAdmin: activeView !== 'SECURITY',
                 });
                 if (cancelled) return;
                 const employeeData = res?.data || (Array.isArray(res) ? res : []);
@@ -87,7 +88,7 @@ export default function EmployeesPage() {
         };
         doFetch();
         return () => { cancelled = true; };
-    }, [page, debouncedSearch, roleFilter, deptFilter, statusFilter, refreshKey, authEmployee, authLoading, router]);
+    }, [page, debouncedSearch, roleFilter, deptFilter, statusFilter, refreshKey, authEmployee, authLoading, router, activeView]);
 
     useEffect(() => {
         const handleProfileUpdate = (e: any) => {
@@ -203,6 +204,12 @@ export default function EmployeesPage() {
                     onClick={() => setActiveView('PAYROLL')}
                 >
                     <CreditCard size={16} /> Integrated Payroll
+                </button>
+                <button
+                    className={`emp-tab ${activeView === 'SECURITY' ? 'active' : ''}`}
+                    onClick={() => setActiveView('SECURITY')}
+                >
+                    <Shield size={16} /> Account Security
                 </button>
             </div>
 
@@ -355,9 +362,13 @@ export default function EmployeesPage() {
                         )}
                     </div>
                 </div>
-            ) : (
+            ) : activeView === 'PAYROLL' ? (
                 <div className="fade-in" style={{ flex: 1, minHeight: 0, marginTop: '8px', display: 'flex', flexDirection: 'column' }}>
                     <PayrollHub employees={employees} />
+                </div>
+            ) : (
+                <div className="fade-in" style={{ flex: 1, minHeight: 0, marginTop: '8px', display: 'flex', flexDirection: 'column' }}>
+                    <AccountSecurityHub employees={employees} />
                 </div>
             )}
 

@@ -189,6 +189,12 @@ export const api = {
         return data;
     },
 
+    verifyAdminPassword: async (email: string, password: string) => {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw new Error('Verification failed: Invalid admin password.');
+        return !!data.user;
+    },
+
     // --- Salary & Payroll ---
     addSalaryHike: async (employeeId: string, amount: number, effectiveDate: string, reason: string) => {
         // Fetch current baseSalary
