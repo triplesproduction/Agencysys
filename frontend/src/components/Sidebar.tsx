@@ -176,7 +176,10 @@ export default function Sidebar() {
                         {!isCollapsed && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <img src="/logo.png" alt="Logo" style={{ width: '44px', height: '44px', minWidth: '44px' }} />
-                                <span className="logo-text" style={{ fontSize: '1.4rem' }}>TripleS <span className="logo-os">OS</span></span>
+                                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
+                                    <span className="logo-text" style={{ fontSize: '1.4rem' }}>TripleS <span className="logo-os">OS</span></span>
+                                    <span style={{ fontSize: '0.6rem', opacity: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Internal Agency Software</span>
+                                </div>
                             </div>
                         )}
                         {isCollapsed && (

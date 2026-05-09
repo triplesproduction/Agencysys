@@ -204,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [supabase.auth]);
 
-    // Inactivity Auto-Logout (120 Seconds)
+    // Inactivity Auto-Logout (5 Minutes)
     useEffect(() => {
         if (!user || !session) {
             logger.log('[Auth Inactivity] No active session. Timer suspended.');
@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         let timeoutId: NodeJS.Timeout;
-        const INACTIVITY_LIMIT = 3600000; // 60 minutes (business standard)
+        const INACTIVITY_LIMIT = 300000; // 5 minutes (300,000 ms)
 
         const triggerLogout = () => {
             logger.log(`[Auth Inactivity] User inactive for ${INACTIVITY_LIMIT/1000}s. Triggering logout protocol...`);
