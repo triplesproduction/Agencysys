@@ -135,7 +135,7 @@ function AdminDashboard({
             }
             
             // Otherwise alphabetical
-            return a.firstName.localeCompare(b.firstName);
+            return (a.firstName || '').localeCompare(b.firstName || '');
         });
 
     const pendingCount = employeeEodstatus.filter(e => e.eodStatus === 'PENDING').length;

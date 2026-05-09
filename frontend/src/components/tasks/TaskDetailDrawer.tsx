@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { TaskDTO, EmployeeDTO } from '@/types/dto';
 import Button from '../Button';
 import TaskQualityRater from './TaskQualityRater';
@@ -289,9 +290,17 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                                 return (
                                                     <a 
                                                         key={idx} 
-                                                        href={url} 
-                                                        target="_blank" 
-                                                        rel="noreferrer" 
+                                                        href="#" 
+                                                        onClick={async (e) => {
+                                                            e.preventDefault();
+                                                            let finalUrl = url;
+                                                            if (!finalUrl.startsWith('http')) {
+                                                                const { data } = await supabase.storage.from('private-docs').createSignedUrl(url, 3600);
+                                                                if (data) finalUrl = data.signedUrl;
+                                                                else { alert('Could not securely access this document.'); return; }
+                                                            }
+                                                            window.open(finalUrl, '_blank', 'noopener,noreferrer');
+                                                        }}
                                                         className="attachment-item"
                                                         style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'rgba(255,255,255,0.9)', textDecoration: 'none' }}
                                                     >

@@ -876,13 +876,12 @@ export const api = {
         return { url: pubData.publicUrl };
     },
     uploadFile: async (file: File) => {
-        // Documents stored in the 'documents' bucket under docs/ subfolder
+        // Documents stored in the 'private-docs' bucket
         const ext = file.name.split('.').pop();
-        const fileName = `docs/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
-        const { error } = await supabase.storage.from('documents').upload(fileName, file);
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
+        const { error } = await supabase.storage.from('private-docs').upload(fileName, file);
         handleSupabaseEvent(null, error, 'File Upload');
-        const { data: pubData } = supabase.storage.from('documents').getPublicUrl(fileName);
-        return { url: pubData.publicUrl };
+        return { url: fileName };
     },
 
     /** Find or create a 1-to-1 conversation between two users */
@@ -970,7 +969,8 @@ export const api = {
             .from('messages')
             .select('*')
             .in('conversation_id', convIds)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(200);
 
         // Map latest message per conversation
         const lastMessageMap: Record<string, any> = {};

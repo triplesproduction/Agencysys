@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-    Plus, Search, Filter, 
+    Plus, Search, Filter, ChevronDown,
     Briefcase, Calendar, Clock, AlertCircle,
     CheckCircle2, Users, ArrowUpRight, FolderKanban, CheckCircle
 } from 'lucide-react';
@@ -76,56 +76,61 @@ export default function ProjectsPage() {
 
     return (
         <div className="projects-page fade-in">
-            <div className="emp-header">
+            <header className="emp-header">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <h1 className="emp-title">Project Hub</h1>
                     <div className="emp-stats-inline">
-                        <span><FolderKanban size={13} /> {projects.length} Total</span>
-                        <span className="active"><CheckCircle size={13} /> {activeCount} Active</span>
+                        <span><FolderKanban size={14} style={{ color: 'var(--purple-light)' }} /> {projects.length} Initiatives</span>
+                        <span className="active"><CheckCircle2 size={14} /> {activeCount} Operational</span>
                     </div>
                 </div>
                 <div className="emp-header-actions">
-                    <div className="emp-search" style={{ minWidth: '280px' }}>
+                    <div className="emp-search">
                         <Search size={16} />
                         <input 
-                            placeholder="Explore initiatives..." 
+                            placeholder="Search projects..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
                     
                     <div className="emp-filter-group">
+                        <Filter size={16} className="filter-icon" />
                         <select 
                             className="emp-glass-select" 
                             value={statusFilter} 
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
-                            <option value="ALL">Global Visibility</option>
-                            <option value="PLANNING">Planning</option>
-                            <option value="ACTIVE">Active</option>
-                            <option value="ON_HOLD">Stalled</option>
-                            <option value="COMPLETED">Archived</option>
+                            <option value="ALL">All Statuses</option>
+                            <option value="PLANNING">Planning Phase</option>
+                            <option value="ACTIVE">Active Engagement</option>
+                            <option value="ON_HOLD">On Hold</option>
+                            <option value="COMPLETED">Successfully Closed</option>
                         </select>
+                        <ChevronDown size={16} className="chevron-icon" />
                     </div>
 
                     {userRole !== 'EMPLOYEE' && (
                         <button className="emp-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                            <Plus size={16} /> Launch Project
+                            <Plus size={18} /> New project
                         </button>
                     )}
                 </div>
-            </div>
+            </header>
 
-            {/* 3. PROJECTS GRID */}
+            {/* Projects Grid */}
             <div className="projects-grid">
                 {loading ? (
                     Array(6).fill(0).map((_, i) => (
-                        <div key={i} className="project-card skeleton" style={{ height: '160px' }} />
+                        <div key={i} className="project-card skeleton" style={{ height: '240px' }} />
                     ))
                 ) : filteredProjects.length === 0 ? (
-                    <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '100px', textAlign: 'center', pointerEvents: 'none' }}>
-                        <Briefcase size={48} style={{ opacity: 0.1, marginBottom: '20px' }} />
-                        <h3 style={{ fontSize: '1.25rem', opacity: 0.5 }}>No projects match your current filter.</h3>
+                    <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '8rem 2rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: '32px', border: '1px dashed rgba(255,255,255,0.05)' }}>
+                        <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem' }}>
+                            <Briefcase size={40} style={{ opacity: 0.1 }} />
+                        </div>
+                        <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'white', marginBottom: '8px' }}>No Strategic Objectives Found</h3>
+                        <p style={{ color: 'rgba(255,255,255,0.3)', maxWidth: '400px', margin: '0 auto' }}>Your current filters haven't yielded any results. Try adjusting your search or category selection.</p>
                     </div>
                 ) : (
                     filteredProjects.map((project) => {
@@ -143,7 +148,7 @@ export default function ProjectsPage() {
                                         {project.status.replace('_', ' ')}
                                     </span>
                                     <div className="card-team-stack">
-                                        {project.members?.slice(0, 3).map((m, idx) => (
+                                        {project.members?.slice(0, 4).map((m, idx) => (
                                             <div key={idx} className="team-av" title={`${m.user?.firstName} ${m.user?.lastName}`}>
                                                 {m.user?.profilePhoto ? (
                                                     <img src={m.user.profilePhoto} alt="" />
@@ -152,27 +157,37 @@ export default function ProjectsPage() {
                                                 )}
                                             </div>
                                         ))}
-                                        {project.members && project.members.length > 3 && (
-                                            <div className="team-av" style={{ background: 'rgba(255,255,255,0.05)', fontSize: '8px' }}>
-                                                +{project.members.length - 3}
+                                        {project.members && project.members.length > 4 && (
+                                            <div className="team-av" style={{ background: 'rgba(124, 58, 237, 0.1)', color: 'var(--purple-light)', fontSize: '9px' }}>
+                                                +{project.members.length - 4}
                                             </div>
                                         )}
                                     </div>
                                 </div>
 
-                                <h3 className="card-title">{project.name}</h3>
-                                <p className="card-desc">{project.description || 'No strategic breakdown provided.'}</p>
+                                <div style={{ flex: 1 }}>
+                                    <h3 className="card-title">{project.name}</h3>
+                                    <p className="card-desc">{project.description || 'No strategic breakdown provided for this initiative.'}</p>
+                                </div>
                                 
                                 <div className="card-progress-section">
                                     <div className="progress-meta">
-                                        <span className="progress-label">{progress}% Sync</span>
-                                        <span className={`progress-deadline ${overdue ? 'overdue' : ''}`}>
-                                            {project.deadline ? new Date(project.deadline).toLocaleDateString() : 'No Est.'}
-                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <div className="progress-label">{progress}% Sync</div>
+                                            {progress === 100 && <CheckCircle2 size={12} style={{ color: '#10B981' }} />}
+                                        </div>
+                                        <div className={`progress-deadline ${overdue ? 'overdue' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <Calendar size={12} />
+                                            {project.deadline ? new Date(project.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'No Est.'}
+                                        </div>
                                     </div>
                                     <div className="progress-bar-outer">
                                         <div className="progress-bar-inner" style={{ width: `${progress}%` }}></div>
                                     </div>
+                                </div>
+                                
+                                <div style={{ position: 'absolute', right: '1.5rem', bottom: '1.5rem', opacity: 0, transform: 'translateX(-10px)', transition: 'all 0.4s ease' }} className="card-arrow">
+                                    <ArrowUpRight size={20} style={{ color: 'var(--purple-light)' }} />
                                 </div>
                             </div>
                         );

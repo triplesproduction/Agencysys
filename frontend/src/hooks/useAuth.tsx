@@ -45,30 +45,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (error) {
                 logger.error('[Auth DEBUG] Profile fetch database error:', error.message);
-                
-                // If it's a database error (like missing table or connection issue), 
-                // we still want to let the user in with a basic profile if they are authenticated.
-                const emailPrefix = email?.split('@')[0] || 'User';
-                return { 
-                    id: userId, 
-                    email: email || '', 
-                    roleId: 'EMPLOYEE', 
-                    firstName: emailPrefix, 
-                    lastName: 'Member' 
-                };
+                // Fail Closed: If there's a DB error, we don't want to risk granting incorrect permissions.
+                return null;
             }
             
             if (!data) {
                 logger.warn('[Auth DEBUG] No profile record found in database for UID:', userId);
-                // Fallback: Return a basic profile so the user isn't stuck at the sync error screen
-                const emailPrefix = email?.split('@')[0] || 'User';
-                return { 
-                    id: userId, 
-                    email: email || '', 
-                    roleId: 'EMPLOYEE', 
-                    firstName: emailPrefix, 
-                    lastName: 'Member' 
-                };
+                // Fail Closed: If the user doesn't have a profile in the employees table, they shouldn't be in the OS.
+                return null;
             }
             
             // Normalize keys from all possible formats (camelCase or snake_case)
@@ -86,14 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return profile;
         } catch (err) {
             logger.error('[Auth DEBUG] Unexpected profile fetch exception:', err);
-            const emailPrefix = email?.split('@')[0] || 'User';
-            return { 
-                id: userId, 
-                email: email || '', 
-                roleId: 'EMPLOYEE', 
-                firstName: emailPrefix, 
-                lastName: 'Member' 
-            };
+            return null;
         }
     };
 
@@ -134,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
                         if (mounted) {
                             setEmployee(profileData);
-                            setLoading(false);
+                            setLoading(false); // Always set loading false after attempt
                         }
                     } else {
                         setLoading(false);

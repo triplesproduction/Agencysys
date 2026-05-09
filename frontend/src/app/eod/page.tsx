@@ -222,42 +222,42 @@ export default function EODPage() {
     }
 
     return (
-        <div className="eod-page fade-in" style={{ width: '100%', maxWidth: '1400px', margin: '0', padding: '0 40px 80px' }}>
-            <header className="page-header" style={{ marginBottom: '32px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', width: '100%' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <h1 className="greeting" style={{ margin: 0, fontSize: '1.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Daily Status Report</h1>
-                        <p className="subtitle" style={{ marginTop: '4px', fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4' }}>Log your daily achievements and identify blockers.</p>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, paddingTop: '4px' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--purple-light)', lineHeight: 1 }}>{myReports.length} Days 🔥</div>
-                        <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginTop: '6px' }}>Submission Streak</div>
+        <div className="eod-root fade-in">
+            <header className="attendance-hero">
+                <div className="hero-text">
+                    <h1 className="greeting">Daily Status Report</h1>
+                    <p className="subtitle">Log your daily achievements and identify blockers.</p>
+                </div>
+                <div className="hero-controls">
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--purple-light)', lineHeight: 1 }}>{myReports.length} Days 🔥</div>
+                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 800, marginTop: '8px' }}>Submission Streak</div>
                     </div>
                 </div>
             </header>
 
             {/* Submission Form Area */}
-            <section className="form-section" style={{ marginBottom: '48px' }}>
-                <GlassCard className="submission-card" style={{ padding: '24px 28px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15, 15, 20, 0.4)', opacity: todayReport ? 0.8 : 1 }}>
+            <section className="form-section" style={{ marginBottom: '4rem' }}>
+                <GlassCard className="submission-card" style={{ padding: '2rem', opacity: todayReport ? 0.9 : 1 }}>
                     <form onSubmit={handleSubmit}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                        <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem', marginBottom: '2rem' }}>
                             {/* Left Column: Tasks */}
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                    <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                    <label className="input-label">
                                         Tasks Accomplished Today <span style={{ color: '#F87171' }}>*</span>
                                     </label>
                                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                        {isReviewed && <span style={{ fontSize: '0.65rem', color: '#10B981', fontWeight: 800, background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '4px' }}>REVIEWED BY ADMIN</span>}
-                                        <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>{formData.tasksCompleted.length} chars</span>
+                                        {isReviewed && <span className="status-pill status-reviewed">REVIEWED BY ADMIN</span>}
+                                        <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 600 }}>{formData.tasksCompleted.length} characters</span>
                                     </div>
                                 </div>
                                 <textarea
-                                    className="glass-textarea"
-                                    rows={15}
+                                    className="glass-textarea custom-scrollbar"
+                                    rows={12}
                                     disabled={isReviewed}
-                                    style={{ fontSize: '0.9rem', lineHeight: '1.6', padding: '20px', cursor: isReviewed ? 'not-allowed' : 'text', flex: 1, resize: 'vertical', minHeight: '300px' }}
-                                    placeholder="List everything you achieved today. Long-form entries are fully supported."
+                                    style={{ cursor: isReviewed ? 'not-allowed' : 'text', minHeight: '320px' }}
+                                    placeholder="• Implemented authentication middleware&#10;• Refactored API client for better performance&#10;• Fixed CSS layout bugs on mobile"
                                     value={formData.tasksCompleted}
                                     onChange={e => setFormData({ ...formData, tasksCompleted: e.target.value })}
                                 />
@@ -265,31 +265,31 @@ export default function EODPage() {
 
                             {/* Right Column: Blockers */}
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                    <label className="input-label" style={{ margin: 0, fontSize: '0.7rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                    <label className="input-label">
                                         Blockers / Impediments <span style={{ color: '#F87171' }}>*</span>
                                     </label>
-                                    <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 500 }}>{formData.blockers.length} chars</span>
+                                    <span style={{ fontSize: '0.65rem', opacity: 0.4, fontWeight: 600 }}>{formData.blockers.length} characters</span>
                                 </div>
                                 <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
                                     <textarea
                                         disabled={isReviewed}
-                                        className="glass-textarea"
-                                        rows={15}
-                                        style={{ fontSize: '0.9rem', lineHeight: '1.6', padding: '20px 20px 20px 2.8rem', cursor: isReviewed ? 'not-allowed' : 'text', flex: 1, resize: 'vertical', minHeight: '300px' }}
-                                        placeholder="Any obstacles or issues today? Describe them in detail."
+                                        className="glass-textarea custom-scrollbar"
+                                        rows={12}
+                                        style={{ paddingLeft: '3rem', cursor: isReviewed ? 'not-allowed' : 'text', minHeight: '320px' }}
+                                        placeholder="Any obstacles or issues today? Enter 'None' if clear."
                                         value={formData.blockers}
                                         onChange={e => setFormData({ ...formData, blockers: e.target.value })}
                                     />
-                                    <AlertTriangle size={15} style={{ position: 'absolute', left: '1rem', top: '22px', opacity: 0.3 }} />
+                                    <AlertTriangle size={18} style={{ position: 'absolute', left: '1.25rem', top: '1.5rem', opacity: 0.2, color: 'var(--purple-light)' }} />
                                 </div>
                             </div>
                         </div>
 
                         {/* Bottom Area: Hours & Button */}
-                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ flexShrink: 0, width: '200px' }}>
-                                <label className="input-label" style={{ marginBottom: '8px', fontSize: '0.65rem', display: 'block' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ flexShrink: 0, width: '220px' }}>
+                                <label className="input-label" style={{ marginBottom: '10px' }}>
                                     Office Hours <span style={{ color: '#F87171' }}>*</span>
                                 </label>
                                 <div style={{ position: 'relative' }}>
@@ -297,13 +297,13 @@ export default function EODPage() {
                                         type="number"
                                         disabled={!!todayReport}
                                         className="glass-textarea"
-                                        style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '0.75rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 600 }}
+                                        style={{ height: '3.5rem', paddingLeft: '3rem', fontSize: '1rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 800 }}
                                         min="0" step="0.5" max="24"
                                         placeholder="8.5"
                                         value={formData.workHours}
                                         onChange={e => setFormData({ ...formData, workHours: e.target.value })}
                                     />
-                                    <Clock size={15} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+                                    <Clock size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
                                 </div>
                             </div>
                             
@@ -314,30 +314,31 @@ export default function EODPage() {
                                     className="submit-btn"
                                     style={{ 
                                         width: '100%', 
-                                        height: '3.2rem', 
-                                        fontSize: '0.75rem',
-                                        fontWeight: 700,
+                                        height: '3.5rem', 
+                                        fontSize: '0.9rem',
+                                        fontWeight: 800,
                                         textTransform: 'uppercase',
-                                        letterSpacing: '0.05em',
+                                        letterSpacing: '0.1em',
                                         background: isReviewed ? 'rgba(255,255,255,0.05)' : todayReport ? 'var(--purple-main)' : undefined,
                                         color: isReviewed ? 'rgba(255,255,255,0.3)' : undefined,
-                                        border: isReviewed ? '1px solid rgba(255,255,255,0.05)' : undefined
+                                        border: isReviewed ? '1px solid rgba(255,255,255,0.05)' : undefined,
+                                        borderRadius: '18px'
                                      }}
                                 >
-                                    {loading ? 'Processing...' : isReviewed ? 'Report Reviewed (Locked)' : todayReport ? 'Update Today\'s EOD' : 'Publish Daily EOD'}
+                                    {loading ? 'Processing Protocol...' : isReviewed ? 'Report Locked' : todayReport ? 'Update Today\'s Entry' : 'Publish Daily EOD'}
                                 </Button>
                             </div>
                         </div>
 
                         {error && (
-                            <div className="error-message" style={{ marginTop: '20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#FCA5A5', padding: '12px 16px', borderRadius: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <AlertTriangle size={16} /> {error}
+                            <div className="error-message fade-in" style={{ marginTop: '1.5rem', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#FCA5A5', padding: '1rem 1.5rem', borderRadius: '16px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <AlertTriangle size={18} /> {error}
                             </div>
                         )}
 
                         {success && (
-                            <div className="success-message" style={{ marginTop: '20px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#6EE7B7', padding: '12px 16px', borderRadius: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <CheckCircle2 size={16} /> Report published successfully. Great job!
+                            <div className="success-message fade-in" style={{ marginTop: '1.5rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)', color: '#6EE7B7', padding: '1rem 1.5rem', borderRadius: '16px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <CheckCircle2 size={18} /> Daily transmission successful. Great work today!
                             </div>
                         )}
                     </form>
@@ -346,150 +347,109 @@ export default function EODPage() {
 
             {/* Past Submissions Area */}
             <section className="history-section">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingLeft: '4px' }}>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'white' }}>Submission History</h2>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500 }}>Recent Activity</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', padding: '0 1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'white', letterSpacing: '-0.02em' }}>Activity Logs</h2>
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', background: 'rgba(255,255,255,0.03)', padding: '2px 8px', borderRadius: '6px' }}>Archives</span>
+                    </div>
                 </div>
 
                 {reportsLoading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="animate-pulse" style={{ height: '60px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }} />
+                            <div key={i} className="animate-pulse" style={{ height: '80px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px' }} />
                         ))}
                     </div>
                 ) : myReports.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.01)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.05)' }}>
-                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>No activity records found.</p>
+                    <div style={{ textAlign: 'center', padding: '5rem 2rem', background: 'rgba(255,255,255,0.01)', borderRadius: '32px', border: '1px dashed rgba(255,255,255,0.05)' }}>
+                        <div style={{ width: '60px', height: '60px', borderRadius: '20px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                             <Calendar size={28} style={{ opacity: 0.1 }} />
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem', fontWeight: 500 }}>No historical activity recorded in this sector.</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {myReports.map(report => {
                             const isExpanded = expandedId === report.id;
                             const completedItems = getCompletedItems(report);
                             const reportDate = new Date(report.reportDate);
                             const isToday = new Date().toDateString() === reportDate.toDateString();
+                            const status = report.status || 'PENDING';
 
                             return (
                                 <div
                                     key={report.id}
                                     className={`report-log-item ${isExpanded ? 'active' : ''}`}
                                     onClick={() => setExpandedId(isExpanded ? null : report.id)}
-                                    style={{
-                                        background: isExpanded ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
-                                        border: isExpanded ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(255,255,255,0.03)',
-                                        borderRadius: '12px',
-                                        overflow: 'hidden',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        cursor: 'pointer'
-                                    }}
                                 >
-                                    <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600, fontFamily: 'monospace', width: '45px' }}>
-                                                {reportDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
-                                            </div>
-                                            <div style={{ height: '16px', width: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                                            <div>
-                                                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'white' }}>
-                                                    {isToday ? 'Today\'s Summary' : reportDate.toLocaleDateString('en-GB', { weekday: 'long' })}
+                                    <div style={{ padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                                            <div style={{ textAlign: 'center', minWidth: '60px' }}>
+                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '2px' }}>
+                                                    {reportDate.toLocaleDateString('en-GB', { month: 'short' })}
                                                 </div>
-                                                <div style={{ fontSize: '0.7rem', color: isToday ? 'var(--purple-light)' : 'rgba(255,255,255,0.3)', marginTop: '1px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span>{completedItems.length} tasks completed</span>
-                                                    {(report.workHours || workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.hoursLogged) && (
-                                                        <>
-                                                            <span style={{ opacity: 0.3 }}>•</span>
-                                                            <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                                                                {report.workHours || workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.hoursLogged}h logged
-                                                                {(() => {
-                                                                    const status = report.status || (workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.description?.match(/Status: (.*?)\./)?.[1]) || (workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.description?.includes('APPROVED') ? 'APPROVED' : null) || (workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.description?.includes('ADJUSTED') ? 'ADJUSTED' : null);
-                                                                    if (!status) return null;
-                                                                    return (
-                                                                        <span style={{ marginLeft: '8px', fontSize: '0.6rem', textTransform: 'uppercase', background: status === 'APPROVED' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: status === 'APPROVED' ? '#10B981' : '#F59E0B', padding: '1px 6px', borderRadius: '4px', border: `1px solid ${status === 'APPROVED' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}` }}>{status}</span>
-                                                                    );
-                                                                })()}
-                                                            </span>
-                                                        </>
-                                                    )}
+                                                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>
+                                                    {reportDate.getDate()}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ height: '32px', width: '1px', background: 'rgba(255,255,255,0.06)' }} />
+
+                                            <div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    {isToday ? 'Today\'s Transmission' : reportDate.toLocaleDateString('en-GB', { weekday: 'long' })}
+                                                    <span className={`status-pill ${status === 'APPROVED' || status === 'REVIEWED' ? 'status-reviewed' : 'status-pending'}`}>
+                                                        {status}
+                                                    </span>
+                                                </div>
+                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckSquare size={12} style={{ color: 'var(--purple-light)' }} /> {completedItems.length} Tasks</span>
+                                                    <span style={{ opacity: 0.2 }}>|</span>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {report.workHours || 0} Hours</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                                             {report.sentiment && (
-                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: sentimentColor[report.sentiment] || '#666' }} />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <SentimentIcon sentiment={report.sentiment} />
+                                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>{report.sentiment}</span>
+                                                </div>
                                             )}
-                                            <ChevronDown size={12} style={{ opacity: 0.2, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s' }} />
+                                            <ChevronDown size={16} style={{ opacity: 0.2, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }} />
                                         </div>
                                     </div>
 
                                     {isExpanded && (
-                                        <div style={{ padding: '0 20px 20px 78px' }} className="fade-in">
-                                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-                                                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '4px' }}>
-                                                    {completedItems.map((item, i) => (
-                                                        <li key={i} style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', position: 'relative', paddingLeft: '1.2rem' }}>
-                                                            <span style={{ position: 'absolute', left: 0, color: 'var(--purple-main)', opacity: 0.5 }}>•</span>
-                                                            {item}
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                        <div style={{ padding: '0 2rem 2rem 6.5rem' }} className="fade-in">
+                                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
+                                                <div style={{ marginBottom: '1.5rem' }}>
+                                                    <div className="input-label" style={{ opacity: 0.5, marginBottom: '12px' }}>Achievements</div>
+                                                    <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                        {completedItems.map((item, i) => (
+                                                            <li key={i} style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', position: 'relative', paddingLeft: '1.5rem' }}>
+                                                                <span style={{ position: 'absolute', left: 0, color: 'var(--purple-main)', fontWeight: 900 }}>•</span>
+                                                                {item}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
 
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
-                                                    {/* Office Hours Side */}
-                                                    <div style={{ background: 'rgba(139, 92, 246, 0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                            <Clock size={14} style={{ color: 'var(--purple-light)' }} />
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontSize: '0.6rem', color: 'var(--purple-light)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px', opacity: 0.6 }}>Office Hours</div>
-                                                            <div style={{ fontSize: '0.9rem', color: 'white', fontWeight: 700 }}>
-                                                                {(() => {
-                                                                    const formatDate = (d: any) => {
-                                                                        try {
-                                                                            return new Date(d).toISOString().split('T')[0];
-                                                                        } catch (e) {
-                                                                            return null;
-                                                                        }
-                                                                    };
-                                                                    const reportDateStr = formatDate(report.reportDate);
-                                                                    const matchingLog = workHourLogs.find(log => formatDate(log.date) === reportDateStr);
-                                                                    const hours = report.workHours || report.work_hours || matchingLog?.hoursLogged || matchingLog?.hours_logged;
-                                                                    return hours || '0.0';
-                                                                })()}h
-                                                            </div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                                    <div style={{ background: 'rgba(139, 92, 246, 0.04)', padding: '1.25rem', borderRadius: '18px', border: '1px solid rgba(139, 92, 246, 0.1)' }}>
+                                                        <div className="input-label" style={{ opacity: 0.6, marginBottom: '8px' }}>Admin Feedback</div>
+                                                        <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', fontWeight: 500, fontStyle: report.adminNote ? 'italic' : 'normal' }}>
+                                                            {report.adminNote ? `"${report.adminNote}"` : 'No formal feedback provided for this cycle.'}
                                                         </div>
                                                     </div>
 
-                                                    {/* Blockers Side */}
-                                                    <div style={{ background: 'rgba(248,113,113,0.03)', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(248,113,113,0.08)' }}>
-                                                        <div style={{ fontSize: '0.6rem', color: '#f87171', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <AlertTriangle size={10} /> Blockers
-                                                        </div>
-                                                        <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                            {report.blockers || 'None'}
+                                                    <div style={{ background: 'rgba(248, 113, 113, 0.04)', padding: '1.25rem', borderRadius: '18px', border: '1px solid rgba(248, 113, 113, 0.1)' }}>
+                                                        <div className="input-label" style={{ opacity: 0.6, marginBottom: '8px', color: '#F87171' }}>Blockers / Risks</div>
+                                                        <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                                                            {report.blockers || 'None reported.'}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {(() => {
-                                                    const formatDate = (d: any) => { try { return new Date(d).toISOString().split('T')[0]; } catch (e) { return null; } };
-                                                    const reportDateStr = formatDate(report.reportDate);
-                                                    const matchingLog = workHourLogs.find(log => formatDate(log.date) === reportDateStr);
-                                                    const desc = matchingLog?.description || '';
-                                                    const noteMatch = desc.match(/\[Review Note: (.*?)\]/);
-                                                    const adminNote = report.adminNote || (noteMatch ? noteMatch[1] : (desc.includes('Admin reviewed') ? desc.split('Note: ')[1] || '' : ''));
-                                                    
-                                                    if (!adminNote) return null;
-                                                    
-                                                    return (
-                                                        <div style={{ marginTop: '12px', padding: '12px 14px', background: 'rgba(139, 92, 246, 0.04)', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
-                                                            <div style={{ fontSize: '0.6rem', color: 'var(--purple-light)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                Admin Feedback
-                                                            </div>
-                                                            <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontStyle: 'italic' }}>
-                                                                "{adminNote}"
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()}
                                             </div>
                                         </div>
                                     )}

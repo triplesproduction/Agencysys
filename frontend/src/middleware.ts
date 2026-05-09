@@ -29,11 +29,10 @@ export async function middleware(request: NextRequest) {
 
   const start = Date.now();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
+    data: { user },
+  } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  console.log(`[MIDDLEWARE] Session check took ${Date.now() - start}ms for ${pathname}`);
+  console.log(`[MIDDLEWARE] User check took ${Date.now() - start}ms for ${pathname}`);
 
   // 1. If no user and not on login page -> redirect to login
   if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {

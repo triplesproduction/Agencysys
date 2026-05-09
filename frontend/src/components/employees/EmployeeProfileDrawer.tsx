@@ -916,10 +916,16 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button onClick={() => {
+                                            <button onClick={async () => {
+                                                let finalUrl = doc.content;
+                                                if (!finalUrl.startsWith('http')) {
+                                                    const { data } = await supabase.storage.from('private-docs').createSignedUrl(doc.content, 3600);
+                                                    if (data) finalUrl = data.signedUrl;
+                                                    else { alert('Could not securely access this document.'); return; }
+                                                }
                                                 const win = window.open();
                                                 if (win) {
-                                                    const isImage = doc.fileType?.startsWith('image/') || doc.content.match(/\.(jpg|jpeg|png|webp|gif)/i);
+                                                    const isImage = doc.fileType?.startsWith('image/') || finalUrl.match(/\.(jpg|jpeg|png|webp|gif)/i);
                                                     win.document.title = doc.name;
                                                     win.document.write(`
                                                         <html>
@@ -966,8 +972,8 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                                             <body>
                                                                 <div class="toolbar">${doc.name}</div>
                                                                 ${isImage 
-                                                                    ? `<img src="${doc.content}" alt="${doc.name}" />`
-                                                                    : `<iframe src="${doc.content}" allowfullscreen></iframe>`
+                                                                    ? `<img src="${finalUrl}" alt="${doc.name}" />`
+                                                                    : `<iframe src="${finalUrl}" allowfullscreen></iframe>`
                                                                 }
                                                             </body>
                                                         </html>
@@ -975,7 +981,20 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                                     win.document.close();
                                                 }
                                             }} className="secondary-button" style={{ padding: '6px' }} title="View"><Eye size={16} /></button>
-                                            <a href={doc.content} download={doc.name} className="secondary-button" style={{ padding: '6px', display: 'flex' }} title="Download"><Download size={16} /></a>
+                                            <button onClick={async () => {
+                                                let finalUrl = doc.content;
+                                                if (!finalUrl.startsWith('http')) {
+                                                    const { data } = await supabase.storage.from('private-docs').createSignedUrl(doc.content, 3600);
+                                                    if (data) finalUrl = data.signedUrl;
+                                                    else { alert('Could not securely access this document.'); return; }
+                                                }
+                                                const a = document.createElement('a');
+                                                a.href = finalUrl;
+                                                a.download = doc.name;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                            }} className="secondary-button" style={{ padding: '6px', display: 'flex' }} title="Download"><Download size={16} /></button>
                                         </div>
                                     </div>
                                 ))}

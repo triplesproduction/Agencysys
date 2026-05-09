@@ -289,7 +289,7 @@ export default function EmployeesPage() {
                                                     <div className="emp-row-avatar">
                                                         {emp.profilePhoto
                                                             ? <img src={emp.profilePhoto} alt="" />
-                                                            : emp.firstName.charAt(0)
+                                                            : (emp?.firstName?.charAt(0) || 'U')
                                                         }
                                                         <span className={`emp-dot ${emp.status === 'ACTIVE' ? 'active' : emp.status === 'ON_LEAVE' ? 'leave' : 'inactive'}`} />
                                                     </div>
@@ -363,7 +363,7 @@ export default function EmployeesPage() {
                     </div>
                 </div>
             ) : activeView === 'PAYROLL' ? (
-                <div className="fade-in" style={{ flex: 1, minHeight: 0, marginTop: '8px', display: 'flex', flexDirection: 'column' }}>
+                <div className="fade-in" style={{ flex: 1, minHeight: 0, marginTop: '24px', display: 'flex', flexDirection: 'column' }}>
                     <PayrollHub employees={employees} />
                 </div>
             ) : (

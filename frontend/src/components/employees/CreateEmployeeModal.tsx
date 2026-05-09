@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import DatePicker from '../common/DatePicker';
 
 interface UploadedDocument {
@@ -136,7 +137,14 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         setDocuments(prev => prev.filter(doc => doc.id !== id));
     };
 
-    const viewDocument = (doc: UploadedDocument) => {
+    const viewDocument = async (doc: UploadedDocument) => {
+        let finalUrl = doc.content;
+        if (!finalUrl.startsWith('http')) {
+            const { data } = await supabase.storage.from('private-docs').createSignedUrl(doc.content, 3600);
+            if (data) finalUrl = data.signedUrl;
+            else { alert('Could not securely access this document.'); return; }
+        }
+
         const win = window.open();
         if (win) {
             const isImage = doc.fileType.startsWith('image/');
@@ -187,8 +195,8 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
                     <body>
                         <div class="toolbar">${doc.name}</div>
                         ${isImage 
-                            ? `<img src="${doc.content}" alt="${doc.name}" />`
-                            : `<iframe src="${doc.content}" allowfullscreen></iframe>`
+                            ? `<img src="${finalUrl}" alt="${doc.name}" />`
+                            : `<iframe src="${finalUrl}" allowfullscreen></iframe>`
                         }
                     </body>
                 </html>
@@ -197,9 +205,15 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
         }
     };
 
-    const downloadDocument = (doc: UploadedDocument) => {
+    const downloadDocument = async (doc: UploadedDocument) => {
+        let finalUrl = doc.content;
+        if (!finalUrl.startsWith('http')) {
+            const { data } = await supabase.storage.from('private-docs').createSignedUrl(doc.content, 3600);
+            if (data) finalUrl = data.signedUrl;
+            else { alert('Could not securely access this document.'); return; }
+        }
         const link = document.createElement('a');
-        link.href = doc.content;
+        link.href = finalUrl;
         link.download = doc.name;
         link.click();
     };

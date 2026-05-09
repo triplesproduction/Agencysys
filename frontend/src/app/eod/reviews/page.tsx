@@ -266,7 +266,7 @@ function EODReviewsContent() {
                                 }}
                             >
                                 <option value="" style={{ background: '#0a0a0c' }}>All Members</option>
-                                {employees.sort((a, b) => a.firstName.localeCompare(b.firstName)).map(emp => (
+                                {employees.sort((a, b) => (a?.firstName || '').localeCompare(b?.firstName || '')).map(emp => (
                                     <option key={emp.id} value={emp.id} style={{ background: '#0a0a0c' }}>
                                         {emp.firstName} {emp.lastName}
                                     </option>
