@@ -1,159 +1,86 @@
-/* ====================================================
-   TRIPLES OS - EOD (LIQUID GLASS)
-   Modern, High-Density Daily Reporting UI
-   ==================================================== */
-
 .eod-page {
     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
 }
 
 .greeting {
-    font-size: 2.8rem;
+    font-size: 2.2rem;
     font-weight: 800;
     letter-spacing: -0.04em;
-    background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.4) 100%);
+    background: linear-gradient(to right, #fff 20%, rgba(255, 255, 255, 0.4) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
 }
 
 .subtitle {
     color: var(--text-secondary);
-    font-size: 1.1rem;
-    font-weight: 500;
-    opacity: 0.8;
+    font-size: 1rem;
+    opacity: 0.7;
 }
 
-/* ── SUBMISSION FORM ── */
 .submission-card {
-    background: rgba(15, 15, 20, 0.4) !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: 28px !important;
-    backdrop-filter: blur(25px);
-    box-shadow: var(--glass-shadow);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.submission-card::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle at top right, rgba(124, 58, 237, 0.08), transparent 70%);
-    pointer-events: none;
 }
 
 .input-label {
     display: block;
-    font-size: 0.7rem;
-    font-weight: 800;
+    font-size: 0.75rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     color: var(--purple-light);
-    margin-bottom: 0.75rem;
+    opacity: 0.8;
 }
 
 .glass-textarea {
-    background: rgba(255, 255, 255, 0.03) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    border-radius: 20px;
-    padding: 1.5rem;
+    border-radius: 14px;
+    padding: 1.25rem;
     color: #fff;
     width: 100%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 0.95rem;
-    line-height: 1.6;
-    font-family: inherit;
 }
 
 .glass-textarea:focus {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border-color: rgba(124, 58, 237, 0.5) !important;
-    box-shadow: 0 0 30px rgba(124, 58, 237, 0.1);
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(139, 92, 246, 0.3) !important;
     outline: none;
 }
 
-.glass-textarea:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: rgba(255, 255, 255, 0.01) !important;
-}
-
-/* ── HISTORY LIST ── */
-.history-section {
-    margin-top: 4rem;
-}
-
 .report-log-item {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    border-radius: 20px;
-    margin-bottom: 0.75rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    overflow: hidden;
 }
 
 .report-log-item:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.03) !important;
+    transform: translateY(-1px);
 }
 
 .report-log-item.active {
-    background: rgba(124, 58, 237, 0.04);
-    border-color: rgba(124, 58, 237, 0.2);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
-/* ── FEEDBACK BADGES ── */
-.status-pill {
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 3px 10px;
-    border-radius: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.status-reviewed {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10B981;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-}
+@media (max-width: 768px) {
+    .greeting {
+        font-size: 1.8rem;
+    }
 
-.status-pending {
-    background: rgba(245, 158, 11, 0.1);
-    color: #F59E0B;
-    border: 1px solid rgba(245, 158, 11, 0.2);
-}
-
-/* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-}
-
-@media (max-width: 1024px) {
-    .form-grid {
-        grid-template-columns: 1fr !important;
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 16px;
     }
 }

@@ -75,16 +75,16 @@ export default function ProjectsPage() {
     const activeCount = projects.filter(p => p.status === 'ACTIVE').length;
 
     return (
-        <div className="projects-page fade-in">
-            <header className="emp-header">
+        <div className="projects-page page-root fade-in">
+            <header className="page-header">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <h1 className="emp-title">Project Hub</h1>
-                    <div className="emp-stats-inline">
+                    <h1 className="page-title">Project Hub</h1>
+                    <div className="page-stats-inline">
                         <span><FolderKanban size={14} style={{ color: 'var(--purple-light)' }} /> {projects.length} Initiatives</span>
                         <span className="active"><CheckCircle2 size={14} /> {activeCount} Operational</span>
                     </div>
                 </div>
-                <div className="emp-header-actions">
+                <div className="page-header-actions">
                     <div className="emp-search">
                         <Search size={16} />
                         <input 
@@ -111,7 +111,7 @@ export default function ProjectsPage() {
                     </div>
 
                     {userRole !== 'EMPLOYEE' && (
-                        <button className="emp-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
+                        <button className="page-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
                             <Plus size={18} /> New project
                         </button>
                     )}

@@ -38,6 +38,11 @@
   --radius-lg: 20px;
   --radius-pill: 9999px;
   --transition-smooth: all 0.25s ease;
+
+  /* Global Page Styles */
+  --page-padding: 2rem;
+  --page-max-width: 1600px;
+  --page-header-gap: 2rem;
 }
 
 * {
@@ -146,6 +151,119 @@ textarea {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--purple-glow);
+}
+
+/* ====================================================
+   GLOBAL PAGE LAYOUT & TYPOGRAPHY
+   ==================================================== */
+
+.page-root {
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+    padding: var(--page-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--page-header-gap);
+    min-height: 100vh;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    background: linear-gradient(to bottom, #fff, rgba(255,255,255,0.6));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+    line-height: 1.1;
+}
+
+.page-stats-inline {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    opacity: 0.8;
+    white-space: nowrap;
+    margin-top: 4px;
+}
+
+.page-stats-inline span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-stats-inline .active {
+    color: #10B981;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Standardized Header Buttons */
+.page-action-btn {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    border: 1px solid var(--glass-border);
+    height: 42px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    backdrop-filter: blur(10px);
+}
+
+.page-action-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.page-action-btn-primary {
+    background: var(--purple-main);
+    color: white;
+    border: none;
+    height: 42px;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+.page-action-btn-primary:hover {
+    transform: translateY(-1px);
+    background: var(--purple-accent);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
 }
 
 /* Loading Skeletons */

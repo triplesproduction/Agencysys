@@ -4,13 +4,7 @@
    ==================================================== */
 
 .projects-page {
-    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
+    /* Uses .page-root from globals.css */
 }
 
 @keyframes fadeIn {
@@ -20,48 +14,19 @@
 
 /* ── HEADER SECTION ── */
 .emp-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 0.5rem;
+    /* Uses .page-header from globals.css */
 }
 
 .emp-title {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    background: linear-gradient(to bottom, #fff, rgba(255,255,255,0.6));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    white-space: nowrap;
+    /* Uses .page-title from globals.css */
 }
 
 .emp-stats-inline {
-    display: flex;
-    gap: 1.5rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    font-weight: 600;
-    opacity: 0.8;
-    white-space: nowrap;
-}
-
-.emp-stats-inline span {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.emp-stats-inline .active {
-    color: #10B981;
+    /* Uses .page-stats-inline from globals.css */
 }
 
 .emp-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+    /* Uses .page-header-actions from globals.css */
 }
 
 /* ── SEARCH & FILTERS ── */
