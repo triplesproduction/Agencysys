@@ -107,7 +107,7 @@ export default function TasksPage() {
 
         } catch (err: any) {
             console.error('Failed to load tasks:', err);
-            addNotification({ title: 'Load Error', message: 'Could not fetch board data.', type: 'error' });
+            addNotification({ title: 'Load Error', message: 'Could not fetch board data.', type: 'ERROR' });
         } finally {
             setLoading(false);
         }

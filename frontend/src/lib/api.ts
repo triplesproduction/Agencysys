@@ -294,12 +294,12 @@ export const api = {
     createTask: async (payload: Partial<TaskDTO>) => {
         const data = { ...payload };
         
-        if (data.assigneeIds && data.assigneeIds.length > 0) {
+        if (data.assigneeIds && data.assigneeIds.length > 0 && !data.assigneeId) {
             data.assigneeId = data.assigneeIds[0];
         }
 
         // Strict whitelist to prevent Supabase schema cache errors
-        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'managerId', 'projectId'];
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'projectId'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -307,7 +307,15 @@ export const api = {
             }
         });
 
-        const { data: res, error } = await supabase.from('tasks').insert(dbPayload).select('id, title, description, status, priority, assigneeId, dueDate, attachments, creatorId, managerId, createdAt').single();
+        if (process.env.NODE_ENV === 'development') {
+            console.log('[API] Creating task with payload:', dbPayload);
+        }
+
+        const { data: res, error } = await supabase.from('tasks')
+            .insert(dbPayload)
+            .select('id, title, description, status, priority, assigneeId, assigneeIds, dueDate, attachments, creatorId, projectId, createdAt')
+            .single();
+            
         handleSupabaseEvent(res, error, 'Create Task');
         return { ...payload, ...res } as TaskDTO;
     },
@@ -325,7 +333,7 @@ export const api = {
         }
 
         // Strict whitelist to prevent Supabase schema cache errors
-        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'managerId', 'quality_rating', 'projectId'];
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'quality_rating', 'projectId'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -333,7 +341,16 @@ export const api = {
             }
         });
 
-        const { data: res, error } = await supabase.from('tasks').update(dbPayload).eq('id', id).select('id, title, description, status, priority, assigneeId, dueDate, attachments, creatorId, managerId, quality_rating, createdAt').single();
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[API] Updating task ${id} with payload:`, dbPayload);
+        }
+
+        const { data: res, error } = await supabase.from('tasks')
+            .update(dbPayload)
+            .eq('id', id)
+            .select('id, title, description, status, priority, assigneeId, assigneeIds, dueDate, attachments, creatorId, projectId, quality_rating, createdAt')
+            .single();
+
         handleSupabaseEvent(res, error, 'Update Task');
         return { ...payload, ...res } as TaskDTO;
     },
@@ -416,7 +433,7 @@ export const api = {
             workHours: report.workHours || (report as any).work_hours || 0
         })) as EODSubmissionDTO[];
     },
-    getAllEODs: async (limit: number = 15) => {
+    getAllEODs: async (limit: number = 100) => {
         const { data, error } = await supabase
             .from('eod_reports')
             .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto, department, roleId)')

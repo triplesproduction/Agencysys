@@ -11,6 +11,7 @@ import MarkdownEditor from '../common/MarkdownEditor';
 import MultiMemberPicker from '../common/MultiMemberPicker';
 import { EmployeeDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '../notifications/NotificationProvider';
 import './TasksModal.css';
 
 
@@ -23,6 +24,7 @@ interface AllocateTaskModalProps {
 
 export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectId }: AllocateTaskModalProps) {
     const { employee: authEmployee } = useAuth();
+    const { addNotification } = useNotifications();
     const [tasks, setTasks] = useState<{ id: string, title: string, description?: string }[]>([]);
     const [employees, setEmployees] = useState<{ id: string, name: string, role: string, profilePhoto?: string, firstName?: string }[]>([]);
 
@@ -135,10 +137,23 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
 
             await api.createTask(formData as any);
 
-            onSuccess();
+            addNotification({
+                title: 'Task Allocated',
+                message: `Successfully assigned "${title}" to ${selectedEmployeeIds.length} members.`,
+                type: 'SUCCESS'
+            });
+
             onClose();
+            onSuccess();
         } catch (err: any) {
-            setErrorMsg(err.message || 'Validation failed.');
+            console.error('Allocation failed:', err);
+            const msg = err.message || 'Validation failed. Please check all required fields.';
+            setErrorMsg(msg);
+            addNotification({
+                title: 'Allocation Failed',
+                message: msg,
+                type: 'ERROR'
+            });
         } finally {
             setIsSubmitting(false);
         }

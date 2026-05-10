@@ -97,11 +97,25 @@
 }
 
 @keyframes rotateGlow {
-    0% {
-        transform: rotate(0deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 
-    100% {
-        transform: rotate(360deg);
-    }
+/* Notification Types Styling */
+.notification-card[data-type="SUCCESS"] {
+    border: 1px solid rgba(16, 185, 129, 0.4) !important;
+    box-shadow: 0 10px 40px -10px rgba(16, 185, 129, 0.5) !important;
+}
+
+.notification-card[data-type="SUCCESS"] .notification-glow-ring {
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(16, 185, 129, 0.15) 90deg, transparent 180deg);
+}
+
+.notification-card[data-type="ERROR"], .notification-card[data-type="error"] {
+    border: 1px solid rgba(239, 68, 68, 0.4) !important;
+    box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.5) !important;
+}
+
+.notification-card[data-type="ERROR"] .notification-glow-ring, .notification-card[data-type="error"] .notification-glow-ring {
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(239, 68, 68, 0.15) 90deg, transparent 180deg);
 }

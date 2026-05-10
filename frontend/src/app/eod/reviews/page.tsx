@@ -62,8 +62,14 @@ function EODReviewsContent() {
     const [reports, setReports] = useState<EODReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => {
+        const d = new Date();
+        return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    });
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [ratingMenuOpen, setRatingMenuOpen] = useState<string | null>(null);
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -76,7 +82,7 @@ function EODReviewsContent() {
     const fetchReports = useCallback(async () => {
         try {
             setIsLoading(true);
-            const data = await api.getAllEODs();
+            const data = await api.getAllEODs(100);
             setReports(data);
 
             if (data.length > 0) {
