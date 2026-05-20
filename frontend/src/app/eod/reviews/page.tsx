@@ -64,11 +64,19 @@ function EODReviewsContent() {
     const [search, setSearch] = useState('');
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
-        return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+        const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
+        const y = firstDay.getFullYear();
+        const m = String(firstDay.getMonth() + 1).padStart(2, '0');
+        const day = String(firstDay.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     });
     const [endDate, setEndDate] = useState(() => {
         const d = new Date();
-        return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const y = lastDay.getFullYear();
+        const m = String(lastDay.getMonth() + 1).padStart(2, '0');
+        const day = String(lastDay.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     });
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [ratingMenuOpen, setRatingMenuOpen] = useState<string | null>(null);
@@ -82,64 +90,73 @@ function EODReviewsContent() {
     const fetchReports = useCallback(async () => {
         try {
             setIsLoading(true);
-            const data = await api.getAllEODs(100);
+            // Fetch EODs within the selected date range
+            const data = await api.getAllEODs({ 
+                startDate, 
+                endDate, 
+                employeeId: selectedEmployeeId || undefined,
+                limit: 500 
+            });
             setReports(data);
 
             if (data.length > 0) {
-                const logs = await Promise.all(data.map(async (report: any) => {
-                    if (!report.employee) return null;
-                    try {
-                        const date = new Date(report.reportDate).toISOString().split('T')[0];
-                        const log = await api.getWorkHoursByDate(report.employee.id, date);
-                        return { reportId: report.id, log };
-                    } catch (e) {
-                        return null;
-                    }
-                }));
-
+                // Optimize: Fetch all work hours for the date range in one go
+                const allWorkHours = await api.getWorkHoursInRange(startDate, endDate, selectedEmployeeId || undefined);
+                
                 const newLogMap: Record<string, any> = {};
-                logs.forEach((item: any) => {
-                    if (item && item.log) {
-                        newLogMap[item.reportId] = item.log;
+                
+                // Map work hours to EOD reports by employeeId and date
+                data.forEach((report: any) => {
+                    if (!report.employee) return;
+                    const reportDateStr = new Date(report.reportDate).toISOString().split('T')[0];
+                    const matchingLog = allWorkHours.find(log => 
+                        log.employeeId === report.employee.id && 
+                        log.date === reportDateStr
+                    );
+                    if (matchingLog) {
+                        newLogMap[report.id] = matchingLog;
                     }
                 });
+                
                 setWorkLogMap(newLogMap);
+            } else {
+                setWorkLogMap({});
             }
         } catch (err: any) {
             addNotification({ type: 'ERROR', title: 'Load Failed', message: err.message || 'Could not fetch EOD reports.' });
         } finally {
             setIsLoading(false);
         }
-    }, [addNotification]);
+    }, [addNotification, startDate, endDate, selectedEmployeeId]);
 
     useEffect(() => {
         fetchReports();
+    }, [fetchReports]);
+
+    useEffect(() => {
         api.getEmployees({ limit: 1000 }).then(res => setEmployees(res.data || []));
         const handleOutsideClick = () => setRatingMenuOpen(null);
         window.addEventListener('click', handleOutsideClick);
         return () => window.removeEventListener('click', handleOutsideClick);
-    }, [fetchReports]);
+    }, []);
 
     useEffect(() => {
         if (expandedId) {
             const report = reports.find(r => r.id === expandedId);
-            if (report && report.employee) {
-                const date = new Date(report.reportDate).toISOString().split('T')[0];
-                api.getWorkHoursByDate(report.employee.id, date).then(log => {
-                    if (log) {
-                        setWorkLogMap(prev => ({ ...prev, [report.id]: log }));
-                        setEditHours(String(log.hoursLogged));
-                        const desc = log.description || '';
-                        const noteMatch = desc.match(/\[Review Note: (.*?)\]/);
-                        setEditNote(noteMatch ? noteMatch[1] : (desc.includes('Admin reviewed') ? desc.split('Note: ')[1] || '' : ''));
-                    } else {
-                        setEditHours(String(report.workHours || ''));
-                        setEditNote('');
-                    }
-                });
+            if (report) {
+                const log = workLogMap[report.id];
+                if (log) {
+                    setEditHours(String(log.hoursLogged || log.hours_logged || ''));
+                    const desc = log.description || '';
+                    const noteMatch = desc.match(/\[Review Note: (.*?)\]/);
+                    setEditNote(noteMatch ? noteMatch[1] : (desc.includes('Admin reviewed') ? desc.split('Note: ')[1] || '' : ''));
+                } else {
+                    setEditHours(String(report.workHours || ''));
+                    setEditNote('');
+                }
             }
         }
-    }, [expandedId, reports]);
+    }, [expandedId, reports, workLogMap]);
 
     const handleReviewUpdate = async (reportId: string, status: string) => {
         try {
@@ -150,7 +167,7 @@ function EODReviewsContent() {
             const hours = parseFloat(editHours);
             if (isNaN(hours)) throw new Error('Please enter a valid number for hours.');
 
-            const reportDateStr = new Date(report.reportDate).toISOString().split('T')[0];
+            const reportDateStr = report.reportDate.includes('T') ? report.reportDate.split('T')[0] : report.reportDate;
 
             await api.reviewEOD(reportId, {
                 employeeId: report.employee.id,
@@ -175,15 +192,10 @@ function EODReviewsContent() {
         const name = r.employee ? `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase() : '';
         const dept = r.employee?.department?.toLowerCase() || '';
         const q = search.toLowerCase();
-        const matchSearch = name.includes(q) || dept.includes(q);
-
-        const reportDate = new Date(r.reportDate);
-        const matchDate = (!startDate || reportDate >= new Date(startDate)) &&
-            (!endDate || reportDate <= new Date(endDate));
-
-        const matchEmployee = !selectedEmployeeId || r.employee?.id === selectedEmployeeId;
-
-        return matchSearch && matchDate && matchEmployee;
+        
+        // Date and Employee filtering is now handled by the API call, 
+        // but we keep the name/dept search filtering on the client for responsiveness
+        return name.includes(q) || dept.includes(q);
     });
 
     const grouped = filtered.reduce((acc, r) => {

@@ -372,14 +372,22 @@ export const api = {
             tasksCompleted: data.tasksCompleted || [],
             tasksInProgress: data.tasksInProgress || [],
             completedText: (data as any).completedText || null,
-            inProgressText: (data as any).inProgressText || null,
             blockers: data.blockers,
             sentiment: data.sentiment || 'GOOD',
             status: data.status || 'SUBMITTED',
             work_hours: data.workHours
         };
 
-        const { data: res, error } = await supabase.from('eod_reports').insert(dbPayload).select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, completedText, inProgressText, blockers, sentiment, status, work_hours').single();
+        const insertPromise = supabase.from('eod_reports')
+            .insert(dbPayload)
+            .select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, completedText, blockers, sentiment, status, work_hours')
+            .single();
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('submitEOD timed out. Verify your database columns.')), 10000)
+        );
+
+        const { data: res, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
         
         handleSupabaseEvent(res, error, 'Submit EOD');
         
@@ -433,13 +441,20 @@ export const api = {
             workHours: report.workHours || (report as any).work_hours || 0
         })) as EODSubmissionDTO[];
     },
-    getAllEODs: async (limit: number = 100) => {
-        const { data, error } = await supabase
+    getAllEODs: async (options?: { limit?: number; startDate?: string; endDate?: string; employeeId?: string }) => {
+        let query = supabase
             .from('eod_reports')
-            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto, department, roleId)')
-            .order('reportDate', { ascending: false })
-            .order('createdAt', { ascending: false })
-            .limit(limit);
+            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto, department, roleId)');
+
+        if (options?.startDate) query = query.gte('reportDate', options.startDate);
+        if (options?.endDate) query = query.lte('reportDate', options.endDate);
+        if (options?.employeeId) query = query.eq('employeeId', options.employeeId);
+
+        query = query.order('reportDate', { ascending: false }).order('createdAt', { ascending: false });
+
+        if (options?.limit) query = query.limit(options.limit);
+
+        const { data, error } = await query;
 
         handleSupabaseEvent(data, error, 'Fetch All EODs');
         
@@ -451,6 +466,14 @@ export const api = {
             tasksInProgress: report.tasksInProgress || [],
             workHours: report.workHours || (report as any).work_hours || 0
         }));
+    },
+    getWorkHoursInRange: async (startDate: string, endDate: string, employeeId?: string) => {
+        let query = supabase.from('work_hours').select('*').gte('date', startDate).lte('date', endDate);
+        if (employeeId) query = query.eq('employeeId', employeeId);
+        
+        const { data, error } = await query;
+        handleSupabaseEvent(data, error, 'Fetch Work Hours In Range');
+        return data || [];
     },
     updateEODSentiment: async (id: string, sentiment: string) => {
         const { data, error } = await supabase.from('eod_reports').update({ sentiment }).eq('id', id).select().single();
@@ -534,7 +557,11 @@ export const api = {
 
     // Work Hours
     logWorkHours: async (data: Partial<WorkHourLogDTO>) => {
-        const { data: res, error } = await supabase.from('work_hours').insert(data).select().single();
+        const insertPromise = supabase.from('work_hours').insert(data).select().single();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('logWorkHours timed out. Verify your database columns.')), 10000)
+        );
+        const { data: res, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
         handleSupabaseEvent(res, error, 'Log Work Hours');
         return res as WorkHourLogDTO;
     },
