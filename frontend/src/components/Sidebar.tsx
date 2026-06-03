@@ -46,9 +46,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Announcements', href: '/broadcast', icon: Megaphone },
         { name: 'Leave Approvals', href: '/leaves/approvals', icon: CalendarDays },
-        { name: 'System Logs', href: '/logs/system', icon: Clock },
-        { name: 'Permissions', href: '/permissions', icon: ShieldAlert },
-        { name: 'Rule Book', href: '/wiki', icon: BookOpen },
+        { name: 'Rule Book', href: '/rulebook', icon: BookOpen },
     ],
     MANAGER: [
         { name: 'Team Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -56,10 +54,8 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Team Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
-        { name: 'Attendance', href: '/attendance', icon: CalendarDays },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Announcements', href: '/broadcast', icon: Megaphone },
-        { name: 'Project Notes', href: '/notes', icon: FileText },
     ],
     EMPLOYEE: [
         { name: 'My Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -136,17 +132,6 @@ export default function Sidebar() {
         signOut();
     };
 
-    // Auto-collapse sidebar on tasks page, expand on others
-    useEffect(() => {
-        if (pathname === '/tasks') {
-            setIsCollapsed(true);
-        } else {
-            setIsCollapsed(false);
-        }
-    }, [pathname]);
-
-
-
     useEffect(() => {
         if (typeof document !== 'undefined') {
             document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '80px' : '280px');
@@ -215,7 +200,7 @@ export default function Sidebar() {
 
                             return (
                                     <li key={item.name}>
-                                        <Link href={item.href || '#'} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)}>
+                                        <Link href={item.href || '#'} prefetch={false} scroll={false} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)}>
                                             {Icon && <Icon className="nav-icon" size={20} />}
                                             {!isCollapsed && <span>{item.name}</span>}
                                             {/* Unread messages badge */}

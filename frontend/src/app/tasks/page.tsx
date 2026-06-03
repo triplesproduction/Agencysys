@@ -1,5 +1,7 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -37,22 +39,24 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-import { KanbanColumn, SortableCard, AddColumnButton } from './KanbanComponents';
+import { KanbanColumn, SortableCard } from './KanbanComponents';
 import { useAuth } from '@/context/AuthContext';
 import { hasPermission, getResolvedRole } from '@/lib/permissions';
+import { useTasks, useUpdateTaskStatus } from '@/hooks/queries/domains/projects/useProjects';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
+import { useQueryClient } from '@tanstack/react-query';
 
 const COLUMNS = [
     { id: 'TODO', title: 'To Do' },
     { id: 'IN_PROGRESS', title: 'Planned / In Progress' },
     { id: 'IN_REVIEW', title: 'Under Review' },
+    { id: 'SUBMITTED', title: 'Pending Approval' },
     { id: 'DONE', title: 'Completed' },
     { id: 'BLOCKED', title: 'On Hold / Blocked' }
 ];
 
 export default function TasksPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();
-    const [tasks, setTasks] = useState<TaskDTO[]>([]);
-    const [loading, setLoading] = useState(true);
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -62,61 +66,48 @@ export default function TasksPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('ALL');
     const [assigneeFilter, setAssigneeFilter] = useState('ALL');
-    const [userRole, setUserRole] = useState('EMPLOYEE');
-    const [employees, setEmployees] = useState<any[]>([]);
-
 
     const { addNotification } = useNotifications();
+    const queryClient = useQueryClient();
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    const loadInitialData = async () => {
-        if (!authEmployee) return;
-        setLoading(true);
-        try {
-            const activeRole = getResolvedRole(authEmployee.roleId);
-            setUserRole(activeRole);
-            
-            // Parallel load for efficiency
-            const [tasksData, employeesData] = await Promise.all([
-                api.getTasks(activeRole === 'EMPLOYEE' ? authEmployee.id : undefined, undefined, 500),
-                api.getEmployees()
-            ]);
-            
-            const employeesList: EmployeeDTO[] = employeesData.data || [];
-            
-            const hydratedTasks = (tasksData || []).map(task => {
-                const assignedDocs = employeesList.filter(e => 
-                    (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
-                );
-                return {
-                    ...task,
-                    assignees: assignedDocs.length > 0 ? assignedDocs.map(e => ({
-                        id: e.id,
-                        firstName: e.firstName,
-                        lastName: e.lastName,
-                        profilePhoto: e.profilePhoto
-                    })) : (task.assignee ? [task.assignee] : [])
-                };
-            });
-            setTasks(hydratedTasks);
-            setEmployees(employeesList);
+    const userRole = authEmployee ? getResolvedRole(authEmployee.roleId) : 'EMPLOYEE';
+    const assigneeId = userRole === 'EMPLOYEE' ? authEmployee?.id : undefined;
 
-        } catch (err: any) {
-            console.error('Failed to load tasks:', err);
-            addNotification({ title: 'Load Error', message: 'Could not fetch board data.', type: 'ERROR' });
-        } finally {
-            setLoading(false);
-        }
-    };
+    // React Query Hooks
+    const { data: rawTasks, isLoading: tasksLoading } = useTasks(
+        assigneeId, 
+        undefined, 
+        500, 
+        undefined, 
+        { enabled: !!authEmployee }
+    );
+    const { data: employeesList, isLoading: employeesLoading } = useEmployees(undefined, { enabled: !!authEmployee });
+    const updateTaskStatusMutation = useUpdateTaskStatus();
 
-    useEffect(() => {
-        if (!authLoading) loadInitialData();
-    }, [authEmployee, authLoading]);
+    const loading = authLoading || tasksLoading || employeesLoading;
+    const employees = employeesList || [];
 
+    const tasks = useMemo(() => {
+        return (rawTasks || []).map(task => {
+            const assignedDocs = employees.filter(e => 
+                (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
+            );
+            return {
+                ...task,
+                assignees: assignedDocs.length > 0 ? assignedDocs.map(e => ({
+                    id: e.id,
+                    firstName: e.firstName,
+                    lastName: e.lastName,
+                    profilePhoto: e.profilePhoto
+                })) : (task.assignee ? [task.assignee] : [])
+            };
+        });
+    }, [rawTasks, employees]);
 
     // Derived State: Filtered Tasks
     const filteredTasks = useMemo(() => {
@@ -131,14 +122,12 @@ export default function TasksPage() {
         return filteredTasks;
     }, [tasks, searchQuery, priorityFilter, assigneeFilter]);
 
-
-
     // DnD Handlers
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
     };
 
-    const handleDragEnd = async (event: DragEndEvent) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveId(null);
 
@@ -160,17 +149,14 @@ export default function TasksPage() {
         }
 
         if (newStatus !== activeTask.status) {
-            // Optimistic Update
-            setTasks(prev => prev.map(t => t.id === active.id ? { ...t, status: newStatus as any } : t));
-            
-            try {
-                await api.updateTaskStatus(active.id as string, newStatus);
-            } catch (err: any) {
-
-                // Rollback
-                loadInitialData();
-                addNotification({ title: 'Move Failed', message: err.message, type: 'error' });
-            }
+            updateTaskStatusMutation.mutate(
+                { id: active.id as string, status: newStatus },
+                {
+                    onError: (err: any) => {
+                        addNotification({ title: 'Move Failed', message: err.message || 'Status update failed.', type: 'error' });
+                    }
+                }
+            );
         }
     };
 
@@ -183,15 +169,11 @@ export default function TasksPage() {
     const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
     return (
-        <div className="tasks-page fade-in">
-            {/* Elegant Header & Toolbar */}
-            <header className="page-header">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '40px' }}>
-                    <div style={{ flex: 1 }}>
-                        <h1 className="greeting">{userRole === 'EMPLOYEE' ? 'My Board' : 'Team TaskBoard'}</h1>
-                        <p className="subtitle">High-fidelity team task orchestration.</p>
-                    </div>
-                    
+        <div className="tasks-page page-root fade-in">
+            <PageHeader
+                title="Taskboard"
+                subtitle={<p className="subtitle">Team task orchestration.</p>}
+                actions={
                     <div className="toolbar-actions">
                         <div className="search-pill">
                             <Search size={16} color="rgba(255,255,255,0.4)" />
@@ -237,8 +219,8 @@ export default function TasksPage() {
                             </Button>
                         )}
                     </div>
-                </div>
-            </header>
+                }
+            />
 
             {/* Kanban Workspace */}
             <DndContext 
@@ -269,7 +251,6 @@ export default function TasksPage() {
                                             setIsDrawerOpen(true);
                                         }}
                                     />
-
                                 ))}
                             </SortableContext>
                             
@@ -306,19 +287,17 @@ export default function TasksPage() {
                 onClose={() => setIsAllocateModalOpen(false)}
                 onSuccess={() => {
                     addNotification({ title: 'Success', message: 'Task allocated successfully', type: 'success' });
-                    loadInitialData();
+                    queryClient.invalidateQueries({ queryKey: ['tasks'] });
                 }}
-
             />
 
             <TaskDetailDrawer 
                 isOpen={isDrawerOpen}
                 onClose={() => setIsDrawerOpen(false)}
                 taskId={selectedTaskId || ''}
-                onUpdate={loadInitialData}
+                onUpdate={() => queryClient.invalidateQueries({ queryKey: ['tasks'] })}
                 currentUserRole={userRole}
             />
-
         </div>
     );
 }

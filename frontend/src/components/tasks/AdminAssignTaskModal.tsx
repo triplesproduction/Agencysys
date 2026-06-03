@@ -8,6 +8,9 @@ import { EmployeeDTO } from '@/types/dto';
 import { X, Calendar, Clock, Link as LinkIcon, ChevronDown, User, Info } from 'lucide-react';
 
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
+import { useNotifications } from '../notifications/NotificationProvider';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 import DatePicker from '../common/DatePicker';
 import MarkdownEditor from '../common/MarkdownEditor';
 import MultiMemberPicker from '../common/MultiMemberPicker';
@@ -18,9 +21,12 @@ interface AdminAssignTaskModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAssign: (data: any) => Promise<void>;
+    onSuccess?: () => void;
+    initialDate?: string;
 }
 
-export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: AdminAssignTaskModalProps) {
+export default function AdminAssignTaskModal({ isOpen, onClose, onAssign, onSuccess, initialDate }: AdminAssignTaskModalProps) {
+    const { addNotification } = useNotifications();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
@@ -32,27 +38,21 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
 
 
     // Real data from API
-    const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const { data: employees = [] } = useEmployees({ limit: 1000 });
     const [isManagerListOpen, setIsManagerListOpen] = useState(false);
 
 
     useEffect(() => {
         if (isOpen) {
-            // Fetch real employees to prevent Foreign Key constraint crashes on the fake IDs
-            api.getEmployees({ limit: 1000 }).then(data => {
-                let empArray = Array.isArray(data) ? data : (data as any).data || [];
-                setEmployees(empArray);
-            }).catch(err => console.error('Failed to fetch employees', err));
-
-            // Reset state
+            // Reset Formstate
             setTitle('');
             setDescription('');
             setSelectedEmployeeIds([]);
             setManagerId('');
             setPriority('MEDIUM');
-            setDueDate('');
+            setDueDate(initialDate || '');
             setAttachments('');
             setSaveAsTemplate(false);
             setErrorMsg('');
@@ -123,7 +123,7 @@ export default function AdminAssignTaskModal({ isOpen, onClose, onAssign }: Admi
             onClose();
 
         } catch (err: any) {
-            console.error('Assignment failed:', err);
+            logger.error('Error', 'Assignment failed:', err);
             setErrorMsg(err.message || 'Validation failed. Please check required fields.');
         } finally {
             setIsSubmitting(false);

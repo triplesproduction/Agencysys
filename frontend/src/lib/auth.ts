@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logger } from './logger';
 
 /**
  * DEPRECATED: Cookie-based auth is removed.
@@ -11,7 +12,7 @@ export function getAuthToken(): string | null {
 export async function clearAuthToken() {
     if (typeof window !== 'undefined') {
         const { error } = await supabase.auth.signOut();
-        if (error) console.error('[AUTH DEBUG] signOut error:', error);
+        if (error) logger.error('Error', '[AUTH] signOut error:', error);
         
         // Final cleanup of any runaway cookies
         document.cookie = 'token=; Max-Age=0; path=/;';

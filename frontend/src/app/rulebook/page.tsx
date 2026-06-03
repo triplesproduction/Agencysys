@@ -1,24 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { PageHeader } from '@/components/common/PageHeader';
+
+import { useState, useEffect, useMemo } from 'react';
 import GlassCard from '@/components/GlassCard';
-import { Shield, Clock, CalendarHeart, HardDrive, Download, Settings, ChevronDown, BookOpen, Tag, Loader2, FileX, ShieldAlert, AlertTriangle, AlertCircle, Lock, Users, Monitor, Calendar } from 'lucide-react';
+import { 
+    Shield, Clock, Calendar, Lock, Users, Plus, Edit2, Trash2, Zap, LayoutGrid, AlertTriangle, AlertCircle, ShieldAlert, FileX
+} from 'lucide-react';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
+import DatePicker from '@/components/common/DatePicker';
+import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/components/notifications/NotificationProvider';
+import { RuleDTO } from '@/types/dto';
 import './Rulebook.css';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface Rule {
-    id: string;
-    title: string;
-    description: string;
-    category: string;
-    priority: string;
-    effectiveDate?: string | null;
-    createdAt: string;
-    author?: { firstName: string; lastName: string } | null;
-}
-
-// ── Priority colours ──────────────────────────────────────────────────────────
 const priorityColors: Record<string, { text: string; border: string; bg: string }> = {
     Critical: { text: '#EF4444', border: 'rgba(239,68,68,0.4)', bg: 'rgba(239,68,68,0.08)' },
     Important: { text: '#F59E0B', border: 'rgba(245,158,11,0.4)', bg: 'rgba(245,158,11,0.08)' },
@@ -26,25 +22,109 @@ const priorityColors: Record<string, { text: string; border: string; bg: string 
     Low: { text: '#6B7280', border: 'rgba(107,114,128,0.4)', bg: 'rgba(107,114,128,0.08)' },
 };
 
-// ── Static company policy sections ───────────────────────────────────────────
-const STATIC_SECTIONS = [
-    { id: 'policies', title: 'Company Policies', icon: Shield, content: (<><h4>Office Conduct</h4><p>Maintain professionalism in all digital communications. Treat peers with respect and uphold the TripleS OS core values during every sprint.</p><h4>Work Ethics</h4><p>Extreme ownership is expected. If a module breaks, own the fix. Plagiarism or copying untrusted third-party code without architectural review is a strict violation.</p><h4>Reporting Hierarchy</h4><p>Developers report to their direct Shift Manager. Shift Managers report logic escalations to the Admin council. Do not bypass the reporting chain for non-emergencies.</p></>) },
-    { id: 'hours', title: 'Work Hour Guidelines', icon: Clock, content: (<><h4>Login Time</h4><p>The standard system login window opens at <span className="highlight">09:00 AM Local Time</span>. Core availability must be maintained until 05:00 PM.</p><h4>Daily Working Hours</h4><p>Employees must track and log exactly 8 net working hours per daily shift into the Work Hours terminal.</p><h4>EOD Submission Rules</h4><p>An End of Day (EOD) report is <span className="highlight">mandatory</span>. It must be submitted before your final logout, explicitly detailing completed tasks and active blockers.</p></>) },
-    { id: 'leave', title: 'Leave Policy', icon: CalendarHeart, content: (<><h4>Leave Types</h4><p>Options currently supported: <strong>SICK</strong>, <strong>CASUAL</strong>, and <strong>EARNED</strong>.</p><h4>Approval Workflow</h4><ol style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}><li>Employee submits request via the Dashboard.</li><li>Manager reviews impact against Active Tasks queue.</li><li>Admin provides final sign-off confirming PTO validity.</li></ol><h4>Application Timeline</h4><p>Non-emergency leaves must be requested a minimum of <span className="highlight">7 days in advance</span>.</p></>) },
-    { id: 'laptop', title: 'Laptop Setup Guide', icon: HardDrive, content: (<><h4>Folder Structure Setup</h4><p>Clone the primary repository into a designated workspace directory. Never clone work projects directly onto the Desktop.</p><h4>Naming Conventions</h4><ul><li>Use <strong>camelCase</strong> for typescript variables.</li><li>Use <strong>PascalCase</strong> for React Components.</li><li>Use <strong>kebab-case</strong> for CSS class nomenclature.</li></ul></>) },
-    { id: 'software', title: 'Required Software Installation', icon: Download, content: (<><h4>VS Code</h4><p>Install the latest stable build. Required extensions: ESLint, Prettier, and Thunder Client for API testing.</p><h4>GitHub Desktop</h4><p>Required for visual commit tracking and PR reviews unless command-line is preferred.</p><h4>Slack / Teams</h4><p>Keep desktop notifications ON during core hours for emergency pings alerting to server downtime.</p></>) },
-    { id: 'apps', title: 'Important Apps Setup', icon: Settings, content: (<><h4>TripleS OS Login</h4><p>Authenticate daily using your assigned <span className="highlight">employeeId</span> and role-mapped passcode. Tokens automatically expire after 24 hours.</p><h4>Task Management Rules</h4><p>Tasks must be transitioned from <strong>TODO</strong> → <strong>IN_PROGRESS</strong> → <strong>DONE</strong> in real-time. Do not complete work before updating its status.</p></>) },
+const CATEGORIES = [
+    { id: 'All', name: 'All Rules', icon: LayoutGrid },
+    { id: 'Work Policy', name: 'Work Policy', icon: Shield },
+    { id: 'Security', name: 'Security & IT', icon: Lock },
+    { id: 'Leave', name: 'Leave & PTO', icon: Calendar },
+    { id: 'Attendance', name: 'Attendance', icon: Clock },
+    { id: 'HR', name: 'Human Resources', icon: Users }
 ];
 
-// ── Admin-published rule card ─────────────────────────────────────────────────
-
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function RulebookPage() {
-    const [expandedId, setExpandedId] = useState<string | null>('policies');
-    const [expandedLiveId, setExpandedLiveId] = useState<string | null>(null);
-    const [liveRules, setLiveRules] = useState<Rule[]>([]);
+    const { employee: authEmployee, loading: authLoading } = useAuth();
+    const { addNotification } = useNotifications();
+    const [liveRules, setLiveRules] = useState<RuleDTO[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [activeCategory, setActiveCategory] = useState('All');
+
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        title: '',
+        description: '',
+        category: 'Work Policy' as any,
+        priority: 'Normal' as any,
+        effectiveDate: ''
+    });
+
+    useEffect(() => {
+        if (!authLoading) {
+            if (authEmployee) {
+                const role = String(authEmployee.roleId || '').toUpperCase();
+                if (role.includes('ADMIN') || role.includes('MANAGER')) {
+                    setIsAdmin(true); // Allow Managers and Admins to edit/create
+                }
+                fetchRules();
+            } else {
+                setIsLoading(false);
+            }
+        }
+    }, [authLoading, authEmployee]);
+
+    const fetchRules = async () => {
+        try {
+            setIsLoading(true);
+            const data = await api.getRules();
+            setLiveRules(Array.isArray(data) ? data : []);
+        } catch (err) {
+            logger.error('Error', 'Failed to load rules:', err);
+            setLiveRules([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const filteredRules = useMemo(() => {
+        if (activeCategory === 'All') return liveRules;
+        return liveRules.filter(r => r.category === activeCategory || (activeCategory === 'Security' && r.category.includes('Security')));
+    }, [liveRules, activeCategory]);
+
+    const handleSubmitRule = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const payload = {
+                title: formData.title,
+                description: formData.description,
+                category: formData.category,
+                priority: formData.priority,
+                effectiveDate: formData.effectiveDate ? new Date(formData.effectiveDate).toISOString() : undefined
+            };
+
+            if (editingRuleId) {
+                await api.updateRule(editingRuleId, payload);
+                addNotification({ type: 'SYSTEM', title: 'Success', message: 'Rule updated successfully' });
+            } else {
+                if (!authEmployee) throw new Error('No auth session');
+                await api.createRule(payload, authEmployee.id);
+                addNotification({ type: 'SYSTEM', title: 'Success', message: 'Rule created and broadcasted globally.' });
+            }
+
+            setIsModalOpen(false);
+            setEditingRuleId(null);
+            setFormData({ title: '', description: '', category: 'Work Policy', priority: 'Normal', effectiveDate: '' });
+            fetchRules();
+        } catch (err: any) {
+            addNotification({ type: 'ERROR', title: 'Error', message: err.message || `Failed to ${editingRuleId ? 'update' : 'create'} rule` });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteRule = async (id: string) => {
+        if (!confirm('Are you sure you want to permanently delete this rule?')) return;
+        try {
+            await api.deleteRule(id);
+            addNotification({ type: 'SYSTEM', title: 'Success', message: 'Rule deleted successfully' });
+            fetchRules();
+        } catch (err: any) {
+            addNotification({ type: 'ERROR', title: 'Error', message: err.message || 'Failed to delete rule' });
+        }
+    };
 
     const getPriorityIcon = (priority: string) => {
         switch (priority) {
@@ -55,136 +135,179 @@ export default function RulebookPage() {
         }
     };
 
-    const getCategoryIcon = (category: string, title: string) => {
-        const lowerTitle = title.toLowerCase();
-        const lowerCat = category.toLowerCase();
-
-        if (lowerCat.includes('security') || lowerTitle.includes('setup') || lowerTitle.includes('security')) return <Lock size={20} />;
-        if (lowerCat.includes('hr') || lowerCat.includes('employee')) return <Users size={20} />;
-        if (lowerCat.includes('attendance') || lowerCat.includes('hour') || lowerTitle.includes('hour')) return <Clock size={20} />;
-        if (lowerCat.includes('leave') || lowerCat.includes('holiday') || lowerTitle.includes('leave')) return <Calendar size={20} />;
-        if (lowerTitle.includes('laptop') || lowerTitle.includes('setup') || lowerTitle.includes('monitor')) return <Monitor size={20} />;
-        if (lowerTitle.includes('software') || lowerTitle.includes('install') || lowerTitle.includes('download')) return <Download size={20} />;
-        if (lowerTitle.includes('app') || lowerCat.includes('tool')) return <Settings size={20} />;
-        return <Shield size={20} />;
-    };
-
-    useEffect(() => {
-        api.getRules()
-            .then(data => setLiveRules(data || []))
-            .catch(() => setLiveRules([]))
-            .finally(() => setIsLoading(false));
-    }, []);
+    if (authLoading) {
+        return <div className="page-loader"><div className="spinner"></div></div>;
+    }
 
     return (
-        <div className="rulebook-page fade-in">
-            <div className="rulebook-intro">
-                <h1 className="rulebook-title">Company Rulebook</h1>
-                <p className="rulebook-description">
-                    The single source of truth for TripleS OS operational protocols, technical guidelines, and team expectations.
-                </p>
-            </div>
+        <div className="rulebook-page page-root fade-in">
+            <PageHeader
+                title="Company Rulebook"
+                subtitle={<p className="subtitle">The single source of truth for TripleS OS operational protocols and guidelines.</p>}
+                actions={
+                    isAdmin && (
+                        <button
+                            className="page-action-btn-primary"
+                            onClick={() => {
+                                setEditingRuleId(null);
+                                setFormData({ title: '', description: '', category: 'Work Policy', priority: 'Normal', effectiveDate: '' });
+                                setIsModalOpen(true);
+                            }}
+                        >
+                            <Plus size={18} /> New Rule
+                        </button>
+                    )
+                }
+            />
 
-            {/* ── Live Admin-Published Rules Section ─────────────────────── */}
-            <div style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                    <BookOpen size={18} style={{ color: 'var(--purple-main)' }} />
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'white' }}>Admin-Published Rules</h2>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
-                    {!isLoading && liveRules.length > 0 && (
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '12px', padding: '2px 10px' }}>
-                            {liveRules.length} rule{liveRules.length !== 1 ? 's' : ''}
-                        </span>
-                    )}
-                </div>
+            <div className="rulebook-layout">
+                {/* Sidebar Navigation */}
+                <aside className="rulebook-sidebar">
+                    {CATEGORIES.map(cat => (
+                        <button 
+                            key={cat.id}
+                            className={`category-nav-item ${activeCategory === cat.id ? 'active' : ''}`}
+                            onClick={() => setActiveCategory(cat.id)}
+                        >
+                            <cat.icon size={18} className="cat-icon" />
+                            {cat.name}
+                        </button>
+                    ))}
+                </aside>
 
-                {isLoading ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                        <Loader2 size={16} className="spin-icon" /> Fetching published rules…
-                    </div>
-                ) : liveRules.length === 0 ? (
-                    <GlassCard style={{ padding: '32px', textAlign: 'center' }}>
-                        <FileX size={36} style={{ color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }} />
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No admin rules published yet. Check back later.</p>
-                    </GlassCard>
-                ) : (
-                    <GlassCard className="rulebook-card">
-                        <div className="rulebook-sections-wrapper">
-                            {liveRules.map(rule => {
-                                const isExpanded = expandedLiveId === rule.id;
+                {/* Main Rules Content */}
+                <main className="rulebook-main-content">
+                    {isLoading ? (
+                        <div className="rules-grid">
+                            {[1, 2, 3].map(i => <div key={i} className="skeleton-pulse" style={{ height: '200px', borderRadius: 'var(--radius-lg)' }} />)}
+                        </div>
+                    ) : filteredRules.length === 0 ? (
+                        <div className="empty-state" style={{ padding: '6rem 2rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 'var(--radius-lg)', border: '1px dashed rgba(255,255,255,0.05)' }}>
+                            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                                <FileX size={32} style={{ opacity: 0.2 }} />
+                            </div>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', marginBottom: '8px' }}>No rules found</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.4)', maxWidth: '300px', margin: '0 auto' }}>There are no rules published under this category yet.</p>
+                        </div>
+                    ) : (
+                        <div className="rules-grid">
+                            {filteredRules.map(rule => {
                                 const c = priorityColors[rule.priority] || priorityColors.Normal;
                                 return (
-                                    <div key={rule.id} className={`rule-section ${isExpanded ? 'expanded' : ''}`} style={isExpanded ? { borderLeft: `4px solid ${c.text}` } : {}}>
-                                        <div className="rule-header" onClick={() => setExpandedLiveId(prev => prev === rule.id ? null : rule.id)}>
-                                            <div className="rule-header-content">
-                                                <div className="rule-icon" style={{ background: isExpanded ? `${c.text}20` : 'rgba(255,255,255,0.04)', color: isExpanded ? c.text : 'rgba(255,255,255,0.7)' }}>
-                                                    {getCategoryIcon(rule.category, rule.title)}
-                                                </div>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <span style={{ fontSize: '1.125rem', fontWeight: 600 }}>{rule.title}</span>
-                                                    {!isExpanded && (
-                                                        <span style={{ fontSize: '0.72rem', color: c.text, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.8 }}>
-                                                            {rule.priority} Priority
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <ChevronDown className="chevron-icon" size={20} />
-                                        </div>
-                                        <div className="rule-content">
-                                            <div className="rule-content-inner" style={{ paddingTop: '0' }}>
-                                                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                                                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '3px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    <div key={rule.id} className="rule-card">
+                                        <div className="rule-card-header">
+                                            <div>
+                                                <h3 className="rule-card-title">{rule.title}</h3>
+                                                <div className="rule-card-meta">
+                                                    <span className="rule-pill category">
                                                         {rule.category}
                                                     </span>
-                                                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '3px 10px', background: `${c.text}15`, border: `1px solid ${c.border}`, borderRadius: '12px', color: c.text, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span className="rule-pill" style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text }}>
                                                         {getPriorityIcon(rule.priority)} {rule.priority}
                                                     </span>
                                                 </div>
-                                                <div style={{ whiteSpace: 'pre-wrap' }}>{rule.description}</div>
-                                                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
-                                                    <span>Published by {rule.author ? `${rule.author.firstName} ${rule.author.lastName}` : 'System Admin'}</span>
-                                                    <span>{rule.effectiveDate ? `Effective From: ${new Date(rule.effectiveDate).toLocaleDateString('en-IN')}` : `Created: ${new Date(rule.createdAt).toLocaleDateString('en-IN')}`}</span>
-                                                </div>
                                             </div>
+                                            {isAdmin && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={() => {
+                                                        setFormData({ 
+                                                            title: rule.title, 
+                                                            description: rule.description, 
+                                                            category: rule.category, 
+                                                            priority: rule.priority, 
+                                                            effectiveDate: rule.effectiveDate ? rule.effectiveDate.split('T')[0] : '' 
+                                                        });
+                                                        setEditingRuleId(rule.id);
+                                                        setIsModalOpen(true);
+                                                    }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '8px', cursor: 'pointer' }} title="Edit Rule">
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteRule(rule.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', padding: '6px', borderRadius: '8px', cursor: 'pointer' }} title="Delete Rule">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="rule-card-desc">
+                                            {rule.description}
+                                        </div>
+                                        
+                                        <div className="rule-card-footer">
+                                            <span>Author: {rule.author ? `${rule.author.firstName} ${rule.author.lastName}` : 'System Admin'}</span>
+                                            <span>
+                                                {rule.effectiveDate ? `Effective: ${new Date(rule.effectiveDate).toLocaleDateString('en-US')}` : `Published: ${new Date(rule.createdAt).toLocaleDateString('en-US')}`}
+                                            </span>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
-                    </GlassCard>
-                )}
+                    )}
+                </main>
             </div>
 
-            {/* ── Static Company Policy Accordion ───────────────────────── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <Shield size={18} style={{ color: '#3B82F6' }} />
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'white' }}>Company Policy Standards</h2>
-                <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
-            </div>
-            <GlassCard className="rulebook-card">
-                <div className="rulebook-sections-wrapper">
-                    {STATIC_SECTIONS.map((section) => {
-                        const Icon = section.icon;
-                        const isExpanded = expandedId === section.id;
-                        return (
-                            <div key={section.id} className={`rule-section ${isExpanded ? 'expanded' : ''}`}>
-                                <div className="rule-header" onClick={() => setExpandedId(prev => prev === section.id ? null : section.id)}>
-                                    <div className="rule-header-content">
-                                        <div className="rule-icon"><Icon size={20} /></div>
-                                        {section.title}
-                                    </div>
-                                    <ChevronDown className="chevron-icon" size={20} />
+            {/* Create Rule Modal (Admin Only) */}
+            {isModalOpen && isAdmin && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <form onSubmit={handleSubmitRule}>
+                        <GlassCard style={{ width: '100%', minWidth: '500px', maxWidth: '600px', padding: '32px', border: '1px solid rgba(139, 92, 246, 0.3)', boxShadow: '0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(139, 92, 246, 0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Zap size={24} style={{ color: 'var(--purple-main)' }} /> {editingRuleId ? 'Update Policy' : 'Publish New Policy'}
+                                </h2>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Policy Title *</label>
+                                    <input required type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none' }} placeholder="e.g. Code Review Standards" />
                                 </div>
-                                <div className="rule-content">
-                                    <div className="rule-content-inner">{section.content}</div>
+
+                                <div style={{ display: 'flex', gap: '16px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Category *</label>
+                                        <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="filter-select" style={{ width: '100%' }}>
+                                            <option value="HR" style={{ background: 'var(--bg-dark)' }}>HR</option>
+                                            <option value="Attendance" style={{ background: 'var(--bg-dark)' }}>Attendance</option>
+                                            <option value="Work Policy" style={{ background: 'var(--bg-dark)' }}>Work Policy</option>
+                                            <option value="Leave" style={{ background: 'var(--bg-dark)' }}>Leave</option>
+                                            <option value="Security" style={{ background: 'var(--bg-dark)' }}>Security</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Priority Level *</label>
+                                        <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })} className="filter-select" style={{ width: '100%' }}>
+                                            <option value="Normal" style={{ background: 'var(--bg-dark)' }}>Normal</option>
+                                            <option value="Important" style={{ background: 'var(--bg-dark)' }}>Important</option>
+                                            <option value="Critical" style={{ background: 'var(--bg-dark)' }}>Critical</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <DatePicker 
+                                    label="Effective Date"
+                                    value={formData.effectiveDate}
+                                    onChange={(dt) => setFormData({ ...formData, effectiveDate: dt })}
+                                    placement="right"
+                                />
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Detailed Policy Document *</label>
+                                    <textarea required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ width: '100%', height: '160px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '12px', borderRadius: 'var(--radius-sm)', color: 'white', outline: 'none', resize: 'vertical' }} placeholder="Clearly explain the policy constraint... (Markdown supported)" />
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                                    <button type="button" onClick={() => { setIsModalOpen(false); setEditingRuleId(null); }} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'white', padding: '12px 24px', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }} className="hoverable">Cancel</button>
+                                    <button type="submit" disabled={isSubmitting} style={{ background: 'var(--purple-main)', border: 'none', color: 'white', padding: '12px 24px', borderRadius: 'var(--radius-sm)', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600 }} className="hoverable">
+                                        {isSubmitting ? (editingRuleId ? 'Updating...' : 'Publishing...') : (editingRuleId ? 'Update Policy' : 'Publish Policy')}
+                                    </button>
                                 </div>
                             </div>
-                        );
-                    })}
+                        </GlassCard>
+                    </form>
                 </div>
-            </GlassCard>
+            )}
         </div>
     );
 }
-

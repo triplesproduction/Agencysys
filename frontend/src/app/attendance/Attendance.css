@@ -4,15 +4,22 @@
    ==================================================== */
 
 .attendance-root {
-    padding: 1.5rem;
-    max-width: 1600px;
-    margin: 0 auto;
     animation: fadeIn 0.4s ease-out;
+    height: calc(100vh - 40px); /* Fit within main-content without scrolling */
+    min-height: 0 !important;
+    overflow: hidden;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ── HEADER SECTION ── */
@@ -20,15 +27,13 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-bottom: 2rem;
-    padding: 0 0.5rem;
 }
 
 .hero-text h1 {
     font-size: 2.5rem;
     font-weight: 800;
     letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.5) 100%);
+    background: linear-gradient(135deg, #fff 30%, rgba(255, 255, 255, 0.5) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -56,7 +61,7 @@
     border-radius: 14px;
     padding: 4px;
     backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .nav-arrow {
@@ -71,7 +76,7 @@
 }
 
 .nav-arrow:hover:not(:disabled) {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: white;
 }
 
@@ -146,7 +151,9 @@
     gap: 4px;
 }
 
-.date-cell:nth-child(7n) { border-right: none; }
+.date-cell:nth-child(7n) {
+    border-right: none;
+}
 
 .date-cell.empty {
     background: rgba(255, 255, 255, 0.01);
@@ -267,7 +274,9 @@
 .sidebar-glass-card::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.3), transparent);
 }
@@ -283,7 +292,7 @@
     letter-spacing: -0.02em;
 }
 
-.widget-title svg { 
+.widget-title svg {
     color: #A855F7;
     background: rgba(168, 85, 247, 0.1);
     padding: 8px;
@@ -437,8 +446,13 @@
 }
 
 @keyframes modalFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .glass-modal-content {
@@ -453,8 +467,15 @@
 }
 
 @keyframes modalSlideUp {
-    from { opacity: 0; transform: translateY(20px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* Correction Modal UI (now reusable) */
@@ -468,7 +489,7 @@
     width: 100%;
     max-width: 440px;
     overflow: hidden;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
 }
 
 .correction-header {
@@ -561,7 +582,17 @@
 
 /* ── RESPONSIVE ── */
 @media (max-width: 1200px) {
-    .attendance-grid { grid-template-columns: 1fr; }
-    .attendance-sidebar { flex-direction: row; flex-wrap: wrap; }
-    .sidebar-glass-card { flex: 1; min-width: 300px; }
+    .attendance-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .attendance-sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .sidebar-glass-card {
+        flex: 1;
+        min-width: 300px;
+    }
 }

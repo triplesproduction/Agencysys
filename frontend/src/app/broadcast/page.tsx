@@ -1,10 +1,13 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useState, useEffect } from 'react';
 import { MessageSquare, Send, BellRing, Users, History, ShieldAlert, Trash2, ToggleLeft, ToggleRight, Loader2, Plus, X, ShieldCheck, Megaphone } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { useAuth } from '@/context/AuthContext';
 import Button from '@/components/Button';
@@ -29,6 +32,7 @@ export default function BroadcastPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [filter, setFilter] = useState('ALL');
 
     // Form state
     const [title, setTitle] = useState('');
@@ -48,7 +52,7 @@ export default function BroadcastPage() {
             const data = await api.getAnnouncements();
             setAnnouncements(data);
         } catch (err: any) {
-            console.error('Failed to load announcements:', err);
+            logger.error('Error', 'Failed to load announcements:', err);
         } finally {
             setIsLoading(false);
         }
@@ -112,10 +116,8 @@ export default function BroadcastPage() {
     };
 
     if (isAdmin === null) {
-        return <div className="main-content fade-in" style={{ padding: '16px', color: 'var(--text-secondary)' }}>Verifying access...</div>;
+        return <div className="page-root fade-in" style={{ padding: '16px', color: 'var(--text-secondary)' }}>Verifying access...</div>;
     }
-
-    const [filter, setFilter] = useState('ALL');
 
     const filteredAnnouncements = announcements.filter(ann => {
         // If not an admin, hide inactive announcements
@@ -126,43 +128,28 @@ export default function BroadcastPage() {
     });
 
     return (
-        <div className="main-content fade-in" style={{ padding: '16px 16px 32px' }}>
+        <div className="page-root fade-in">
 
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
-                <div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <MessageSquare size={28} style={{ color: 'var(--purple-main)' }} /> System Announcements
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '8px', maxWidth: '650px', fontSize: '0.95rem', lineHeight: '1.6' }}>
+            <PageHeader
+                title="System Announcements"
+                icon={<MessageSquare size={28} style={{ color: 'var(--purple-main)' }} />}
+                subtitle={
+                    <p className="subtitle" style={{ maxWidth: '650px' }}>
                         Stay informed with the latest agency updates, urgent alerts, and system news. Use the filters below to browse through different categories.
                     </p>
-                </div>
-
-                {isAdmin && (
-                    <button 
-                        onClick={() => setIsCreateModalOpen(true)} 
-                        className="hoverable"
-                        style={{ 
-                            background: 'var(--purple-main)', 
-                            color: 'white',
-                            padding: '12px 28px', 
-                            borderRadius: '14px', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '10px',
-                            border: 'none',
-                            fontWeight: 700,
-                            fontSize: '0.95rem',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 20px rgba(139, 92, 246, 0.3)',
-                            fontFamily: 'Outfit, sans-serif'
-                        }}
-                    >
-                        <Plus size={18} strokeWidth={2.5} /> Launch Announcement
-                    </button>
-                )}
-            </div>
+                }
+                actions={
+                    isAdmin && (
+                        <button 
+                            onClick={() => setIsCreateModalOpen(true)} 
+                            className="page-action-btn-primary"
+                        >
+                            <Plus size={18} /> Launch Announcement
+                        </button>
+                    )
+                }
+            />
 
             {/* Filter Tabs */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '16px' }}>

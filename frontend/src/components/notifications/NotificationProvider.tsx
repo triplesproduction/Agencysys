@@ -4,8 +4,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/lib/logger';
 import GlassCard from '../GlassCard';
 import './Notifications.css';
+
+// Global tracker for leak detection
+let activeConnectionsCount = 0;
 
 interface NotificationMessage {
     id: string;
@@ -37,9 +41,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
         // Initialize Supabase Channel for Realtime Notifications
         const channel = supabase.channel('system_events');
+        
+        activeConnectionsCount++;
+        if (activeConnectionsCount > 1) {
+            logger.warn('Realtime', `Memory Leak Warning: ${activeConnectionsCount} active realtime connections detected!`);
+        }
 
         channel
             .on('broadcast', { event: 'notification' }, ({ payload }: { payload: NotificationMessage }) => {
+                logger.info('Realtime', `Received Broadcast [${payload.type}]`, payload);
+                
                 // Assign ephemeral ID if missing from transit
                 const liveMessage = { ...payload, id: payload.id || `live-${Date.now()}` };
 
@@ -55,10 +66,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     setNotifications((prev) => prev.filter((n) => n.id !== liveMessage.id));
                 }, 6000);
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    logger.info('Realtime', 'Connected to system_events channel');
+                } else if (status === 'CLOSED') {
+                    logger.warn('Realtime', 'Disconnected from system_events channel');
+                } else if (status === 'CHANNEL_ERROR') {
+                    logger.error('Realtime', 'Error in system_events channel:', err);
+                }
+            });
 
         return () => {
-            channel.unsubscribe();
+            activeConnectionsCount--;
+            logger.info('Realtime', 'Cleaning up system_events channel');
+            supabase.removeChannel(channel);
         };
     }, [user, authLoading]);
 
@@ -80,7 +101,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         if (notif.type === 'TASK_ASSIGNED' || notif.type === 'TASK_UPDATED') {
             router.push('/dashboard');
         } else if (notif.type === 'RULE_ADDED') {
-            router.push('/wiki');
+            router.push('/rulebook');
         } else if (notif.type === 'EOD_SUBMITTED') {
             router.push('/eod/reviews');
         } else if (notif.type === 'CHAT_MESSAGE') {

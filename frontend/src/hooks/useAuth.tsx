@@ -1,7 +1,7 @@
 'use client';
 import { logger } from '@/lib/logger';
 
-import { useEffect, useState, createContext, useContext, useCallback } from 'react';
+import { useEffect, useState, createContext, useContext, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
@@ -30,8 +30,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
+    const employeeRef = useRef<EmployeeProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const loadingRef = useRef(true); // mirrors loading state for closures that can't read the latest state
     const router = useRouter();
+
+    /** Keeps state and ref in sync on every loading change */
+    const setLoadingSync = (val: boolean) => {
+        loadingRef.current = val;
+        setLoading(val);
+    };
 
     const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
         logger.log(`[Auth TRACE] Fetching profile for ${userId} (${email})...`);
@@ -81,11 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let mounted = true;
         let isResolving = false;
         
-        // Safety fallback: ensure loading never hangs forever
+        // Safety fallback: ensure loading never hangs forever.
+        // Uses loadingRef so the closure reads the *live* value, not the stale mount-time `true`.
         const safetyTimeout = setTimeout(() => {
-            if (mounted && loading) {
-                logger.warn('[AUTH DEBUG] Resolution safety timeout reached. Forcing loading false.');
-                setLoading(false);
+            if (mounted && loadingRef.current) {
+                logger.warn('[AUTH] Safety timeout reached — forcing loading false.');
+                setLoadingSync(false);
             }
         }, 8000);
 
@@ -107,21 +116,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     
                     // Optimization: Only fetch profile if it's not already in state
                     // This prevents re-fetching the same profile during SPA navigation
-                    if (!employee) {
+                    if (!employeeRef.current) {
                         const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
                         if (mounted) {
+                            employeeRef.current = profileData;
                             setEmployee(profileData);
-                            setLoading(false); // Always set loading false after attempt
+                            setLoadingSync(false); // Always set loading false after attempt
                         }
                     } else {
-                        setLoading(false);
+                        setLoadingSync(false);
                     }
                 } else {
                     logger.log(`[AUTH DEBUG] No active session (${source})`);
                     setUser(null);
                     setSession(null);
+                    employeeRef.current = null;
                     setEmployee(null);
-                    setLoading(false);
+                    setLoadingSync(false);
                 }
             } finally {
                 isResolving = false;
@@ -147,8 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     logger.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
                     setUser(null);
                     setSession(null);
+                    employeeRef.current = null;
                     setEmployee(null);
-                    setLoading(false);
+                    setLoadingSync(false);
                     if (typeof window !== 'undefined') {
                         // REMOVED: Aggressive window.location.href here. 
                         // THE AuthGuard will handle the redirect if loading is false and user is null.
@@ -171,13 +183,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 1. Clear local state immediately for instant UI feedback
             setUser(null);
             setSession(null);
+            employeeRef.current = null;
             setEmployee(null);
-            setLoading(false);
+            setLoadingSync(false);
 
             if (typeof window !== 'undefined') {
                 // Clear all possible session artifacts
                 localStorage.removeItem('triples_auth_session'); // Target actual Supabase storage key
-                localStorage.clear(); // Nuclear option
+                // Remove Supabase auth keys instead of nuclear option
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.includes('supabase.auth.token')) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
                 sessionStorage.clear();
                 
                 // Clear all cookies (to be absolutely sure)
@@ -202,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 window.location.href = '/login';
             }
         }
-    }, [supabase.auth]);
+    }, []);
 
     // Inactivity Auto-Logout (5 Minutes)
     useEffect(() => {
@@ -212,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         let timeoutId: NodeJS.Timeout;
+        let lastActivityTime = Date.now();
         const INACTIVITY_LIMIT = 300000; // 5 minutes (300,000 ms)
 
         const triggerLogout = () => {
@@ -228,7 +250,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
         
         const handler = () => {
-            resetTimer();
+            const now = Date.now();
+            // Throttle to 1 second to prevent CPU churn
+            if (now - lastActivityTime > 1000) {
+                lastActivityTime = now;
+                resetTimer();
+            }
         };
 
         logger.log(`[Auth Inactivity] Timer initialized. Limit: ${INACTIVITY_LIMIT/1000}s.`);

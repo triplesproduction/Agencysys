@@ -27,12 +27,18 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  const isPrefetch = request.headers.get('Next-Router-Prefetch') === '1' || request.headers.get('Purpose') === 'prefetch';
+
+  if (isPrefetch) {
+      return supabaseResponse;
+  }
+
   const start = Date.now();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  console.log(`[MIDDLEWARE] User check took ${Date.now() - start}ms for ${pathname}`);
+  void start; // timing removed from production logs
 
   // 1. If no user and not on login page -> redirect to login
   if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {

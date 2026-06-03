@@ -16,6 +16,10 @@ import {
     AttendanceOverrideDTO
 } from '../types/dto';
 import { supabase } from './supabase';
+// Simple upload rate limiter state
+let uploadHistory: number[] = [];
+const UPLOAD_RATE_LIMIT_MS = 10000; // 10 seconds
+const UPLOAD_RATE_MAX = 5;
 
 const handleSupabaseEvent = (data: any, error: any, context: string) => {
     // Standardized high-fidelity logging for all system events
@@ -291,6 +295,18 @@ export const api = {
             };
         }) as TaskDTO[];
     },
+    getTaskById: async (id: string): Promise<TaskDTO | null> => {
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, assignee:employees!assigneeId(id, firstName, lastName, profilePhoto)')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) {
+            handleSupabaseEvent(null, error, 'Fetch Task By ID');
+            return null;
+        }
+        return data as TaskDTO | null;
+    },
     createTask: async (payload: Partial<TaskDTO>) => {
         const data = { ...payload };
         
@@ -307,9 +323,7 @@ export const api = {
             }
         });
 
-        if (process.env.NODE_ENV === 'development') {
-            console.log('[API] Creating task with payload:', dbPayload);
-        }
+        logger.log('[API] Creating task with payload:', dbPayload);
 
         const { data: res, error } = await supabase.from('tasks')
             .insert(dbPayload)
@@ -341,9 +355,7 @@ export const api = {
             }
         });
 
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`[API] Updating task ${id} with payload:`, dbPayload);
-        }
+        logger.log(`[API] Updating task ${id} with payload:`, dbPayload);
 
         const { data: res, error } = await supabase.from('tasks')
             .update(dbPayload)
@@ -483,10 +495,11 @@ export const api = {
     reviewEOD: async (id: string, payload: { employeeId: string; date: string; workHours: number; adminNote?: string; status: string }) => {
         // 1. Update the EOD Report status and note
         if (id) {
+            const updatePayload: any = { status: payload.status };
+            if (payload.workHours !== undefined) updatePayload.work_hours = payload.workHours;
+            
             const { error: updateError } = await supabase.from('eod_reports')
-                .update({ 
-                    status: payload.status
-                })
+                .update(updatePayload)
                 .eq('id', id);
             
             if (updateError) {
@@ -513,7 +526,7 @@ export const api = {
                     description: `Synced from EOD on ${new Date().toLocaleDateString()}.${note}${statusStr}` 
                 })
                 .eq('id', logs[0].id)
-                .select().single();
+                .select().maybeSingle();
             handleSupabaseEvent(data, error, 'Update Work Hours via Review');
             return data;
         } else {
@@ -525,7 +538,7 @@ export const api = {
                 date: payload.date,
                 hoursLogged: payload.workHours,
                 description: `EOD Submission Sync on ${new Date().toLocaleDateString()}.${note}${statusStr}`
-            }).select().single();
+            }).select().maybeSingle();
             handleSupabaseEvent(data, error, 'Create Work Hours via Review');
             return data;
         }
@@ -569,7 +582,7 @@ export const api = {
     // Leaves
     applyForLeave: async (data: Partial<LeaveApplicationDTO>) => {
         const { data: res, error } = await supabase.from('leaves').insert(data).select().single();
-        handleSupabaseEvent(data, error, 'Apply for Leave');
+        handleSupabaseEvent(res, error, 'Apply for Leave');
         return res as LeaveApplicationDTO;
     },
     getMyLeaves: async (userId: string) => {
@@ -682,7 +695,12 @@ export const api = {
             ...data,
             employeeId: data.employee_id,
             monthYear: data.month_year,
-            currentScore: data.current_score
+            currentScore: parseFloat(String(data.current_score || 0)),
+            current_score: parseFloat(String(data.current_score || 0)),
+            extra_points: parseFloat(String(data.extra_points || 0)),
+            total_hours_worked: parseFloat(String(data.total_hours_worked || 0)),
+            bonus_points: parseFloat(String(data.bonus_points || 0)),
+            average_quality_rating_sum: parseFloat(String(data.average_quality_rating_sum || 0))
         } as KpiProfileDTO;
     },
     getKpiAuditLogs: async (employeeId: string) => {
@@ -694,10 +712,13 @@ export const api = {
             ...log,
             employeeId: log.employee_id,
             createdAt: log.created_at,
-            pointsChange: log.points_change,
+            pointsChange: parseFloat(String(log.points_change || 0)),
+            points_change: parseFloat(String(log.points_change || 0)),
             eventSource: log.event_source,
-            visibleScoreBefore: log.visible_score_before,
-            visibleScoreAfter: log.visible_score_after
+            visibleScoreBefore: parseFloat(String(log.visible_score_before || 0)),
+            visible_score_before: parseFloat(String(log.visible_score_before || 0)),
+            visibleScoreAfter: parseFloat(String(log.visible_score_after || 0)),
+            visible_score_after: parseFloat(String(log.visible_score_after || 0))
         })) as KpiAuditLogDTO[];
     },
     assignBonusPoints: async (employeeId: string, points: number, category: string, reason: string) => {
@@ -780,6 +801,7 @@ export const api = {
             });
 
             (eodData || []).forEach((row: any) => {
+                if (row.status !== 'APPROVED') return;
                 const d = row.reportDate || (row as any).report_date;
                 const h = parseFloat(row.workHours || (row as any).work_hours) || 0;
                 if (d) dailyHours[d] = Math.max(dailyHours[d] || 0, h);
@@ -806,7 +828,12 @@ export const api = {
             ...p,
             employeeId: p.employee_id,
             monthYear: p.month_year,
-            currentScore: p.current_score
+            currentScore: parseFloat(String(p.current_score || 0)),
+            current_score: parseFloat(String(p.current_score || 0)),
+            extra_points: parseFloat(String(p.extra_points || 0)),
+            total_hours_worked: parseFloat(String(p.total_hours_worked || 0)),
+            bonus_points: parseFloat(String(p.bonus_points || 0)),
+            average_quality_rating_sum: parseFloat(String(p.average_quality_rating_sum || 0))
         }));
     },
     getAllKpiAuditLogs: async (limit: number = 10) => {
@@ -821,10 +848,13 @@ export const api = {
             ...log,
             employeeId: log.employee_id,
             createdAt: log.created_at,
-            pointsChange: log.points_change,
+            pointsChange: parseFloat(String(log.points_change || 0)),
+            points_change: parseFloat(String(log.points_change || 0)),
             eventSource: log.event_source,
-            visibleScoreBefore: log.visible_score_before,
-            visibleScoreAfter: log.visible_score_after
+            visibleScoreBefore: parseFloat(String(log.visible_score_before || 0)),
+            visible_score_before: parseFloat(String(log.visible_score_before || 0)),
+            visibleScoreAfter: parseFloat(String(log.visible_score_after || 0)),
+            visible_score_after: parseFloat(String(log.visible_score_after || 0))
         }));
     },
 
@@ -837,8 +867,23 @@ export const api = {
 
     // Notifications
     broadcastNotification: async (data: { title: string; message: string; type: string; metadata?: any }) => {
-        const { error } = await supabase.from('notifications').insert(data);
-        handleSupabaseEvent(data, error, 'Broadcast Notification');
+        // 1. Persist to DB
+        const { error } = await supabase.from('notifications').insert({ ...data, recipient_id: null, is_global: true });
+        handleSupabaseEvent(data, error, 'Broadcast Notification Insert');
+
+        // 2. Subscribe the channel first, then send, then clean up
+        const channel = supabase.channel(`notify-broadcast-${Date.now()}`);
+        await new Promise<void>((resolve) => {
+            channel.subscribe((status) => {
+                if (status === 'SUBSCRIBED') resolve();
+            });
+        });
+        await channel.send({
+            type: 'broadcast',
+            event: 'notification',
+            payload: { ...data, id: crypto.randomUUID() }
+        });
+        await supabase.removeChannel(channel);
         return { success: true, count: 1 };
     },
 
@@ -892,6 +937,40 @@ export const api = {
     },
 
     // Uploads
+    validateUpload: (file: File, maxSizeMB: number, allowedMimeTypes: string[]) => {
+        // 1. Upload Rate Limiter (Sliding Window)
+        const now = Date.now();
+        uploadHistory.push(now);
+        while (uploadHistory.length > 0 && uploadHistory[0] < now - UPLOAD_RATE_LIMIT_MS) {
+            uploadHistory.shift();
+        }
+        if (uploadHistory.length > UPLOAD_RATE_MAX) {
+            throw new Error(`Upload rate limit exceeded. Please wait a few seconds before trying again.`);
+        }
+
+        // 2. File Size Limit
+        const sizeLimit = maxSizeMB * 1024 * 1024;
+        if (file.size > sizeLimit) {
+            throw new Error(`File size exceeds the ${maxSizeMB}MB limit.`);
+        }
+        
+        // 3. MIME Type Validation
+        if (!allowedMimeTypes.includes(file.type)) {
+            throw new Error(`Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')}`);
+        }
+
+        // 4. Double-Extension & Dangerous Extension Block
+        const parts = file.name.split('.');
+        if (parts.length > 2) {
+            throw new Error("Files with multiple extensions are blocked for security.");
+        }
+        const ext = parts.pop()?.toLowerCase() || '';
+        const dangerousExtensions = ['exe', 'sh', 'bat', 'js', 'php', 'apk', 'dmg', 'iso', 'zip', 'tar', 'gz', 'cmd', 'vbs', 'scr'];
+        if (dangerousExtensions.includes(ext)) {
+            throw new Error(`Dangerous file extension blocked: .${ext}`);
+        }
+    },
+    
     uploadPhoto: async (file: File, oldUrl?: string) => {
         // Delete old photo from storage if it exists
         if (oldUrl) {
@@ -911,19 +990,40 @@ export const api = {
             }
         }
 
+        // Validate File
+        api.validateUpload(file, 2, ['image/jpeg', 'image/png', 'image/webp']);
+
         // Upload new photo
-        const ext = file.name.split('.').pop();
-        const fileName = `profiles/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
+        const session = await supabase.auth.getSession();
+        const userId = session.data.session?.user.id;
+        if (!userId) throw new Error('Unauthenticated upload');
+
+        // Sanitize extension to prevent path traversal like "foo.jpg/../../evil.sh"
+        const ext = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
+        const fileName = `profiles/${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
         const { error } = await supabase.storage.from('documents').upload(fileName, file, { upsert: true });
-        if (error) throw new Error(error.message);
+        if (error) {
+            logger.error('Upload', 'Failed avatar photo upload:', { error: error.message, fileName, size: file.size });
+            throw new Error(error.message);
+        }
         const { data: pubData } = supabase.storage.from('documents').getPublicUrl(fileName);
         return { url: pubData.publicUrl };
     },
     uploadFile: async (file: File) => {
-        // Documents stored in the 'private-docs' bucket
-        const ext = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
+        // Validate File
+        api.validateUpload(file, 10, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
+
+        const session = await supabase.auth.getSession();
+        const userId = session.data.session?.user.id;
+        if (!userId) throw new Error('Unauthenticated upload');
+
+        // Sanitize extension to prevent path traversal
+        const ext = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
+        const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 11)}.${ext}`;
         const { error } = await supabase.storage.from('private-docs').upload(fileName, file);
+        if (error) {
+            logger.error('Upload', 'Failed private document upload:', { error: error.message, fileName, size: file.size });
+        }
         handleSupabaseEvent(null, error, 'File Upload');
         return { url: fileName };
     },
@@ -1187,18 +1287,37 @@ export const api = {
     },
 
     /** Upload image to chat-media bucket */
-    uploadChatMedia: async (file: File): Promise<{ url: string }> => {
-        const ext = file.name.split('.').pop();
-        const fileName = `chat/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+    uploadChatMedia: async (file: File, conversationId: string): Promise<{ url: string }> => {
+        // Validate File
+        api.validateUpload(file, 5, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+
+        const session = await supabase.auth.getSession();
+        const userId = session.data.session?.user.id;
+        if (!userId) throw new Error('Unauthenticated upload');
+
+        // Sanitize extension to prevent path traversal
+        const ext = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
+        const fileName = `chat/${conversationId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
         logger.log('[Chat] uploadChatMedia: uploading', fileName, 'size:', file.size);
         const { error } = await supabase.storage.from('chat-media').upload(fileName, file, { upsert: false });
         if (error) {
-            logger.error('[Chat] uploadChatMedia FAILED:', error.message);
-            throw new Error(`Image upload failed: ${error.message}. Ensure the 'chat-media' bucket exists in Supabase Storage with public access.`);
+            logger.error('Upload', 'Failed chat media upload:', { error: error.message, fileName, conversationId, size: file.size });
+            throw new Error(`Image upload failed: ${error.message}.`);
         }
-        const { data: pub } = supabase.storage.from('chat-media').getPublicUrl(fileName);
-        logger.log('[Chat] uploadChatMedia SUCCESS. URL:', pub.publicUrl);
-        return { url: pub.publicUrl };
+        
+        // Return ONLY the path to keep it private. The UI will request a Signed URL on demand.
+        return { url: fileName };
+    },
+
+    /** Generate temporary signed URL for a chat media file */
+    getSignedChatMediaUrl: async (path: string): Promise<string> => {
+        if (!path || path.startsWith('http')) return path; // already a full URL
+        const { data, error } = await supabase.storage.from('chat-media').createSignedUrl(path, 3600); // 1 hour
+        if (error) {
+            logger.error('[Chat] getSignedChatMediaUrl failed:', error.message);
+            return path;
+        }
+        return data.signedUrl;
     },
 
     /** Get total unread count for a user (for sidebar badge) */
@@ -1254,7 +1373,7 @@ export const api = {
             query = query.in('id', projectIds);
         }
 
-        const { data, error } = await query.order('createdAt', { ascending: false });
+        const { data, error } = await query.order('created_at', { ascending: false });
         handleSupabaseEvent(data, error, 'Fetch Projects');
         return data as ProjectDTO[];
     },

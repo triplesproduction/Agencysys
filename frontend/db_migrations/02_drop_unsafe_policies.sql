@@ -1,0 +1,20 @@
+-- Drop unsafe policies
+DROP POLICY IF EXISTS "Public employees are viewable by everyone" ON public.employees;
+DROP POLICY IF EXISTS "Users can update own employee record" ON public.employees;
+DROP POLICY IF EXISTS "Allow authenticated users to select projects" ON public.projects;
+DROP POLICY IF EXISTS "Allow authenticated insert for projects" ON public.projects;
+DROP POLICY IF EXISTS "Allow authenticated update for projects" ON public.projects;
+DROP POLICY IF EXISTS "Allow all select on projects" ON public.projects;
+DROP POLICY IF EXISTS "Allow all insert on projects" ON public.projects;
+DROP POLICY IF EXISTS "Allow all update on projects" ON public.projects;
+DROP POLICY IF EXISTS "Allow all select on workflow_history" ON public.workflow_history;
+DROP POLICY IF EXISTS "Allow all insert on workflow_history" ON public.workflow_history;
+DROP POLICY IF EXISTS "Allow authenticated select for workflow_history" ON public.workflow_history;
+DROP POLICY IF EXISTS "Allow authenticated insert for workflow_history" ON public.workflow_history;
+DROP POLICY IF EXISTS "Allow all select on activity_logs" ON public.activity_logs;
+DROP POLICY IF EXISTS "Allow all insert on activity_logs" ON public.activity_logs;
+DROP POLICY IF EXISTS "Allow authenticated select for activity_logs" ON public.activity_logs;
+DROP POLICY IF EXISTS "Allow authenticated insert for activity_logs" ON public.activity_logs;
+DROP POLICY IF EXISTS "notifications_insert_any" ON public.notifications;
+DROP POLICY IF EXISTS "Allow all for authenticated users" ON public.quotation_versions;
+DROP POLICY IF EXISTS "Allow all for authenticated users" ON public.pricing_items;

@@ -1,5 +1,7 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FileText, User, Calendar, CheckSquare, Clock, AlertTriangle, Smile, Meh, Frown, Search, RefreshCw, ChevronDown } from 'lucide-react';
@@ -206,49 +208,45 @@ function EODReviewsContent() {
     }, {} as Record<string, EODReport[]>);
 
     return (
-        <div className="main-content fade-in" style={{ padding: '24px 24px 40px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <FileText size={26} style={{ color: 'var(--purple-main)' }} /> EOD Report Reviews
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '6px', fontSize: '0.9rem' }}>
-                        Review all daily end-of-day reports submitted by your team.
-                    </p>
-                </div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap', marginTop: '8px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="input-label" style={{ margin: 0 }}>Search</label>
-                        <div style={{ position: 'relative' }}>
-                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                            <input
-                                type="text"
-                                placeholder="Name or department..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '10px 14px 10px 36px', color: 'white', outline: 'none', width: '220px', fontSize: '0.875rem', height: '42px' }}
-                            />
-                        </div>
+        <div className="page-root fade-in">
+            <PageHeader
+                title="EOD Report Reviews"
+                subtitle={<p className="subtitle">Review all daily end-of-day reports submitted by your team.</p>}
+            />
+
+            {/* Filter Toolbar */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'nowrap', marginBottom: '24px', background: 'rgba(255, 255, 255, 0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)', overflowX: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: '160px' }}>
+                    <label className="input-label" style={{ margin: 0 }}>Search</label>
+                    <div style={{ position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '10px 14px 10px 36px', color: 'white', outline: 'none', width: '100%', fontSize: '0.875rem', height: '42px' }}
+                        />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="input-label" style={{ margin: 0 }}>Employee</label>
-                        <div style={{ position: 'relative' }}>
-                            <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                            <select
-                                value={selectedEmployeeId}
-                                onChange={e => setSelectedEmployeeId(e.target.value)}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '10px 36px 10px 36px', color: 'white', outline: 'none', width: '200px', fontSize: '0.875rem', height: '42px', cursor: 'pointer', appearance: 'none' }}
-                            >
-                                <option value="">All Employees</option>
-                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
-                            </select>
-                            <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-                        </div>
-                    </div>
-                    <div style={{ width: '180px' }}><DatePicker label="From" value={startDate} onChange={setStartDate} /></div>
-                    <div style={{ width: '180px' }}><DatePicker label="To" value={endDate} onChange={setEndDate} /></div>
-                    <button onClick={fetchReports} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '0 16px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', fontWeight: 600, height: '42px' }}><RefreshCw size={14} /> Refresh</button>
                 </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: '140px' }}>
+                    <label className="input-label" style={{ margin: 0 }}>Employee</label>
+                    <div style={{ position: 'relative' }}>
+                        <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                        <select
+                            value={selectedEmployeeId}
+                            onChange={e => setSelectedEmployeeId(e.target.value)}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '10px 36px 10px 36px', color: 'white', outline: 'none', width: '100%', fontSize: '0.875rem', height: '42px', cursor: 'pointer', appearance: 'none' }}
+                        >
+                            <option value="">All Employees</option>
+                            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
+                        </select>
+                        <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                    </div>
+                </div>
+                <div style={{ flex: 1, minWidth: '130px' }}><DatePicker label="From" value={startDate} onChange={setStartDate} /></div>
+                <div style={{ flex: 1, minWidth: '130px' }}><DatePicker label="To" value={endDate} onChange={setEndDate} /></div>
+                <button onClick={fetchReports} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '0 16px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', fontWeight: 600, height: '42px', whiteSpace: 'nowrap', flexShrink: 0 }}><RefreshCw size={14} /> Refresh</button>
             </div>
 
             {isLoading ? (

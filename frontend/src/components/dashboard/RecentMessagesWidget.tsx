@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, Loader2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
@@ -46,7 +47,7 @@ export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { ma
 
                 setThreads(lastMessages);
             } catch (err) {
-                console.error('Failed to fetch dashboard chats:', err);
+                logger.error('Error', 'Failed to fetch dashboard chats:', err);
             } finally {
                 setIsLoading(false);
             }

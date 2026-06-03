@@ -1,12 +1,14 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
 import { useState, useEffect } from 'react';
-import { Check, X, Calendar, Clock, Search, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { Check, X, Calendar, Clock, Search, RefreshCw, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 import GlassCard from '@/components/GlassCard';
 import DatePicker from '@/components/common/DatePicker';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import '../Leaves.css';
 
 interface LeaveWithEmployee {
@@ -66,7 +68,7 @@ export default function LeaveApprovalsPage() {
             });
             setLeaves(normalizedData as LeaveWithEmployee[]);
         } catch (err) {
-            console.error('Failed to load leaves:', err);
+            logger.error('Error', 'Failed to load leaves:', err);
             setLeaves([]);
         } finally {
             setLoading(false);
@@ -91,7 +93,7 @@ export default function LeaveApprovalsPage() {
             await api.approveLeave(id, status, authEmployee.id);
             await fetchLeaves();
         } catch (err) {
-            console.error(`Failed to ${status.toLowerCase()} leave:`, err);
+            logger.error('Error', `Failed to ${status.toLowerCase()} leave:`, err);
             alert(`Failed to ${status.toLowerCase()} leave request.`);
         } finally {
             setProcessingId(null);
@@ -125,95 +127,58 @@ export default function LeaveApprovalsPage() {
     }
 
     return (
-        <div className="main-content fade-in" style={{ padding: '24px 24px 40px' }}>
+        <div className="page-root fade-in">
 
             {/* Header Tier 1: Title & Refresh */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ background: 'rgba(124, 58, 237, 0.1)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
-                        <Calendar size={24} style={{ color: 'var(--purple-main)' }} />
-                    </div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-                        Leave Approvals
-                    </h1>
-                    {pendingCount > 0 && (
-                        <div style={{ background: '#F59E0B', color: 'black', borderRadius: '30px', padding: '2px 12px', fontSize: '0.75rem', fontWeight: 800, boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
-                            {pendingCount} PENDING
+            <PageHeader
+                title="Leave Approvals"
+                subtitle={<p className="subtitle">Review and manage team leave requests.</p>}
+                actions={
+                    pendingCount > 0 ? (
+                        <div style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', borderRadius: '8px', padding: '6px 14px', fontSize: '0.85rem', fontWeight: 700, border: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B', boxShadow: '0 0 8px #F59E0B' }} />
+                            {pendingCount} Pending
                         </div>
-                    )}
-                </div>
+                    ) : null
+                }
+            />
 
-                <Button 
-                    variant="glass" 
-                    size="sm" 
-                    onClick={() => {
-                        setSearch('');
-                        setFilterStatus('');
-                        setStartDate('');
-                        setEndDate('');
-                        fetchLeaves();
-                    }}
-                    style={{ gap: '8px' }}
-                >
-                    <RefreshCw size={14} className={loading ? 'spin-icon' : ''} /> Refresh Data
-                </Button>
-            </div>
-
-            {/* Header Tier 2: Filters */}
-            <div style={{ 
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: '20px', 
-                marginBottom: '32px', 
-                padding: '24px', 
-                background: 'rgba(255,255,255,0.02)', 
-                borderRadius: '20px', 
-                border: '1px solid rgba(255,255,255,0.05)',
-                alignItems: 'end'
-            }}>
-                <div>
-                    <label className="input-label" style={{ marginBottom: '8px' }}>Search Employee</label>
+            {/* Filter Toolbar */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'nowrap', marginBottom: '24px', background: 'rgba(255, 255, 255, 0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.05)', boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)', overflowX: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: '160px' }}>
+                    <label className="input-label" style={{ margin: 0 }}>Search Employee</label>
                     <div style={{ position: 'relative' }}>
-                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
-                        <Input
+                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                        <input
                             type="text"
-                            placeholder="Name or department..."
+                            placeholder="Search..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            style={{ paddingLeft: '38px', height: '42px', background: 'rgba(0,0,0,0.2)' }}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '10px 14px 10px 36px', color: 'white', outline: 'none', width: '100%', fontSize: '0.875rem', height: '42px' }}
                         />
                     </div>
                 </div>
-
-                <div>
-                    <label className="input-label" style={{ marginBottom: '8px' }}>Status Filter</label>
-                    <select
-                        className="filter-select"
-                        value={filterStatus} 
-                        onChange={e => setFilterStatus(e.target.value)}
-                        style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)' }}
-                    >
-                        <option value="">All Statuses</option>
-                        <option value="PENDING">Pending Only</option>
-                        <option value="APPROVED">Approved</option>
-                        <option value="REJECTED">Rejected</option>
-                    </select>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: '140px' }}>
+                    <label className="input-label" style={{ margin: 0 }}>Status Filter</label>
+                    <div style={{ position: 'relative' }}>
+                        <select
+                            value={filterStatus}
+                            onChange={e => setFilterStatus(e.target.value)}
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '10px 36px 10px 14px', color: 'white', outline: 'none', width: '100%', fontSize: '0.875rem', height: '42px', cursor: 'pointer', appearance: 'none' }}
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="PENDING">Pending Only</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                        <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                    </div>
                 </div>
-                
-                <div>
-                    <DatePicker 
-                        label="From Date"
-                        value={startDate}
-                        onChange={setStartDate}
-                    />
-                </div>
-                <div>
-                    <DatePicker 
-                        label="To Date"
-                        value={endDate}
-                        onChange={setEndDate}
-                    />
-                </div>
+                <div style={{ flex: 1, minWidth: '130px' }}><DatePicker label="From Date" value={startDate} onChange={setStartDate} /></div>
+                <div style={{ flex: 1, minWidth: '130px' }}><DatePicker label="To Date" value={endDate} onChange={setEndDate} /></div>
+                <button onClick={() => fetchLeaves()} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '0 16px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', fontWeight: 600, height: '42px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    <RefreshCw size={14} className={loading ? 'spin-icon' : ''} /> Refresh
+                </button>
             </div>
 
             {/* Content */}
@@ -242,55 +207,49 @@ export default function LeaveApprovalsPage() {
                         const isProcessing = processingId === leave.id;
 
                         return (
-                            <GlassCard key={leave.id} style={{ padding: '18px 22px', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                                    {/* Left: Employee info */}
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                            <div style={{
-                                                width: '40px', height: '40px', borderRadius: '50%',
-                                                background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                fontSize: '1rem', fontWeight: 700, color: 'var(--purple-main)'
-                                            }}>
-                                                {empName.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <div style={{ fontWeight: 600, color: 'white', fontSize: '0.95rem' }}>{empName}</div>
-                                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                                                    {empDept} · {empRole}
-                                                </div>
-                                            </div>
-                                            <span className={`status-badge submitted`} style={{ marginLeft: '4px' }}>
-                                                {leave.leaveType}
-                                            </span>
+                            <GlassCard key={leave.id} style={{ padding: '16px 20px', overflow: 'hidden' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 1fr) minmax(200px, 1.5fr) auto', gap: '24px', alignItems: 'center' }}>
+                                    
+                                    {/* Left: Name Layout (Intact) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{
+                                            width: '40px', height: '40px', borderRadius: '50%',
+                                            background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '1rem', fontWeight: 700, color: 'var(--purple-main)', flexShrink: 0
+                                        }}>
+                                            {empName.charAt(0)}
                                         </div>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, color: 'white', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{empName}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {empDept} · {empRole}
+                                            </div>
+                                        </div>
+                                        <span className={`status-badge submitted`} style={{ marginLeft: '4px', flexShrink: 0 }}>
+                                            {leave.leaveType}
+                                        </span>
+                                    </div>
 
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                    {/* Middle: Details (Compact) */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <Calendar size={14} />
                                                 {new Date(leave.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} — {new Date(leave.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             </div>
-                                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                                                {days} day{days !== 1 ? 's' : ''}
-                                            </span>
+                                            <span style={{ color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem' }}>{days} day{days !== 1 ? 's' : ''}</span>
                                         </div>
-
-                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', margin: '0 0 4px', lineHeight: '1.5' }}>
+                                        <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             &ldquo;{leave.reason}&rdquo;
-                                        </p>
-
-                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginTop: '6px' }}>
-                                            Applied {new Date(leave.appliedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </div>
                                     </div>
 
-                                    {/* Right: Status + Actions */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px', minWidth: '140px' }}>
+                                    {/* Right: Status & Actions */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                         <span className={`status-badge ${leave.status.toLowerCase()}`}>
                                             {leave.status}
                                         </span>
-
                                         {leave.status === 'PENDING' && (
                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                 <button
@@ -324,6 +283,7 @@ export default function LeaveApprovalsPage() {
                                             </div>
                                         )}
                                     </div>
+                                    
                                 </div>
                             </GlassCard>
                         );

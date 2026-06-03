@@ -57,14 +57,13 @@ export function canAccessPath(role: string | undefined, path: string): boolean {
     if (resolvedRole === 'ADMIN') return true;
 
     // Restrictions for Manager/Employee
-    if (path.startsWith('/employees') || path.startsWith('/logs/system') || path.startsWith('/permissions')) {
+    if (path.startsWith('/employees') || path.startsWith('/permissions')) {
         return false;
     }
 
     if (path.startsWith('/leaves/approvals') || path.startsWith('/eod/reviews')) {
         return resolvedRole === 'MANAGER';
     }
-
 
     return true; // Default access for common routes like /dashboard, /tasks (viewing), etc.
 }

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { X, Users, Check, Search, PlusCircle, Trash2, Shield } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ProjectDTO, EmployeeDTO } from '@/types/dto';
-import Button from '@/components/Button';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
+import { useAddProjectMember, useRemoveProjectMember } from '@/hooks/queries/domains/projects/useProjects';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
+import Button from '@/components/Button';
 
 interface ManageProjectMembersModalProps {
     isOpen: boolean;
@@ -14,28 +16,12 @@ interface ManageProjectMembersModalProps {
 
 export default function ManageProjectMembersModal({ isOpen, onClose, project, onRefresh }: ManageProjectMembersModalProps) {
     const { addNotification } = useNotifications();
-    const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
-    const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [syncing, setSyncing] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (isOpen) {
-            fetchEmployees();
-        }
-    }, [isOpen]);
-
-    const fetchEmployees = async () => {
-        setLoading(true);
-        try {
-            const res = await api.getEmployees({ limit: 1000 });
-            setEmployees(res.data);
-        } catch (err) {
-            console.error('Failed to fetch employees:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: employees = [], isLoading: loading } = useEmployees({ limit: 1000 });
+    const { mutateAsync: addProjectMember } = useAddProjectMember();
+    const { mutateAsync: removeProjectMember } = useRemoveProjectMember();
 
     const isMember = (employeeId: string) => {
         return project.members?.some(m => m.userId === employeeId);
@@ -44,7 +30,7 @@ export default function ManageProjectMembersModal({ isOpen, onClose, project, on
     const handleAddMember = async (employeeId: string) => {
         setSyncing(employeeId);
         try {
-            await api.addProjectMember(project.id, employeeId, 'MEMBER');
+            await addProjectMember({ projectId: project.id, userId: employeeId, role: 'MEMBER' });
             addNotification({ title: 'Force Deployed', message: 'Specialist successfully assigned to active operations.', type: 'success' });
             onRefresh();
         } catch (err) {
@@ -60,7 +46,7 @@ export default function ManageProjectMembersModal({ isOpen, onClose, project, on
 
         setSyncing(employeeId);
         try {
-            await api.removeProjectMember(membership.id);
+            await removeProjectMember({ id: membership.id, projectId: project.id });
             addNotification({ title: 'Force Recalled', message: 'Specialist withdrawn from tactical assignment.', type: 'info' });
             onRefresh();
         } catch (err) {

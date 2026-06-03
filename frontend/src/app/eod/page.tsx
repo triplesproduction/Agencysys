@@ -1,9 +1,12 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useState, useEffect, useCallback } from 'react';
 import GlassCard from '@/components/GlassCard';
 import Button from '@/components/Button';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { CheckSquare, AlertTriangle, Calendar, Clock, ChevronDown, Smile, Meh, Frown, CheckCircle2 } from 'lucide-react';
 import './EOD.css';
 
@@ -58,6 +61,7 @@ export default function EODPage() {
         tasksCompleted: '',
         blockers: '',
         workHours: '',
+        sentiment: 'GOOD' as 'GREAT' | 'GOOD' | 'OKAY' | 'BAD' | 'TERRIBLE',
     });
 
     // My past submissions
@@ -86,7 +90,7 @@ export default function EODPage() {
             setMyReports(Array.isArray(eodData) ? eodData : []);
             setWorkHourLogs(Array.isArray(hourData) ? hourData : []);
         } catch (err) {
-            console.error('Failed to load my EOD data:', err);
+            logger.error('Error', 'Failed to load my EOD data:', err);
             setMyReports([]);
             setWorkHourLogs([]);
         } finally {
@@ -118,6 +122,7 @@ export default function EODPage() {
                     tasksCompleted: '',
                     blockers: '',
                     workHours: '',
+                    sentiment: existing.sentiment || 'GOOD',
                 });
                 
                 setTodayReport(existing);
@@ -171,7 +176,7 @@ export default function EODPage() {
                 tasksCompleted: completedList,
                 tasksInProgress: [],
                 blockers: formData.blockers || undefined,
-                sentiment: 'GOOD',
+                sentiment: formData.sentiment,
                 workHours: hours
             };
 
@@ -200,17 +205,17 @@ export default function EODPage() {
                     });
                 }
             } catch (hourError: any) {
-                console.warn('[EOD] Work hour sync skipped:', hourError?.message);
+                logger.warn('System', '[EOD] Work hour sync skipped:', hourError?.message);
             }
 
-            setFormData({ tasksCompleted: '', blockers: '', workHours: '' });
+            setFormData({ tasksCompleted: '', blockers: '', workHours: '', sentiment: 'GOOD' });
             setSuccess(true);
             setTimeout(() => setSuccess(false), 5000);
 
             // Refresh submissions list
             fetchMyReports();
         } catch (err: any) {
-            console.error('[EOD TRACE] Submission Error:', err);
+            logger.error('Error', '[EOD TRACE] Submission Error:', err);
             setError(err.message || 'Submission failed.');
         } finally {
             setLoading(false);
@@ -226,19 +231,17 @@ export default function EODPage() {
     }
 
     return (
-        <div className="eod-page fade-in" style={{ width: '100%', maxWidth: '1400px', margin: '0', padding: '0 40px 80px' }}>
-            <header className="page-header" style={{ marginBottom: '32px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', width: '100%' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <h1 className="greeting" style={{ margin: 0, fontSize: '1.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Daily Status Report</h1>
-                        <p className="subtitle" style={{ marginTop: '4px', fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4' }}>Log your daily achievements and identify blockers.</p>
-                    </div>
+        <div className="eod-page page-root fade-in">
+            <PageHeader
+                title="Daily Status Report"
+                subtitle={<p className="subtitle">Log your daily achievements and identify blockers.</p>}
+                actions={
                     <div style={{ textAlign: 'right', flexShrink: 0, paddingTop: '4px' }}>
                         <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--purple-light)', lineHeight: 1 }}>{myReports.length} Days 🔥</div>
                         <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginTop: '6px' }}>Submission Streak</div>
                     </div>
-                </div>
-            </header>
+                }
+            />
 
             {/* Submission Form Area */}
             <section className="form-section" style={{ marginBottom: '48px' }}>
@@ -312,8 +315,9 @@ export default function EODPage() {
                                     <Clock size={15} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
                                 </div>
                             </div>
-                            
+
                             <div style={{ flex: 1 }}>
+
                                 <Button
                                     type="submit"
                                     disabled={loading || !!todayReport}
@@ -404,7 +408,7 @@ export default function EODPage() {
                                                             <span style={{ opacity: 0.3 }}>•</span>
                                                             <span style={{ color: 'rgba(255,255,255,0.5)' }}>
                                                                 {report.workHours || workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.hoursLogged}h logged
-                                                                {(() => {
+                                                                 {(() => {
                                                                     const status = report.status || (workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.description?.match(/Status: (.*?)\./)?.[1]) || (workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.description?.includes('APPROVED') ? 'APPROVED' : null) || (workHourLogs.find(l => new Date(l.date).toDateString() === reportDate.toDateString())?.description?.includes('ADJUSTED') ? 'ADJUSTED' : null);
                                                                     if (!status) return null;
                                                                     return (

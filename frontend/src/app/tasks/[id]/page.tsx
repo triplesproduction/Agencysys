@@ -7,6 +7,7 @@ import DeadlineIndicator from '@/components/DeadlineIndicator';
 import Button from '@/components/Button';
 import TaskQualityRater from '@/components/tasks/TaskQualityRater';
 import { useAuth } from '@/context/AuthContext';
+import { getResolvedRole } from '@/lib/permissions';
 import { api } from '@/lib/api';
 import { TaskDTO } from '@/types/dto';
 import '../Tasks.css';
@@ -15,6 +16,7 @@ export default function TaskDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const { employee } = useAuth();
+    const resolvedRole = getResolvedRole(employee?.roleId);
     const [task, setTask] = useState<TaskDTO | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -22,10 +24,7 @@ export default function TaskDetailPage() {
         async function loadTask() {
             if (!id) return;
             try {
-                // @ts-ignore Since no backend getTaskById endpoint exists, mapping it manually isn't possible, keeping the mock approach commented or handled gracefully.
-                // Assuming it'd exist: const data = await api.getTaskById(id as string);
-                const list = await api.getTasks();
-                const data = list.find(t => t.id === id) || null;
+                const data = await api.getTaskById(id as string);
                 setTask(data);
             } finally {
                 setLoading(false);
@@ -53,7 +52,7 @@ export default function TaskDetailPage() {
     }
 
     return (
-        <div className="task-detail-page fade-in">
+        <div className="task-detail-page page-root fade-in">
             <Button variant="secondary" onClick={() => router.push('/tasks')} className="back-btn">
                 ← Back to Tasks
             </Button>
@@ -95,7 +94,7 @@ export default function TaskDetailPage() {
                     <h3 className="section-title">Description</h3>
                     <p className="detail-desc">{task.description}</p>
                     
-                    {(employee?.roleId === 'MANAGER' || employee?.roleId === 'ADMIN') && (
+                    {(resolvedRole === 'MANAGER' || resolvedRole === 'ADMIN') && (
                         <div style={{ marginTop: '2rem' }}>
                             <h3 className="section-title">Manager Assessment</h3>
                             <TaskQualityRater 
@@ -108,8 +107,24 @@ export default function TaskDetailPage() {
                 </div>
 
                 <div className="detail-actions">
-                    <Button variant="primary">Start Work</Button>
-                    <Button variant="glass">Log Hours</Button>
+                    {task.status === 'TODO' && (
+                        <Button
+                            variant="primary"
+                            onClick={async () => {
+                                try {
+                                    await api.updateTaskStatus(task.id, 'IN_PROGRESS');
+                                    setTask({ ...task, status: 'IN_PROGRESS' });
+                                } catch (err: any) {
+                                    alert(`Could not start task: ${err.message}`);
+                                }
+                            }}
+                        >
+                            Start Work
+                        </Button>
+                    )}
+                    <Button variant="glass" onClick={() => router.push('/logs')}>
+                        Log Hours
+                    </Button>
                 </div>
             </GlassCard>
         </div>

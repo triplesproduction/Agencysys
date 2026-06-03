@@ -13,6 +13,8 @@ import MultiMemberPicker from '../common/MultiMemberPicker';
 import DatePicker from '../common/DatePicker';
 import MarkdownEditor from '../common/MarkdownEditor';
 import { EmployeeDTO } from '@/types/dto';
+import { useCreateProject, useAddProjectMember, useCreateTask } from '@/hooks/queries/domains/projects/useProjects';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 
 interface CreateProjectModalProps {
     isOpen: boolean;
@@ -46,16 +48,16 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
     const [newChecklistItem, setNewChecklistItem] = useState('');
     
     // Helpers
-    const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
+    const { mutateAsync: createProject } = useCreateProject();
+    const { mutateAsync: addProjectMember } = useAddProjectMember();
+    const { mutateAsync: createTask } = useCreateTask();
+    const { data: employees = [] } = useEmployees({ limit: 1000 });
+
     useEffect(() => {
         if (isOpen) {
-            api.getEmployees({ limit: 1000 }).then(data => {
-                setEmployees(data.data || []);
-            }).catch(console.error);
-
             setStep(1);
             setName('');
             setDescription('');
@@ -130,7 +132,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
         setErrorMsg('');
 
         try {
-            const project = await api.createProject({
+            const project = await createProject({
                 name,
                 description,
                 priority: 'MEDIUM',
@@ -141,7 +143,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             } as any);
 
             if (selectedMemberIds.length > 0) {
-                await Promise.all(selectedMemberIds.map(uid => api.addProjectMember(project.id, uid)));
+                await Promise.all(selectedMemberIds.map(uid => addProjectMember({ projectId: project.id, userId: uid })));
             }
 
             if (validTasks.length > 0) {
@@ -152,7 +154,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                         finalDescription += checklistMd;
                     }
 
-                    return api.createTask({
+                    return createTask({
                         title: t.title,
                         description: finalDescription,
                         projectId: project.id,

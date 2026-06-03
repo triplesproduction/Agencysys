@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useRef } from 'react';
 import { X, User, Briefcase, Key, FileText, Plus, Save, Download, Trash2, Eye, ChevronRight, ChevronLeft, CheckCircle, Copy, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -97,7 +98,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             const { url } = await api.uploadPhoto(file);
             setFormData(prev => ({ ...prev, profilePhoto: url }));
         } catch (err: any) {
-            console.error('Photo upload failed', err);
+            logger.error('Error', 'Photo upload failed', err);
             alert('Failed to upload profile photo.');
             setProfilePhotoPreview(null);
         } finally {
@@ -125,7 +126,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             };
             setDocuments(prev => [...prev, newDoc]);
         } catch (err: any) {
-            console.error('Document upload failed', err);
+            logger.error('Error', 'Document upload failed', err);
             alert(`Failed to upload ${file.name}.`);
         } finally {
             setIsUploadingDoc(false);
@@ -289,7 +290,7 @@ const CreateEmployeeModal = ({ isOpen, onClose, addNotification }: any) => {
             setCreatedCredentials({ email: result.email, tempPassword: result.tempPassword });
             setStep(5);
         } catch (err: any) {
-            console.error('[PROVISIONING ERROR]', err);
+            logger.error('Error', '[PROVISIONING ERROR]', err);
             setError(err.message || 'Failed to provision account. Ensure the email is not already in use.');
         } finally {
             setLoading(false);

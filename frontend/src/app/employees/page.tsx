@@ -1,5 +1,7 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Plus, Download, Upload, MoreVertical, Trash2, Mail, Phone, UserX, UserCheck, Eye, CreditCard, Users, CheckCircle, Shield } from 'lucide-react';
@@ -170,26 +172,28 @@ export default function EmployeesPage() {
     };
 
     return (
-        <div className="emp-page-root fade-in">
+        <div className="emp-page-root page-root fade-in">
 
             {/* ── PAGE HEADER ── */}
-            <div className="emp-header">
-                <div>
-                    <h1 className="emp-title">Enterprise Personnel</h1>
+            <PageHeader
+                title="Enterprise Personnel"
+                subtitle={
                     <div className="emp-stats-inline">
                         <span><Users size={13} /> {total} Total</span>
                         <span className="active"><CheckCircle size={13} /> {activeCount} Active</span>
                     </div>
-                </div>
-                <div className="emp-header-actions">
-                    <button className="emp-action-btn" onClick={handleExportCSV}>
-                        <Download size={16} /> Export
-                    </button>
-                    <button className="emp-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                        <Plus size={16} /> Add Employee
-                    </button>
-                </div>
-            </div>
+                }
+                actions={
+                    <>
+                        <button className="emp-action-btn" onClick={handleExportCSV}>
+                            <Download size={16} /> Export
+                        </button>
+                        <button className="emp-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
+                            <Plus size={16} /> Add Employee
+                        </button>
+                    </>
+                }
+            />
 
             {/* ── TOP TABS ── */}
             <div className="emp-tabs">

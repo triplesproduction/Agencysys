@@ -39,10 +39,10 @@
   --radius-pill: 9999px;
   --transition-smooth: all 0.25s ease;
 
-  /* Global Page Styles */
-  --page-padding: 2rem;
+  /* Layout Defaults */
   --page-max-width: 1600px;
-  --page-header-gap: 2rem;
+  --page-padding: 0 2rem 2rem 2rem;
+  --page-header-gap: 0.75rem;
 }
 
 * {
@@ -177,7 +177,7 @@ textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 0.5rem;
+    padding: 12px 0 0 0;
 }
 
 .page-title {
@@ -446,7 +446,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     background-position: right 14px center;
     background-size: 14px;
     border: 1px solid var(--glass-border);
-    padding: 10px 42px 10px 16px;
+    padding: 0 42px 0 16px;
+    height: 42px;
     border-radius: var(--radius-sm);
     color: white;
     outline: none;
@@ -477,4 +478,45 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     background: #0F0F14;
     color: white;
     padding: 12px;
+}
+/* Standardize page headers and title size/spacing globally (excluding dashboard) */
+.page-root .page-header,
+.page-root .emp-header,
+.page-root .attendance-hero,
+.page-root .detail-top-nav,
+.page-root .page-header-container {
+    margin-bottom: 2rem !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0 0.5rem !important;
+}
+
+/* Page Title Standardization */
+.page-root h1,
+.page-root .page-title,
+.page-root .emp-title,
+.page-root .detail-title {
+    font-size: 1.75rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    letter-spacing: -0.04em !important;
+    background: linear-gradient(to bottom, #fff, rgba(255, 255, 255, 0.6)) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    line-height: 1.2 !important;
+}
+
+/* Page Subtitle Standardization */
+.page-root .subtitle,
+.page-root .page-subtitle,
+.page-root p.subtitle {
+    font-size: 0.95rem !important;
+    color: var(--text-secondary) !important;
+    margin-top: 4px !important;
+    margin-bottom: 0 !important;
+    line-height: 1.5 !important;
 }

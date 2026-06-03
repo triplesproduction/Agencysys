@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import GlassCard from '@/components/GlassCard';
 import { Megaphone, Loader2, BellOff, ExternalLink } from 'lucide-react';
-import { api } from '@/lib/api';
 import Link from 'next/link';
+import { useAnnouncements } from '@/hooks/queries/domains/dashboard/useDashboard';
 
 interface Announcement {
     id: string;
@@ -23,19 +23,15 @@ const typeColors: Record<string, { text: string; bg: string; border: string }> =
 };
 
 export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: number }) {
+    const { data, isLoading } = useAnnouncements();
     const [items, setItems] = useState<Announcement[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        api.getAnnouncements()
-            .then(data => {
-                // Only show active announcements, newest first, limited to maxItems
-                const active = (data || []).filter((a: Announcement) => a.status === 'active');
-                setItems(active.slice(0, maxItems));
-            })
-            .catch(() => setItems([]))
-            .finally(() => setIsLoading(false));
-    }, []);
+        if (data) {
+            const active = data.filter((a: Announcement) => a.status === 'active');
+            setItems(active.slice(0, maxItems));
+        }
+    }, [data, maxItems]);
 
     return (
         <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>

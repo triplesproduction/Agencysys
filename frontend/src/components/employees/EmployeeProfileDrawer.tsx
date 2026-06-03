@@ -8,11 +8,13 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import Link from 'next/link';
+import { logger } from '@/lib/logger';
 import { getResolvedRole } from '@/lib/permissions';
 import DigitalEmployeeCard from './DigitalEmployeeCard';
 import DatePicker from '../common/DatePicker';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useEmployeeLeaves } from '@/hooks/queries/domains/leaves/useLeaves';
 
 const DEPARTMENT_ROLES: Record<string, string[]> = {
     'Admin': ['Admin'],
@@ -77,6 +79,14 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     const [leaves, setLeaves] = useState<any[]>([]);
     const [isLoadingTabData, setIsLoadingTabData] = useState(false);
 
+    const { data: leavesData, isLoading: isLeavesLoading, refetch: refetchLeaves } = useEmployeeLeaves(activeTab === 'LEAVES' ? employee.id : undefined);
+
+    useEffect(() => {
+        if (leavesData) {
+            setLeaves(leavesData);
+        }
+    }, [leavesData]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,7 +98,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         if (activeTab === 'ATTENDANCE') {
             loadActivityLogs();
         } else if (activeTab === 'LEAVES') {
-            loadLeaves();
+            refetchLeaves();
         } else if (activeTab === 'PERFORMANCE') {
             loadKpiProfile();
         }
@@ -100,7 +110,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             const logs = await api.getKpiAuditLogs(employee.id);
             setActivityLogs(logs || []);
         } catch (err) {
-            console.error('Failed to load activity logs:', err);
+            logger.error('Error', 'Failed to load activity logs:', err);
         } finally {
             setIsLoadingTabData(false);
         }
@@ -112,7 +122,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             const profile = await api.getKpiProfile(employee.id, syncMonth);
             setKpiProfile(profile);
         } catch (err) {
-            console.error('Failed to load KPI profile:', err);
+            logger.error('Error', 'Failed to load KPI profile:', err);
         } finally {
             setIsLoadingTabData(false);
         }
@@ -137,17 +147,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         }
     };
 
-    const loadLeaves = async () => {
-        setIsLoadingTabData(true);
-        try {
-            const data = await api.getEmployeeLeaves(employee.id);
-            setLeaves(data || []);
-        } catch (err) {
-            console.error('Failed to load leaves:', err);
-        } finally {
-            setIsLoadingTabData(false);
-        }
-    };
+    // Removed loadLeaves in favor of React Query
 
     const handlePhotoClick = () => {
         if (isEditingOwnProfile || isAdminUser) {
@@ -173,10 +173,10 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
         }
 
         setIsUploading(true);
-        console.log('[Profile] Initiating photo sync for:', employee.id);
+        logger.log('[Profile] Initiating photo sync for:', employee.id);
         try {
             const { url } = await api.uploadPhoto(file, profilePhoto || undefined);
-            console.log('[Profile] Photo storage success. Syncing DB...', url);
+            logger.log('[Profile] Photo storage success. Syncing DB...', url);
             await api.updateEmployee(employee.id, { profilePhoto: url });
             setProfilePhoto(url);
             addNotification({
@@ -184,11 +184,11 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                 message: 'Your profile photo has been synchronized.',
                 type: 'SYSTEM'
             });
-            console.log('[Profile] Full sync complete.');
+            logger.log('[Profile] Full sync complete.');
             // Proactive notification for UI refresh if needed
             window.dispatchEvent(new CustomEvent('app:profile-updated', { detail: { employeeId: employee.id, profilePhoto: url } }));
         } catch (err: any) {
-            console.error('[Profile] Photo sync failed:', err);
+            logger.error('Error', '[Profile] Photo sync failed:', err);
             alert(`Failed to save photo: ${err.message}`);
         } finally {
             setIsUploading(false);
@@ -355,7 +355,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             setNewPassword('');
             setShowPasswordInput(false);
         } catch (err: any) {
-            console.error('Password update failed:', err);
+            logger.error('Error', 'Password update failed:', err);
             alert(`Failed to update password: ${err.message}`);
         } finally {
             setIsUpdatingPassword(false);
@@ -428,7 +428,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                 joinedAt: editData.joinedAt || null,
             };
 
-            console.log('[Save] Sending update payload:', updatePayload);
+            logger.log('[Save] Sending update payload:', updatePayload);
             await api.updateEmployee(employee.id, updatePayload);
             setIsEditing(false);
             
@@ -441,7 +441,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
             window.dispatchEvent(new CustomEvent('app:employee-updated', { detail: { id: employee.id } }));
             onRefresh?.();
         } catch (err: any) {
-            console.error('[Save] Update failed — full error:', err);
+            logger.error('Error', '[Save] Update failed — full error:', err);
             addNotification({
                 title: 'Save Failed',
                 message: err?.message || 'Could not save changes. Check console for details.',
@@ -1086,11 +1086,11 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                             <h3 style={{ margin: 0 }}>Leave Management Records</h3>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <button onClick={loadLeaves} className="secondary-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>Refresh List</button>
+                                <button onClick={() => refetchLeaves()} className="secondary-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>Refresh List</button>
                             </div>
                         </div>
 
-                        {isLoadingTabData ? (
+                        {isLeavesLoading ? (
                             <div style={{ padding: '64px', textAlign: 'center' }}>
                                 <div className="spinner-mini" style={{ margin: '0 auto 16px' }}></div>
                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Accessing HR records...</div>

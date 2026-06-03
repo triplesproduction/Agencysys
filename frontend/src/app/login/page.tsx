@@ -43,9 +43,13 @@ function LoginForm() {
                 throw new Error(authError?.message || 'Login failed. Check your credentials.');
             }
 
-            // Success — AuthGuard will handle the redirect to /dashboard
-            // Keep loading=true so there's no flicker
+            // Success — AuthGuard will handle the redirect to /dashboard.
+            // Keep loading=true so there's no flicker during the transition.
             router.replace('/dashboard');
+
+            // Safety: if navigation doesn't complete in 5s, re-enable the form
+            // so the user isn't stuck on a permanently disabled button.
+            setTimeout(() => setLoading(false), 5000);
 
         } catch (err: any) {
             setError(err.message || 'Verification failed. Double check your credentials.');

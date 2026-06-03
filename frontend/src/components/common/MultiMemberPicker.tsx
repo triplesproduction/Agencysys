@@ -89,7 +89,6 @@ export default function MultiMemberPicker({ selectedIds = [], members = [], onCh
             ? currentIds.filter(sid => sid !== id)
             : [...currentIds, id];
         
-        console.log(`[MultiMemberPicker] Selection changed: ${id}`, newIds);
         onChange(newIds);
     };
 

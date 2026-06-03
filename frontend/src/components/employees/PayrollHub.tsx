@@ -15,6 +15,8 @@ import ReactDOM from 'react-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
+import { useMonthlyAttendance } from '@/hooks/queries/domains/attendance/useAttendance';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { PayrollRecord, EmployeeDTO } from '@/types/dto';
 import './PayrollHub.css';
@@ -38,14 +40,14 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [selectedBreakup, setSelectedBreakup] = useState<any | null>(null);
 
-
+    const { data: attendanceMap = {}, isLoading: isAttendanceLoading } = useMonthlyAttendance(selectedMonth, selectedYear);
     useEffect(() => {
         const fetchSavedRecords = async () => {
             try {
                 const saved = await api.getPayrollRecords(selectedMonth, selectedYear);
                 setFinalizedRecords(saved || []);
             } catch (err) {
-                console.error('Failed to fetch saved payroll:', err);
+                logger.error('Error', 'Failed to fetch saved payroll:', err);
             }
         };
         fetchSavedRecords();
@@ -70,12 +72,10 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
     };
 
     const calculatePayroll = async () => {
+        if (isAttendanceLoading) return;
         setLoading(true);
         try {
             const workingDays = getWorkingDaysCount(selectedYear, selectedMonth);
-
-            // Fetch real attendance data (unique EOD reports per day)
-            const attendanceMap = await api.getMonthlyAttendance(selectedMonth, selectedYear);
 
             const results: any[] = employees.map((emp: EmployeeDTO) => {
                 const saved = finalizedRecords.find((r: any) => r.employeeid === emp.id);
@@ -138,7 +138,7 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
 
             setPayrollData(results);
         } catch (err) {
-            console.error("Payroll calculation failed:", err);
+            logger.error("Error", "Payroll calculation failed:", err);
         } finally {
             setLoading(false);
         }
@@ -335,7 +335,7 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
 
     useEffect(() => {
         calculatePayroll();
-    }, [selectedMonth, selectedYear, employees, finalizedRecords]);
+    }, [selectedMonth, selectedYear, employees, finalizedRecords, attendanceMap, isAttendanceLoading]);
 
     const filteredPayroll = useMemo(() => {
         return payrollData.filter(p =>

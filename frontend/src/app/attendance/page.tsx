@@ -1,5 +1,7 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useState, useEffect, useMemo } from 'react';
 import { 
     Calendar as CalendarIcon, 
@@ -15,17 +17,18 @@ import {
     Settings,
     ShieldAlert
 } from 'lucide-react';
-import { api } from '@/lib/api';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { HolidayDTO, AttendanceOverrideDTO, EODSubmissionDTO, LeaveApplicationDTO, EmployeeDTO, AttendanceReportDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
+import { useAttendanceReport, useAddHoliday, useDeleteHoliday } from '@/hooks/queries/domains/attendance/useAttendance';
+import { api } from '@/lib/api'; // still needed for getEmployees
 import './Attendance.css';
 
 type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'PAID_LEAVE' | 'UNPAID_LEAVE' | 'HOLIDAY' | 'WORKED_ON_HOLIDAY' | 'NONE';
 
 const statusConfig: Record<AttendanceStatus, { label: string, color: string, bg: string }> = {
     PRESENT: { label: 'Present', color: '#10B981', bg: 'rgba(16, 185, 129, 0.1)' },
-    ABSENT: { label: 'Unpaid Leave', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
+    ABSENT: { label: 'Absent (Unexcused)', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)' },
     PAID_LEAVE: { label: 'Paid Leave', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' },
     UNPAID_LEAVE: { label: 'Unpaid Leave', color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)' },
     HOLIDAY: { label: 'Holiday', color: '#9CA3AF', bg: 'rgba(156, 163, 175, 0.05)' },
@@ -36,18 +39,23 @@ const statusConfig: Record<AttendanceStatus, { label: string, color: string, bg:
 const MIN_DATE = new Date(2025, 3, 1);
 
 export default function AttendancePage() {
-    const { employee } = useAuth();
+    const { employee, loading: authLoading } = useAuth();
     const { addNotification } = useNotifications();
     
     const [selectedMonth, setSelectedMonth] = useState(new Date());
     const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-    const [data, setData] = useState<AttendanceReportDTO>({
+    const monthYearStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
+    const { data: reportData, isLoading: isReportLoading } = useAttendanceReport(selectedEmployeeId, monthYearStr);
+    const { mutateAsync: addHoliday } = useAddHoliday();
+    const { mutateAsync: deleteHoliday } = useDeleteHoliday();
+
+    const data = reportData || {
         eods: [],
         leaves: [],
         holidays: [],
         overrides: []
-    });
+    };
     
     const [loading, setLoading] = useState(true);
     const [showHolidayModal, setShowHolidayModal] = useState(false);
@@ -58,25 +66,31 @@ export default function AttendancePage() {
         return employee.roleId.toUpperCase().includes('ADMIN');
     }, [employee]);
 
+    const canViewOthers = useMemo(() => {
+        if (!employee?.roleId) return false;
+        const role = employee.roleId.toUpperCase();
+        return role.includes('ADMIN') || role.includes('MANAGER');
+    }, [employee]);
+
     useEffect(() => {
+        // Wait for auth to resolve before fetching — avoids a phantom empty-string query
+        // during the brief window when employee is still null (auth loading)
+        if (authLoading || !employee) return;
+
         setLoading(true);
         api.getEmployees({ limit: 100 }).then(res => {
             const list = (res.data || []).filter(e => e.roleId !== 'ADMIN');
             setEmployees(list);
             if (list.length > 0 && !selectedEmployeeId) {
-                setSelectedEmployeeId(isAdmin ? list[0].id : (employee?.id || ''));
-            } else if (!isAdmin) {
+                setSelectedEmployeeId(canViewOthers ? list[0].id : (employee?.id || ''));
+            } else if (!canViewOthers) {
                 setSelectedEmployeeId(employee?.id || '');
             }
             setLoading(false);
         });
-    }, [isAdmin, employee]);
+    }, [canViewOthers, employee, authLoading]);
 
-    useEffect(() => {
-        if (selectedEmployeeId) {
-            refreshData();
-        }
-    }, [selectedEmployeeId, selectedMonth]);
+    // Handled by React Query hooks
 
     const calendarDays = useMemo(() => {
         const year = selectedMonth.getFullYear();
@@ -119,28 +133,16 @@ export default function AttendancePage() {
     const handleAddHoliday = async () => {
         if (!newHoliday.name || !newHoliday.date) return;
         try {
-            await api.addHoliday(newHoliday);
+            await addHoliday(newHoliday);
             addNotification({ title: 'Holiday Registered', message: 'Holiday successfully added to the system', type: 'SUCCESS' });
             setShowHolidayModal(false);
             setNewHoliday({ date: '', name: '', is_working_day: false });
-            refreshData();
         } catch {
             addNotification({ title: 'Registration Failed', message: 'Could not register holiday', type: 'ERROR' });
         }
     };
 
-    const refreshData = async () => {
-        if (!selectedEmployeeId) return;
-        const monthYear = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
-
-        setLoading(true);
-        try {
-            const reportRes = await api.getAttendanceReport(selectedEmployeeId, monthYear);
-            setData(reportRes);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const isLoadingData = loading || isReportLoading;
 
     const stats = useMemo(() => {
         const counts = { PRESENT: 0, PAID_LEAVE: 0, UNPAID_LEAVE: 0, HOLIDAY: 0, WORKED_ON_HOLIDAY: 0 };
@@ -154,40 +156,39 @@ export default function AttendancePage() {
     }, [calendarDays, data, getDayStatus]);
 
     return (
-        <div className="attendance-root">
-            <div className="attendance-hero">
-                <div className="hero-text">
-                    <h1>Attendance & Leaves</h1>
-                    <p>Track team presence and manage institutional holidays.</p>
-                </div>
-
-                <div className="hero-controls">
-                    <div className="month-picker-glass">
-                        <button 
-                            className="nav-arrow"
-                            onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))}
-                            disabled={selectedMonth <= MIN_DATE}
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <div className="current-month-display">
-                            {selectedMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+        <div className="attendance-root page-root fade-in">
+            <PageHeader
+                title="Attendance & Leaves"
+                subtitle={<p className="subtitle">Track team presence and manage institutional holidays.</p>}
+                actions={
+                    <div className="hero-controls" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div className="month-picker-glass">
+                            <button 
+                                className="nav-arrow"
+                                onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))}
+                                disabled={selectedMonth <= MIN_DATE}
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <div className="current-month-display">
+                                {selectedMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                            </div>
+                            <button 
+                                className="nav-arrow"
+                                onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))}
+                            >
+                                <ChevronRight size={18} />
+                            </button>
                         </div>
-                        <button 
-                            className="nav-arrow"
-                            onClick={() => setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))}
-                        >
-                            <ChevronRight size={18} />
-                        </button>
-                    </div>
 
-                    {isAdmin && (
-                        <button className="primary-button" onClick={() => setShowHolidayModal(true)}>
-                            <Plus size={18} /> Manage Holidays
-                        </button>
-                    )}
-                </div>
-            </div>
+                        {isAdmin && (
+                            <button className="primary-button" onClick={() => setShowHolidayModal(true)}>
+                                <Plus size={18} /> Manage Holidays
+                            </button>
+                        )}
+                    </div>
+                }
+            />
 
             <div className="attendance-grid">
                 {/* ── CALENDAR ── */}
@@ -238,15 +239,21 @@ export default function AttendancePage() {
                         </div>
                         <div className="member-select-wrap">
                             <label className="stat-v-label">Selected Employee</label>
-                            <select 
-                                className="liquid-select"
-                                value={selectedEmployeeId}
-                                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                            >
-                                {employees.map(emp => (
-                                    <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
-                                ))}
-                            </select>
+                            {canViewOthers ? (
+                                <select 
+                                    className="liquid-select"
+                                    value={selectedEmployeeId}
+                                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                                >
+                                    {employees.map(emp => (
+                                        <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="liquid-select" style={{ display: 'flex', alignItems: 'center', opacity: 0.7, pointerEvents: 'none', backgroundImage: 'none' }}>
+                                    {employee?.firstName} {employee?.lastName}
+                                </div>
+                            )}
                         </div>
                         <div className="stat-v-item full-width">
                             <span className="stat-v-label">Remaining Paid Leaves</span>
@@ -329,7 +336,7 @@ export default function AttendancePage() {
                                             <button 
                                                 className="nav-arrow" 
                                                 style={{ color: '#EF4444' }}
-                                                onClick={async () => { if(confirm('Delete holiday?')) { await api.deleteHoliday(h.id); refreshData(); } }}
+                                                onClick={async () => { if(confirm('Delete holiday?')) { await deleteHoliday(h.id); } }}
                                             >
                                                 <Trash2 size={16} />
                                             </button>

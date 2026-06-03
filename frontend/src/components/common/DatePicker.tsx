@@ -12,9 +12,10 @@ interface DatePickerProps {
     required?: boolean;
     className?: string;
     disabled?: boolean;
+    placement?: 'bottom' | 'right';
 }
 
-export default function DatePicker({ value, onChange, placeholder = "Select Date", label, required, className, disabled }: DatePickerProps) {
+export default function DatePicker({ value, onChange, placeholder = "Select Date", label, required, className, disabled, placement = 'bottom' }: DatePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
     const [showYearPicker, setShowYearPicker] = useState(false);
@@ -46,14 +47,24 @@ export default function DatePicker({ value, onChange, placeholder = "Select Date
             if (isOpen && containerRef.current) {
                 const rect = containerRef.current.getBoundingClientRect();
                 const spaceBelow = window.innerHeight - rect.bottom;
-                const shouldOpenUpward = spaceBelow < 350;
-                setOpenUpward(shouldOpenUpward);
                 
-                setPopupCoords({
-                    top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8,
-                    left: rect.left + rect.width - 300, // Align right with input
-                    width: 300
-                });
+                if (placement === 'right') {
+                    setOpenUpward(false);
+                    setPopupCoords({
+                        top: rect.top,
+                        left: rect.right + 12, // Align right of input with a small gap
+                        width: 300
+                    });
+                } else {
+                    const shouldOpenUpward = spaceBelow < 350;
+                    setOpenUpward(shouldOpenUpward);
+                    
+                    setPopupCoords({
+                        top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8,
+                        left: rect.left + rect.width - 300, // Align right with input
+                        width: 300
+                    });
+                }
             }
         };
 

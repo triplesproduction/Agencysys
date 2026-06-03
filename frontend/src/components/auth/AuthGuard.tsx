@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 import { canAccessPath } from '@/lib/permissions';
+import { logger } from '@/lib/logger';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const { user, employee, loading, signOut } = useAuth();
@@ -21,7 +22,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         // Reset the timer whenever user or employee changes
         setProfileErrorReady(false);
         if (user && !employee && !loading) {
-            const t = setTimeout(() => setProfileErrorReady(true), 10000); // 10s grace period
+            const t = setTimeout(() => setProfileErrorReady(true), 4000); // 4s grace period
             return () => clearTimeout(t);
         }
     }, [user, employee, loading]);
@@ -29,11 +30,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!loading) {
             if (!user && pathname !== '/login') {
-                console.log('[AUTH DEBUG] AuthGuard: redirecting guest to /login');
+                logger.log('[AUTH] AuthGuard: redirecting guest to /login');
                 // Use window.location.href for guest redirects to clear potential stuck SPA state
                 window.location.href = '/login';
             } else if (user && pathname === '/login') {
-                console.log('[AUTH DEBUG] AuthGuard: redirecting authenticated user to /dashboard');
+                logger.log('[AUTH] AuthGuard: redirecting authenticated user to /dashboard');
                 router.replace('/dashboard');
             }
         }

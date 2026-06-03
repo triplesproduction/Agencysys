@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import { TaskDTO, EmployeeDTO } from '@/types/dto';
 import Button from '../Button';
@@ -17,6 +18,8 @@ import { useNotifications } from '../notifications/NotificationProvider';
 import MarkdownEditor from '../common/MarkdownEditor';
 import MultiMemberPicker from '../common/MultiMemberPicker';
 import { useAuth } from '@/context/AuthContext';
+import { useUpdateTask, useDeleteTask } from '@/hooks/queries/domains/projects/useProjects';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 
 
 
@@ -37,10 +40,14 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
 
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'DETAILS' | 'CHECKLIST' | 'COMMENTS' | 'ACTIVITY'>('DETAILS');
+    const [activeTab, setActiveTab] = useState<'DETAILS' | 'CHECKLIST'>('DETAILS');
     
     const { addNotification } = useNotifications();
-    const [employees, setEmployees] = useState<EmployeeDTO[]>([]);
+    
+    const { data: employees = [] } = useEmployees({ limit: 1000 });
+
+    const { mutateAsync: updateTask } = useUpdateTask();
+    const { mutateAsync: deleteTask } = useDeleteTask();
 
 
     const fetchTask = async () => {
@@ -48,9 +55,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
         setLoading(true);
         try {
             // Parallel load for efficiency
-            const [tasksList, employeesData] = await Promise.all([
-                api.getTasks(undefined, undefined, 500),
-                api.getEmployees({ limit: 100 })
+            const [tasksList] = await Promise.all([
+                api.getTasks(undefined, undefined, 500)
             ]);
             
             const found = (tasksList || []).find(t => t.id === taskId);
@@ -62,12 +68,9 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
             }
 
             setTask(found || null);
-            if (employeesData && 'data' in employeesData) {
-                setEmployees((employeesData as any).data);
-            }
         } catch (err) {
 
-            console.error('Failed to fetch task details:', err);
+            logger.error('Error', 'Failed to fetch task details:', err);
         } finally {
             setLoading(false);
         }
@@ -108,7 +111,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
         setTask(updatedTask);
         
         try {
-            const updated = await api.updateTask(task.id, { [field]: value });
+            const updated = await updateTask({ id: task.id, payload: { [field]: value } });
             // Merge with local state to preserve virtual fields if needed (handled in api.ts now)
             setTask(prev => ({ ...prev, ...updated }));
             if (onUpdate) onUpdate();
@@ -188,8 +191,6 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                         <div className="drawer-tabs">
                             <button type="button" className={`tab-link ${activeTab === 'DETAILS' ? 'active' : ''}`} onClick={() => setActiveTab('DETAILS')}>Task Details</button>
                             <button type="button" className={`tab-link ${activeTab === 'CHECKLIST' ? 'active' : ''}`} onClick={() => setActiveTab('CHECKLIST')}>Checklist</button>
-                            <button type="button" className={`tab-link ${activeTab === 'COMMENTS' ? 'active' : ''}`} onClick={() => setActiveTab('COMMENTS')}>Comments</button>
-                            <button type="button" className={`tab-link ${activeTab === 'ACTIVITY' ? 'active' : ''}`} onClick={() => setActiveTab('ACTIVITY')}>History</button>
                         </div>
 
                         {activeTab === 'DETAILS' && (
@@ -409,53 +410,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             );
                         })()}
 
-                        {activeTab === 'COMMENTS' && (
-                            <div className="tab-pane active fade-in">
-                                <section className="drawer-section">
-                                    <div className="section-header">
-                                        <MessageSquare size={18} color="white" />
-                                        <h3>Comments</h3>
-                                    </div>
-                                    <div className="comment-feed custom-scrollbar">
-                                        <div className="no-comments" style={{ padding: '20px 0', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', textAlign: 'center' }}>
-                                            No comments yet.
-                                        </div>
-                                    </div>
-                                    <div className="comment-input-area">
-                                        <div className="avatar-small">
-                                            {authEmployee?.firstName?.charAt(0) || 'U'}
-                                        </div>
-                                        <input 
-                                            className="comment-field" 
-                                            placeholder="Write a comment..." 
-                                        />
-                                    </div>
-                                </section>
-                            </div>
-                        )}
 
-                        {activeTab === 'ACTIVITY' && (
-                            <div className="tab-pane active fade-in">
-                                <section className="drawer-section">
-                                    <div className="section-header">
-                                        <Activity size={18} color="white" />
-                                        <h3>Task History</h3>
-                                    </div>
-                                    <div className="activity-feed">
-                                        <div className="activity-item">
-                                            <Clock size={14} opacity={0.3} />
-                                            <span>Task moved from <strong>TODO</strong> to <strong>IN PROGRESS</strong></span>
-                                            <span className="activity-time">2 hours ago</span>
-                                        </div>
-                                        <div className="activity-item">
-                                            <Clock size={14} opacity={0.3} />
-                                            <span>Deadline updated to <strong>April 15, 2026</strong></span>
-                                            <span className="activity-time">5 hours ago</span>
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        )}
 
                     </div>
 
@@ -530,7 +485,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                 if (!taskId) return;
                                 if (confirm('Are you sure you want to delete this task?')) {
                                     try {
-                                        await api.deleteTask(taskId); 
+                                        await deleteTask(taskId); 
                                         addNotification({ title: 'Task Deleted', message: 'Task has been permanently removed.', type: 'success' });
                                         if (onUpdate) onUpdate();
                                         onClose();

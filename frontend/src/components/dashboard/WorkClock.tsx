@@ -1,7 +1,8 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { useClockIn, useClockOut, useAddWorkHourLog } from '@/hooks/queries/domains/attendance/useAttendance';
 import GlassCard from '../GlassCard';
 import { Play, Square, Clock, Zap } from 'lucide-react';
 import './WorkClock.css';
@@ -15,7 +16,11 @@ export default function WorkClock({ employeeId, onClockUpdate }: WorkClockProps)
     const [isClockedIn, setIsClockedIn] = useState(false);
     const [startTime, setStartTime] = useState<number | null>(null);
     const [elapsed, setElapsed] = useState(0);
-    const [loading, setLoading] = useState(false);
+
+    const { mutateAsync: clockIn, isPending: isClockingIn } = useClockIn();
+    const { mutateAsync: clockOut, isPending: isClockingOut } = useClockOut();
+    const { mutateAsync: addWorkHourLog, isPending: isAddingLog } = useAddWorkHourLog();
+    const loading = isClockingIn || isClockingOut || isAddingLog;
 
     useEffect(() => {
         const savedStart = localStorage.getItem(`clock_in_${employeeId}`);
@@ -45,29 +50,25 @@ export default function WorkClock({ employeeId, onClockUpdate }: WorkClockProps)
     };
 
     const handleClockIn = async () => {
-        setLoading(true);
         try {
-            await api.clockIn(employeeId);
+            await clockIn(employeeId);
             const now = Date.now();
             localStorage.setItem(`clock_in_${employeeId}`, String(now));
             setStartTime(now);
             setIsClockedIn(true);
         } catch (error) {
-            console.error('Failed to clock in:', error);
-        } finally {
-            setLoading(false);
+            logger.error('Error', 'Failed to clock in:', error);
         }
     };
 
     const handleClockOut = async () => {
         if (!startTime) return;
-        setLoading(true);
         try {
-            await api.clockOut(employeeId);
+            await clockOut(employeeId);
             const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
             const hoursLogged = parseFloat((totalSeconds / 3600).toFixed(2));
 
-            await api.addWorkHourLog({
+            await addWorkHourLog({
                 employeeId,
                 date: new Date().toISOString().substring(0, 10),
                 hoursLogged,
@@ -79,9 +80,7 @@ export default function WorkClock({ employeeId, onClockUpdate }: WorkClockProps)
             setStartTime(null);
             if (onClockUpdate) onClockUpdate();
         } catch (error) {
-            console.error('Failed to log hours:', error);
-        } finally {
-            setLoading(false);
+            logger.error('Error', 'Failed to log hours:', error);
         }
     };
 

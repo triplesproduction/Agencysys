@@ -17,6 +17,8 @@ import { api } from '@/lib/api';
 import { ProjectDTO, TaskDTO, EmployeeDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import { getResolvedRole } from '@/lib/permissions';
+import { useProjectDetail, useTasks, useUpdateTaskStatus } from '@/hooks/queries/domains/projects/useProjects';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 
 // Kanban Components
 import { KanbanColumn, SortableCard } from '../../tasks/KanbanComponents';
@@ -55,9 +57,6 @@ export default function ProjectDetailPage() {
     const { addNotification } = useNotifications();
     const { employee: authEmployee } = useAuth();
     
-    const [project, setProject] = useState<ProjectDTO | null>(null);
-    const [tasks, setTasks] = useState<TaskDTO[]>([]);
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>('BOARD');
     
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
@@ -74,43 +73,29 @@ export default function ProjectDetailPage() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    const loadData = async (silent = false) => {
-        if (!id) return;
-        if (!silent) setLoading(true);
-        try {
-            const [projData, tasksData, empsData] = await Promise.all([
-                api.getProjectById(String(id)),
-                api.getTasks(undefined, undefined, 500, String(id)),
-                api.getEmployees({ limit: 1000 })
-            ]);
+    const { data: project, isLoading: isProjectLoading, refetch: refetchProject } = useProjectDetail(String(id));
+    const { data: rawTasks = [], isLoading: isTasksLoading, refetch: refetchTasks } = useTasks(undefined, undefined, 500, String(id));
+    const { mutateAsync: updateTaskStatus } = useUpdateTaskStatus();
+    const { data: employees = [], isLoading: isEmployeesLoading } = useEmployees({ limit: 1000 });
 
-            const employeeMap = new Map<string, EmployeeDTO>();
-            (empsData.data || []).forEach((e: EmployeeDTO) => employeeMap.set(e.id, e));
+    const loading = isProjectLoading || isTasksLoading || isEmployeesLoading;
 
-            const hydratedTasks = (tasksData || []).map((t: TaskDTO) => ({
-                ...t,
-                assignees: (t.assigneeIds || [])
-                    .map((aid: string) => employeeMap.get(aid))
-                    .filter((e): e is EmployeeDTO => !!e)
-                    .map(e => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, profilePhoto: e.profilePhoto }))
-            }));
+    const tasks = useMemo(() => {
+        const employeeMap = new Map<string, EmployeeDTO>();
+        employees.forEach((e: EmployeeDTO) => employeeMap.set(e.id, e));
 
-            setProject(projData);
-            setTasks(hydratedTasks as TaskDTO[]);
-        } catch (err) {
-            console.error('Failed to load project details:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadData();
-    }, [id]);
+        return rawTasks.map((t: TaskDTO) => ({
+            ...t,
+            assignees: (t.assigneeIds || [])
+                .map((aid: string) => employeeMap.get(aid))
+                .filter((e): e is EmployeeDTO => !!e)
+                .map(e => ({ id: e.id, firstName: e.firstName, lastName: e.lastName, profilePhoto: e.profilePhoto }))
+        }));
+    }, [rawTasks, employees]);
 
     const stats = useMemo(() => {
         const total = tasks.length;
-        const completed = tasks.filter(t => t.status === 'DONE' || t.status === 'APPROVED').length;
+        const completed = tasks.filter((t: any) => t.status === 'DONE' || t.status === 'APPROVED').length;
         const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
         return { total, completed, progress };
     }, [tasks]);
@@ -125,12 +110,10 @@ export default function ProjectDetailPage() {
 
         let newStatus = over.data.current?.type === 'Column' ? over.data.current.status : over.data.current?.task.status;
         if (newStatus && newStatus !== activeTask.status) {
-            setTasks(prev => prev.map(t => t.id === active.id ? { ...t, status: newStatus as any } : t));
             try {
-                await api.updateTaskStatus(active.id as string, newStatus);
-                loadData(true);
+                await updateTaskStatus({ id: active.id as string, status: newStatus as string });
             } catch (err: any) {
-                loadData(true);
+                refetchTasks();
                 addNotification({ title: 'Sync Error', message: err.message, type: 'error' });
             }
         }
@@ -141,7 +124,7 @@ export default function ProjectDetailPage() {
     }
 
     return (
-        <div className="project-detail-page fade-in">
+        <div className="project-detail-page page-root fade-in">
             {/* CONDENSED HEADER */}
             <div className="detail-top-nav">
                 <div className="nav-left">
@@ -283,14 +266,14 @@ export default function ProjectDetailPage() {
                 )}
             </div>
 
-            <AllocateTaskModal isOpen={isAllocateModalOpen} onClose={() => setIsAllocateModalOpen(false)} onSuccess={() => loadData(true)} projectId={String(id)} />
-            <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={() => loadData(true)} currentUserRole={userRole} />
+            <AllocateTaskModal isOpen={isAllocateModalOpen} onClose={() => setIsAllocateModalOpen(false)} onSuccess={() => refetchTasks()} projectId={String(id)} />
+            <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={() => refetchTasks()} currentUserRole={userRole} />
             {project && (
                 <ManageProjectMembersModal 
                     isOpen={isManageMembersOpen} 
                     onClose={() => setIsManageMembersOpen(false)} 
                     project={project}
-                    onRefresh={() => loadData(true)}
+                    onRefresh={() => refetchProject()}
                 />
             )}
         </div>

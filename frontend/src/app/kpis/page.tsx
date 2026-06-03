@@ -1,8 +1,11 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useEffect, useState } from 'react';
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { TrendingUp, Target, Award, Calendar, AlertCircle, ArrowLeft, Clock, CheckSquare, Coffee } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -30,7 +33,7 @@ export default function KPIsPage() {
                 setProfile(data);
                 setError(null);
             } catch (err: any) {
-                console.error('Failed to fetch KPI profile:', err);
+                logger.error('Error', 'Failed to fetch KPI profile:', err);
                 setError(err.message || 'Failed to load performance metrics.');
             } finally {
                 setLoading(false);
@@ -52,25 +55,25 @@ export default function KPIsPage() {
     if (loading) return <div className="page-loader"><div className="spinner"></div></div>;
 
     return (
-        <div className="kpi-page fade-in" style={{ padding: '2rem' }}>
-            <header className="page-header" style={{ marginBottom: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                    <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-main)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600, marginBottom: '12px' }}>
-                        <ArrowLeft size={16} /> Back to Dashboard
-                    </Link>
-                    <h1 className="greeting">Performance Scorecard</h1>
-                    <p className="subtitle">Monthly performance vectors and mission efficiency.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <input 
-                        type="month" 
-                        value={selectedMonth} 
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="input-field"
-                        style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white' }}
-                    />
-                </div>
-            </header>
+        <div className="kpi-page page-root fade-in">
+            <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 500, marginBottom: '8px', opacity: 0.8 }}>
+                <ArrowLeft size={14} /> Back to Dashboard
+            </Link>
+            <PageHeader
+                title="Performance Scorecard"
+                subtitle={<p className="subtitle">Monthly performance vectors and mission efficiency.</p>}
+                actions={
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <input 
+                            type="month" 
+                            value={selectedMonth} 
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="input-field"
+                            style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.05)', color: 'white' }}
+                        />
+                    </div>
+                }
+            />
 
             {!profile ? (
                 <GlassCard style={{ padding: '4rem', textAlign: 'center' }}>

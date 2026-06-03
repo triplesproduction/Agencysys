@@ -13,3 +13,9 @@ backend/dist/
 frontend/scratch/
 frontend/check_*.js
 frontend/check_*.mjs
+
+# Ignore test credentials scripts
+test_*.js
+test_*.ts
+frontend/test_*.js
+frontend/test_*.ts

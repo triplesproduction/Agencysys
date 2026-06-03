@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { BookOpen, Loader2, FileX, ExternalLink, Tag } from 'lucide-react';
-import { api } from '@/lib/api';
 import Link from 'next/link';
+import { useRules } from '@/hooks/queries/domains/dashboard/useDashboard';
 
 interface Rule {
     id: string;
@@ -24,15 +24,14 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function RulesWidget({ maxItems = 4 }: { maxItems?: number }) {
+    const { data, isLoading } = useRules();
     const [rules, setRules] = useState<Rule[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        api.getRules()
-            .then(data => setRules((data || []).slice(0, maxItems)))
-            .catch(() => setRules([]))
-            .finally(() => setIsLoading(false));
-    }, [maxItems]);
+        if (data) {
+            setRules(data.slice(0, maxItems));
+        }
+    }, [data, maxItems]);
 
     return (
         <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>

@@ -11,11 +11,7 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        // Workaround for "AbortError: Lock was stolen by another request"
-        lock: async (name, acquireTimeout, fn) => {
-            return await fn();
-        }
+        detectSessionInUrl: true
     }
 });
 

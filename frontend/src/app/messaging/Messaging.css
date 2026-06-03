@@ -11,13 +11,6 @@
     gap: 1.25rem;
 }
 
-.greeting {
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    color: white;
-    margin: 0;
-}
 
 .msg-layout {
     flex: 1;

@@ -1,8 +1,11 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { EODSubmissionDTO, WorkHourLogDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import { Clock, Calendar, TrendingUp, History, Info, CheckCircle2 } from 'lucide-react';
@@ -28,7 +31,7 @@ export default function LogsPage() {
             setReports(eodData || []);
             setWorkHourLogs(hourData || []);
         } catch (err) {
-            console.error('Failed to load logs:', err);
+            logger.error('Error', 'Failed to load logs:', err);
         } finally {
             setLoading(false);
         }
@@ -88,20 +91,22 @@ export default function LogsPage() {
     }
 
     return (
-        <div className="logs-page fade-in">
-            <header className="page-header">
-                <div className="header-left">
-                    <h1 className="greeting">Work Ledger</h1>
+        <div className="logs-page page-root fade-in">
+            <PageHeader
+                title="Work Ledger"
+                subtitle={
                     <div className="stats-inline">
                         <span><Clock size={16} /> {stats.weeklyTotal.toFixed(1)} hrs This Week</span>
                         <span className="highlight"><History size={16} /> {stats.monthlyTotal.toFixed(1)} hrs This Month</span>
                     </div>
-                </div>
-                <div className="header-badge">
-                    <CheckCircle2 size={16} />
-                    <span>Synced with EOD Submissions</span>
-                </div>
-            </header>
+                }
+                actions={
+                    <div className="header-badge">
+                        <CheckCircle2 size={16} />
+                        <span>Synced with EOD Submissions</span>
+                    </div>
+                }
+            />
 
             <div className="summary-cards">
                 <GlassCard className="summary-card">
@@ -139,15 +144,7 @@ export default function LogsPage() {
                 </GlassCard>
             </div>
 
-            <GlassCard className="logs-table-card">
-                <div className="table-header">
-                    <h2 className="section-title">Submission History</h2>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <Info size={14} style={{ opacity: 0.4 }} />
-                        <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Data aggregated from latest EOD reports and work logs</span>
-                    </div>
-                </div>
-                
+            <div className="timeline-container">
                 {reports.length === 0 ? (
                     <div className="empty-state">
                         <Clock className="empty-icon" />
@@ -155,58 +152,58 @@ export default function LogsPage() {
                         <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>Hours will appear here after you submit your daily EOD report.</p>
                     </div>
                 ) : (
-                    <div className="table-responsive">
-                        <table className="glass-table">
-                            <thead>
-                                <tr>
-                                    <th className="date-column">Report Date</th>
-                                    <th>Status</th>
-                                    <th className="desc-column">Work Summary</th>
-                                    <th style={{ textAlign: 'right' }}>Hours Logged</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reports.map((report) => {
-                                    const tasks = Array.isArray(report.tasksCompleted) ? report.tasksCompleted : [];
-                                    const status = (report.status || 'SUBMITTED').toUpperCase();
-                                    const syncedHours = getSyncedHours(report.reportDate);
-                                    
-                                    // Only show reports that actually have some time attached
-                                    if (syncedHours === 0 && tasks.length === 0) return null;
+                    reports.map((report, index) => {
+                        const tasks = Array.isArray(report.tasksCompleted) ? report.tasksCompleted : [];
+                        const status = (report.status || 'SUBMITTED').toLowerCase();
+                        const syncedHours = getSyncedHours(report.reportDate);
+                        
+                        // Only show reports that actually have some time attached
+                        if (syncedHours === 0 && tasks.length === 0) return null;
 
-                                    return (
-                                        <tr key={report.id}>
-                                            <td>
-                                                <div className="date-id">
-                                                    <span className="date-text">
-                                                        {new Date(report.reportDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                    </span>
-                                                    <span className="time-text">
-                                                        {report.submittedAt ? `Report Filed ${new Date(report.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Daily Status'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span className={`status-badge ${status.toLowerCase()}`}>
-                                                    {status}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div className="desc-text" title={tasks.join(', ')}>
-                                                    {tasks.length > 0 ? tasks.join(', ') : 'Daily operational tasks.'}
-                                                </div>
-                                            </td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                <span className="hours-cell">{syncedHours.toFixed(1)}h</span>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                        return (
+                            <div 
+                                key={report.id} 
+                                className="timeline-item"
+                                style={{ animationDelay: `${index * 0.1}s` }}
+                            >
+                                <div className="timeline-node" />
+                                <div className="timeline-card">
+                                    <div className="timeline-card-header">
+                                        <div className="timeline-date">
+                                            <span className="date-text">
+                                                {new Date(report.reportDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </span>
+                                            <span className="time-text">
+                                                {report.submittedAt ? `Report Filed ${new Date(report.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Daily Status'}
+                                            </span>
+                                        </div>
+                                        <div className={`timeline-status ${status}`}>
+                                            {status}
+                                        </div>
+                                    </div>
+                                    <div className="timeline-card-body">
+                                        <div className="timeline-tasks">
+                                            {tasks.length > 0 ? (
+                                                <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: 0 }}>
+                                                    {tasks.map((task, i) => (
+                                                        <li key={i}>{task}</li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p style={{ margin: 0, opacity: 0.6 }}>Daily operational tasks.</p>
+                                            )}
+                                        </div>
+                                        <div className="timeline-hours">
+                                            <span className="hours-value">{syncedHours.toFixed(1)}</span>
+                                            <span className="hours-label">Hours Logged</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
                 )}
-            </GlassCard>
+            </div>
         </div>
     );
 }

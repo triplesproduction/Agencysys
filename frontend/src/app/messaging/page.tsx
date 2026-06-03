@@ -1,8 +1,48 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, AtSign, ChevronDown } from 'lucide-react';
+import { getResolvedRole } from '@/lib/permissions';
+import { logger } from '@/lib/logger';
+
+// --- Secure Image Component for Chat Media ---
+const SecureChatImage = ({ path, alt, className, onClick }: { path: string, alt?: string, className?: string, onClick?: (url: string) => void }) => {
+    const [signedUrl, setSignedUrl] = useState<string | null>(null);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+        if (!path) return;
+        if (path.startsWith('http')) {
+            setSignedUrl(path);
+            return;
+        }
+        api.getSignedChatMediaUrl(path).then(url => {
+            if (mounted) setSignedUrl(url);
+        }).catch(() => {
+            if (mounted) setError(true);
+        });
+        return () => { mounted = false; };
+    }, [path]);
+
+    if (error) return <div className="msg-img-error">Failed to load secure image</div>;
+    if (!signedUrl) return <div className="msg-img-loader spinner"></div>;
+
+    return (
+        <img 
+            src={signedUrl} 
+            alt={alt || "Shared image"} 
+            className={className} 
+            onClick={() => onClick && onClick(signedUrl)} 
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+        />
+    );
+};
+// ------------------------------------------
+
 import './Messaging.css';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -79,13 +119,13 @@ export default function MessagingPage() {
     const loadConversations = useCallback(async () => {
         if (!myId) return;
         try {
-            console.log('[Chat] loadConversations myId:', myId, 'role:', myRole);
+            logger.log('[Chat] loadConversations myId:', myId, 'role:', myRole);
             const convs = await api.getConversations(myId, myRole);
-            console.log('[Chat] conversations loaded:', convs.length);
+            logger.log('[Chat] conversations loaded:', convs.length);
             setConversations(convs as Conversation[]);
             setDbReady(true);
         } catch (e: any) {
-            console.error('[Chat] loadConversations error:', e);
+            logger.error('Error', '[Chat] loadConversations error:', e);
             if (e?.message?.includes('schema cache') || e?.message?.includes('does not exist')) {
                 setDbReady(false);
             }
@@ -111,7 +151,7 @@ export default function MessagingPage() {
                     .limit(1);
 
                 if (probe) {
-                    console.warn('[Chat] conversations table not ready:', probe.message);
+                    logger.warn('Error', '[Chat] conversations table not ready:', probe.message);
                     setDbProbeError(probe.message);
                     setDbReady(false);
                     const empRes = await api.getEmployees({ limit: 100 });
@@ -135,7 +175,7 @@ export default function MessagingPage() {
                 // ✅ Fix 5: Load conversations first; realtime subscription starts after
                 await loadConversations();
             } catch (e) {
-                console.error('[Chat] init error:', e);
+                logger.error('Error', '[Chat] init error:', e);
                 // Reset guard so navigating back can retry
                 initDoneRef.current = false;
             } finally {
@@ -143,8 +183,8 @@ export default function MessagingPage() {
             }
         };
         init();
-    // ✅ Fix 2: Include authEmployee so re-auth triggers a fresh load
-    }, [authLoading, authEmployee, myId]);
+    // ✅ Fix 2: Remove authEmployee from dependencies since myId is sufficient and stable
+    }, [authLoading, myId]);
 
     // ── Presence tracking ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -174,7 +214,7 @@ export default function MessagingPage() {
                 { event: 'INSERT', schema: 'public', table: 'messages' },
                 async (payload: any) => {
                     const newMsg = payload.new;
-                    console.log('[Chat] Global realtime INSERT:', newMsg);
+                    logger.log('[Chat] Global realtime INSERT:', newMsg);
                     if (String(newMsg.sender_id) === myId) return;
                     // If user is already viewing this conversation, skip (handled locally)
                     if (newMsg.conversation_id === activeConvIdRef.current) return;
@@ -210,7 +250,7 @@ export default function MessagingPage() {
         const load = async () => {
             setMessagesLoading(true);
             try {
-                console.log('[Chat] Loading messages for conv:', convSnapshot);
+                logger.log('[Chat] Loading messages for conv:', convSnapshot);
                 const msgs = await api.getMessages(convSnapshot);
                 
                 if (activeConvIdRef.current !== convSnapshot) return;
@@ -223,13 +263,13 @@ export default function MessagingPage() {
                 if (msgs.length === 0) {
                     retryTimerRef.current = setTimeout(async () => {
                         if (activeConvIdRef.current !== convSnapshot) return;
-                        console.log('[Chat] Retry: empty on first load, retrying...');
+                        logger.log('[Chat] Retry: empty on first load, retrying...');
                         const retried = await api.getMessages(convSnapshot);
                         if (retried.length > 0) setMessages(retried as Message[]);
                     }, 2000);
                 }
             } catch (err: any) {
-                console.error('[Chat] load messages error:', err);
+                logger.error('Error', '[Chat] load messages error:', err);
             } finally {
                 if (activeConvIdRef.current === convSnapshot) {
                     setMessagesLoading(false);
@@ -255,7 +295,7 @@ export default function MessagingPage() {
                 { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${activeConvId}` },
                 async (payload: any) => {
                     const newMsg = payload.new;
-                    console.log('[Chat] Realtime INSERT in active conv:', newMsg);
+                    logger.log('[Chat] Realtime INSERT in active conv:', newMsg);
                     const mappedMsg: Message = {
                         ...newMsg,
                         senderId: newMsg.sender_id,
@@ -336,7 +376,7 @@ export default function MessagingPage() {
             setActiveOtherUser(contact);
             await loadConversations();
         } catch (err: any) {
-            console.error('[Chat] openConversation failed:', err.message);
+            logger.error('Error', '[Chat] openConversation failed:', err.message);
             if (err.message?.includes('schema cache') || err.message?.includes('does not exist')) {
                 setDbReady(false);
             }
@@ -359,9 +399,9 @@ export default function MessagingPage() {
             try {
                 setIsSending(true);
                 setIsUploading(true);
-                console.log('[Chat] Uploading image...');
-                const { url } = await api.uploadChatMedia(imagePreview.file);
-                console.log('[Chat] Image uploaded:', url);
+                logger.log('[Chat] Uploading image...');
+                const { url } = await api.uploadChatMedia(imagePreview.file, activeConvId);
+                logger.log('[Chat] Image uploaded:', url);
                 const taggedTaskId = extractTaggedTaskId(messageInput);
                 const sent = await api.sendMessage({
                     conversationId: activeConvId,
@@ -381,7 +421,7 @@ export default function MessagingPage() {
                 setImagePreview(null);
                 setMessageInput('');
             } catch (err: any) {
-                console.error('[Chat] Image send failed:', err.message);
+                logger.error('Error', '[Chat] Image send failed:', err.message);
             } finally {
                 setIsSending(false);
                 setIsUploading(false);
@@ -411,7 +451,7 @@ export default function MessagingPage() {
 
         try {
             setIsSending(true);
-            console.log('[Chat] Sending message, taskRef:', taggedTaskId);
+            logger.log('[Chat] Sending message, taskRef:', taggedTaskId);
             const sent = await api.sendMessage({
                 conversationId: activeConvId,
                 senderId: myId,
@@ -430,7 +470,7 @@ export default function MessagingPage() {
             // Roll back on failure
             setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
             setMessageInput(text);
-            console.error('[Chat] Send failed:', err.message);
+            logger.error('Error', '[Chat] Send failed:', err.message);
         } finally {
             setIsSending(false);
         }
@@ -441,11 +481,11 @@ export default function MessagingPage() {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
-            console.warn('[Chat] File type rejected:', file.type);
+            logger.warn('System', '[Chat] File type rejected:', file.type);
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            console.warn('[Chat] File too large:', file.size);
+            logger.warn('System', '[Chat] File too large:', file.size);
             return;
         }
         const url = URL.createObjectURL(file);
@@ -498,8 +538,12 @@ export default function MessagingPage() {
     const renderContent = (msg: Message) => {
         if (msg.type === 'image' && msg.mediaUrl) {
             return (
-                <div className="msg-img-wrapper" onClick={() => setExpandedImage(msg.mediaUrl!)}>
-                    <img src={msg.mediaUrl} alt="Shared image" className="msg-img" />
+                <div className="msg-img-wrapper">
+                    <SecureChatImage 
+                        path={msg.mediaUrl} 
+                        className="msg-img"
+                        onClick={(url) => setExpandedImage(url)}
+                    />
                     {msg.content && <p className="msg-caption">{msg.content}</p>}
                 </div>
             );
@@ -554,14 +598,12 @@ export default function MessagingPage() {
 
     // ── JSX ────────────────────────────────────────────────────────────────────
     return (
-        <div className="msg-page">
+        <div className="msg-page page-root">
             {/* Header */}
-            <header className="page-header">
-                <div>
-                    <h1 className="greeting">Messages</h1>
-                    <p className="subtitle">Real-time collaboration with your team.</p>
-                </div>
-            </header>
+            <PageHeader
+                title="Messages"
+                subtitle={<p className="subtitle">Real-time collaboration with your team.</p>}
+            />
 
             {/* DB setup banner */}
             {!dbReady && (

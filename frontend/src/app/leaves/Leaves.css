@@ -5,13 +5,6 @@
     gap: 2rem;
 }
 
-.greeting {
-    font-size: 2rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    color: white;
-    margin: 0;
-}
 
 .leaves-grid {
     display: grid;

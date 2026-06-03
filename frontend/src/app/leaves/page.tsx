@@ -1,12 +1,14 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import GlassCard from '@/components/GlassCard';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import DatePicker from '@/components/common/DatePicker';
-import { api } from '@/lib/api';
 import { LeaveApplicationDTO } from '@/types/dto';
+import { useMyLeaves, useApplyForLeave } from '@/hooks/queries/domains/leaves/useLeaves';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import './Leaves.css';
 import { useAuth } from '@/context/AuthContext';
@@ -20,9 +22,9 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string;
 
 export default function LeavesPage() {
     const { user, loading: authLoading } = useAuth();
-    const [leaves, setLeaves] = useState<LeaveApplicationDTO[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
+    const { data: leaves = [], isLoading: isLeavesLoading } = useMyLeaves(user?.id);
+    const { mutateAsync: applyForLeave, isPending: submitting } = useApplyForLeave();
+    const loading = authLoading || isLeavesLoading;
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
@@ -33,24 +35,7 @@ export default function LeavesPage() {
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
 
-
-    const fetchLeaves = useCallback(async () => {
-        if (!user) return;
-        try {
-            const data = await api.getMyLeaves(user.id);
-            setLeaves(data);
-        } catch (err) {
-            console.error('Failed to load leaves:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
-
-    useEffect(() => {
-        if (!authLoading) {
-            fetchLeaves();
-        }
-    }, [authLoading, fetchLeaves]);
+    // Handled by React Query Hooks automatically
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,9 +52,8 @@ export default function LeavesPage() {
             return;
         }
 
-        setSubmitting(true);
         try {
-            await api.applyForLeave({
+            await applyForLeave({
                 employeeId: user!.id, // Required: must match auth.uid() for RLS
                 leaveType: leaveType as any,
                 startDate: new Date(startDate).toISOString(),
@@ -82,7 +66,6 @@ export default function LeavesPage() {
             setReason('');
             setSuccess(true);
             setTimeout(() => setSuccess(false), 4000);
-            fetchLeaves();
         } catch (err: any) {
             const msg = err.message || '';
             if (msg.includes('row-level security') || msg.includes('violates')) {
@@ -90,8 +73,6 @@ export default function LeavesPage() {
             } else {
                 setError(msg || 'Failed to submit leave application.');
             }
-        } finally {
-            setSubmitting(false);
         }
     };
 
@@ -108,13 +89,11 @@ export default function LeavesPage() {
     }
 
     return (
-        <div className="leaves-page fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <header className="page-header">
-                <div>
-                    <h1 className="greeting">Leave Management</h1>
-                    <p className="subtitle">Apply for time off and track your history.</p>
-                </div>
-            </header>
+        <div className="leaves-page page-root fade-in">
+            <PageHeader
+                title="Leave Management"
+                subtitle={<p className="subtitle">Apply for time off and track your history.</p>}
+            />
 
             {/* ─── Quick Stats ─── */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>

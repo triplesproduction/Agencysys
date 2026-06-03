@@ -6,12 +6,15 @@ import Button from '../Button';
 import Input from '../Input';
 import { X, ChevronDown, User, Calendar, Tag, FileText, Plus, CheckSquare } from 'lucide-react';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import DatePicker from '../common/DatePicker';
 import MarkdownEditor from '../common/MarkdownEditor';
 import MultiMemberPicker from '../common/MultiMemberPicker';
 import { EmployeeDTO } from '@/types/dto';
-import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '../notifications/NotificationProvider';
+import { useAuth } from '@/context/AuthContext';
+import { useCreateTask, useTasks } from '@/hooks/queries/domains/projects/useProjects';
+import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 import './TasksModal.css';
 
 
@@ -25,8 +28,6 @@ interface AllocateTaskModalProps {
 export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectId }: AllocateTaskModalProps) {
     const { employee: authEmployee } = useAuth();
     const { addNotification } = useNotifications();
-    const [tasks, setTasks] = useState<{ id: string, title: string, description?: string }[]>([]);
-    const [employees, setEmployees] = useState<{ id: string, name: string, role: string, profilePhoto?: string, firstName?: string }[]>([]);
 
     // Form State
     const [title, setTitle] = useState('');
@@ -52,16 +53,14 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
 
 
 
+    const { data: tasks = [] } = useTasks();
+    const { mutateAsync: createTask } = useCreateTask();
+    const { data: employees = [] } = useEmployees({ limit: 1000 });
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
-            api.getTasks().then(setTasks).catch(console.error);
-            api.getEmployees({ limit: 1000 }).then(data => {
-                let empArray = Array.isArray(data) ? data : (data as any).data || [];
-                setEmployees(empArray);
-            }).catch(err => console.error('Failed to fetch employees', err));
-
             // Reset Form
             setTitle(''); setSelectedTaskId(''); setSelectedEmployeeIds([]);
             setPriority('MEDIUM'); setDueDate(new Date().toISOString().split('T')[0]); setInstructions('');
@@ -135,7 +134,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
             };
 
 
-            await api.createTask(formData as any);
+            await createTask(formData as any);
 
             addNotification({
                 title: 'Task Allocated',
@@ -146,7 +145,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
             onClose();
             onSuccess();
         } catch (err: any) {
-            console.error('Allocation failed:', err);
+            logger.error('Error', 'Allocation failed:', err);
             const msg = err.message || 'Validation failed. Please check all required fields.';
             setErrorMsg(msg);
             addNotification({

@@ -1,5 +1,7 @@
 'use client';
 
+import { PageHeader } from '@/components/common/PageHeader';
+
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -76,47 +78,49 @@ export default function ProjectsPage() {
 
     return (
         <div className="projects-page page-root fade-in">
-            <header className="page-header">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <h1 className="page-title">Project Hub</h1>
+            <PageHeader
+                title="Project Hub"
+                subtitle={
                     <div className="page-stats-inline">
                         <span><FolderKanban size={14} style={{ color: 'var(--purple-light)' }} /> {projects.length} Initiatives</span>
                         <span className="active"><CheckCircle2 size={14} /> {activeCount} Operational</span>
                     </div>
-                </div>
-                <div className="page-header-actions">
-                    <div className="emp-search">
-                        <Search size={16} />
-                        <input 
-                            placeholder="Search projects..." 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                    
-                    <div className="emp-filter-group">
-                        <Filter size={16} className="filter-icon" />
-                        <select 
-                            className="emp-glass-select" 
-                            value={statusFilter} 
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="ALL">All Statuses</option>
-                            <option value="PLANNING">Planning Phase</option>
-                            <option value="ACTIVE">Active Engagement</option>
-                            <option value="ON_HOLD">On Hold</option>
-                            <option value="COMPLETED">Successfully Closed</option>
-                        </select>
-                        <ChevronDown size={16} className="chevron-icon" />
-                    </div>
+                }
+                actions={
+                    <>
+                        <div className="emp-search">
+                            <Search size={16} />
+                            <input 
+                                placeholder="Search projects..." 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        
+                        <div className="emp-filter-group">
+                            <Filter size={16} className="filter-icon" />
+                            <select 
+                                className="emp-glass-select" 
+                                value={statusFilter} 
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="ALL">All Statuses</option>
+                                <option value="PLANNING">Planning Phase</option>
+                                <option value="ACTIVE">Active Engagement</option>
+                                <option value="ON_HOLD">On Hold</option>
+                                <option value="COMPLETED">Successfully Closed</option>
+                            </select>
+                            <ChevronDown size={16} className="chevron-icon" />
+                        </div>
 
-                    {userRole !== 'EMPLOYEE' && (
-                        <button className="page-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                            <Plus size={18} /> New project
-                        </button>
-                    )}
-                </div>
-            </header>
+                        {userRole !== 'EMPLOYEE' && (
+                            <button className="page-action-btn-primary" onClick={() => setIsCreateModalOpen(true)}>
+                                <Plus size={18} /> New project
+                            </button>
+                        )}
+                    </>
+                }
+            />
 
             {/* Projects Grid */}
             <div className="projects-grid">

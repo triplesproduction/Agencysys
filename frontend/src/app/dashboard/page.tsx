@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import GlassCard from '@/components/GlassCard';
 import DeadlineIndicator from '@/components/DeadlineIndicator';
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 import { EmployeeDTO, TaskDTO, WorkHourLogDTO } from '@/types/dto';
 import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock, Briefcase } from 'lucide-react';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
@@ -84,7 +85,7 @@ function AdminDashboard({
 }) {
     const taskList = tasks || [];
     const eodList = recentEods || [];
-    const kpiList = allEmployees
+    const kpiList = useMemo(() => allEmployees
         .filter(emp => {
             const role = (emp.roleId || '').toUpperCase();
             return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
@@ -94,11 +95,11 @@ function AdminDashboard({
             return {
                 id: profile?.id || `temp-${emp.id}`,
                 employee: emp,
-                current_score: profile?.currentScore || profile?.current_score || 0,
+                current_score: parseFloat(String(profile?.currentScore || profile?.current_score || 0)),
                 grade: profile?.grade || 'New Recruit'
             };
         })
-        .sort((a, b) => b.current_score - a.current_score);
+        .sort((a, b) => b.current_score - a.current_score), [allEmployees, teamKpis]);
 
     const kpiLogList = recentKpiLogs || [];
 
@@ -107,16 +108,16 @@ function AdminDashboard({
     const adminRole = employee?.designation || employee?.roleId || 'Administrator';
     
     // Calculate Today's Status for All Employees
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayEods = eodList.filter(e => e && e.reportDate === todayStr);
+    const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+    const todayEods = useMemo(() => eodList.filter(e => e && e.reportDate === todayStr), [eodList, todayStr]);
 
-    const employeeEodstatus = allEmployees
+    const employeeEodstatus = useMemo(() => allEmployees
         .filter(emp => {
             const role = (emp.roleId || '').toUpperCase();
             return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
         })
         .map(emp => {
-            const eod = todayEods.find(e => e.employeeId === emp.id);
+            const eod = todayEods.find((e: any) => e.employeeId === emp.id);
             return {
                 ...emp,
                 eodStatus: eod ? 'SUBMITTED' : 'PENDING',
@@ -136,9 +137,9 @@ function AdminDashboard({
             
             // Otherwise alphabetical
             return (a.firstName || '').localeCompare(b.firstName || '');
-        });
+        }), [allEmployees, todayEods]);
 
-    const pendingCount = employeeEodstatus.filter(e => e.eodStatus === 'PENDING').length;
+    const pendingCount = employeeEodstatus.filter((e: any) => e.eodStatus === 'PENDING').length;
     const avgTeamScore = kpiList.length > 0
         ? (kpiList.reduce((acc: number, curr: any) => acc + (curr.current_score || 0), 0) / kpiList.length).toFixed(1)
         : '0.0';
@@ -424,6 +425,10 @@ function ManagerDashboard({
     const todayStr = new Date().toISOString().split('T')[0];
     const hasSubmittedToday = (recentEods || []).some(e => e && e.employeeId === employee.id && e.reportDate && e.reportDate.startsWith(todayStr));
 
+    const avgTeamScore = teamKpis && teamKpis.length > 0
+        ? (teamKpis.reduce((acc: number, curr: any) => acc + parseFloat(String(curr.currentScore || curr.current_score || 0)), 0) / teamKpis.length).toFixed(1)
+        : '0.0';
+
     return (
         <div className="admin-dash-v2 admin-scrollable-layout fade-in">
 
@@ -445,7 +450,7 @@ function ManagerDashboard({
                 <Link href="/kpis" style={{ textDecoration: 'none' }}>
                     <GlassCard className="stat-card gradient-card hoverable">
                         <div className="stat-label">Team Performance</div>
-                        <div className="stat-value purple-glow">94.2</div>
+                        <div className="stat-value purple-glow">{avgTeamScore}/100</div>
                     </GlassCard>
                 </Link>
             </div>
@@ -575,6 +580,30 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
     const todayStr = new Date().toISOString().split('T')[0];
     const hasSubmittedToday = eodList.some(e => e && e.reportDate && e.reportDate.startsWith(todayStr));
 
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const uniqueDays = new Set<string>();
+
+    eodList.forEach(e => {
+        if (e && e.reportDate && (!e.status || e.status === 'APPROVED')) {
+            const d = new Date(e.reportDate);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                uniqueDays.add(d.toDateString());
+            }
+        }
+    });
+
+    recentLogs.forEach(l => {
+        if (l && l.date) {
+            const d = new Date(l.date);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                uniqueDays.add(d.toDateString());
+            }
+        }
+    });
+
+    const daysPresent = uniqueDays.size;
+
     return (
         <div className="admin-dash-v2 fade-in">
 
@@ -604,9 +633,9 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                 </Link>
                 <Link href="/leaves" style={{ textDecoration: 'none', flex: 1 }}>
                     <GlassCard className="stat-card">
-                        <div className="stat-label">Monthly Hours</div>
-                        <div className="stat-value">{monthlyHours || 0}h</div>
-                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>Target: 200h</div>
+                        <div className="stat-label">Monthly Presence</div>
+                        <div className="stat-value">{daysPresent} Days</div>
+                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>Active Days this Month</div>
                     </GlassCard>
                 </Link>
             </div>
@@ -729,7 +758,6 @@ export default function DashboardPage() {
     const [recentEods, setRecentEods] = useState<any[]>([]);
     const [allEmployees, setAllEmployees] = useState<EmployeeDTO[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
-    const [hasNewRules, setHasNewRules] = useState(false);
 
     const { addNotification } = useNotifications();
 
@@ -741,13 +769,17 @@ export default function DashboardPage() {
     const [kanbanRefresh, setKanbanRefresh] = useState(0);
 
 
-    useEffect(() => {
-        async function fetchData() {
-            if (!authEmployee) {
-                if (!authLoading) setLoading(false);
-                return;
-            }
+    const authEmployeeId = authEmployee?.id;
 
+    useEffect(() => {
+        if (authLoading || !authEmployee) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
+
+        let mounted = true;
+
+        const fetchDataAsync = async () => {
             setLoading(true);
 
             let activeRole = authEmployee.roleId || 'EMPLOYEE';
@@ -759,164 +791,183 @@ export default function DashboardPage() {
             setUserRole(activeRole);
             setEmployee(authEmployee as any);
 
-            // SAFE DATA LOADING PATTERN FOR ALL ADMIN DASHBOARD MODULES
-            const fetchDataAsync = async () => {
-                try {
-                    setLoading(true);
+            try {
+                let rawTasks: TaskDTO[] = [];
+                let employeesList: EmployeeDTO[] = [];
+                let fetchedKpis: any = null;
+                let realMonthlyHours = 0;
 
-                    // Task & KPI Fetching
-                    const tasksPromise = api.getTasks(activeRole === 'EMPLOYEE' ? activeEmpId : undefined, undefined, activeRole === 'ADMIN' ? 7 : 15);
-                    const kpiPromise = api.getKpiProfile(activeEmpId);
-                    const monthlyHoursPromise = api.getMonthlyWorkHours(activeEmpId);
-                    const employeesPromise = api.getEmployees({ limit: 100 });
+                if (activeRole === 'ADMIN') {
+                    // Admin needs: tasks, employees (limit 100), recent EODs, KPI profiles, and KPI audit logs.
+                    // Total employees count is retrieved directly from employeesPromise total count.
+                    const [tasksRes, employeesRes, eodsRes, kpiProfilesRes, kpiAuditLogsRes] = await Promise.allSettled([
+                        api.getTasks(undefined, undefined, 7),
+                        api.getEmployees({ limit: 100 }),
+                        api.getAllEODs({ limit: 12 }),
+                        api.getAllKpiProfiles(undefined, 100),
+                        api.getAllKpiAuditLogs(10)
+                    ]);
 
-                    const baseFetches: Promise<any>[] = [tasksPromise, kpiPromise, monthlyHoursPromise, employeesPromise];
-
-                    if (activeRole === 'ADMIN') {
-                        baseFetches.push(api.getEmployeeStats());
-                        baseFetches.push(api.getAllEODs(12));
-                        baseFetches.push(api.getAllKpiProfiles(undefined, 6));
-                        baseFetches.push(api.getAllKpiAuditLogs(10));
-                    } else if (activeRole === 'MANAGER') {
-                        baseFetches.push(api.getAllEODs(10));
-                        baseFetches.push(api.getAllKpiProfiles(undefined, 5));
-                        baseFetches.push(api.getAllKpiAuditLogs(8));
-                    } else {
-                        baseFetches.push(api.getRecentWorkHours(activeEmpId, 5));
-                        baseFetches.push(api.getMyEODs(activeEmpId));
+                    if (tasksRes.status === 'fulfilled') rawTasks = tasksRes.value || [];
+                    if (employeesRes.status === 'fulfilled') {
+                        employeesList = employeesRes.value?.data || [];
+                        setTotalEmployees(employeesRes.value?.total || employeesList.length);
                     }
+                    if (eodsRes.status === 'fulfilled') setRecentEods(eodsRes.value || []);
+                    if (kpiProfilesRes.status === 'fulfilled') setAllKpis(kpiProfilesRes.value || []);
+                    if (kpiAuditLogsRes.status === 'fulfilled') setRecentKpiLogs(kpiAuditLogsRes.value || []);
 
-                    const results = await Promise.allSettled(baseFetches);
+                } else if (activeRole === 'MANAGER') {
+                    // Manager needs: tasks, employees (limit 100), monthly hours, recent EODs, KPI profiles, and KPI audit logs.
+                    const [tasksRes, employeesRes, monthlyHoursRes, eodsRes, kpiProfilesRes, kpiAuditLogsRes] = await Promise.allSettled([
+                        api.getTasks(undefined, undefined, 15),
+                        api.getEmployees({ limit: 100 }),
+                        api.getMonthlyWorkHours(activeEmpId),
+                        api.getAllEODs({ limit: 10 }),
+                        api.getAllKpiProfiles(undefined, 100),
+                        api.getAllKpiAuditLogs(8)
+                    ]);
 
-                    let fetchedKpis: any = null;
-                    let realMonthlyHours = 0;
-                    let rawTasks: TaskDTO[] = [];
-                    let employeesList: EmployeeDTO[] = [];
+                    if (tasksRes.status === 'fulfilled') rawTasks = tasksRes.value || [];
+                    if (employeesRes.status === 'fulfilled') employeesList = employeesRes.value?.data || [];
+                    if (monthlyHoursRes.status === 'fulfilled') realMonthlyHours = monthlyHoursRes.value || 0;
+                    if (eodsRes.status === 'fulfilled') setRecentEods(eodsRes.value || []);
+                    if (kpiProfilesRes.status === 'fulfilled') setAllKpis(kpiProfilesRes.value || []);
+                    if (kpiAuditLogsRes.status === 'fulfilled') setRecentKpiLogs(kpiAuditLogsRes.value || []);
 
-                    results.forEach((res, i) => {
-                        if (res.status === 'fulfilled') {
-                            const val = res.value;
-                            if (i === 0) rawTasks = val || [];
-                            if (i === 1) fetchedKpis = val;
-                            if (i === 2) realMonthlyHours = val;
-                            if (i === 3) employeesList = val?.data || [];
+                } else {
+                    // Employee needs: tasks, employees (limit 100), own KPI profile, monthly hours, recent work hours, and own EODs.
+                    const [tasksRes, employeesRes, kpiRes, monthlyHoursRes, recentLogsRes, eodsRes] = await Promise.allSettled([
+                        api.getTasks(activeEmpId, undefined, 15),
+                        api.getEmployees({ limit: 100 }),
+                        api.getKpiProfile(activeEmpId),
+                        api.getMonthlyWorkHours(activeEmpId),
+                        api.getRecentWorkHours(activeEmpId, 5),
+                        api.getMyEODs(activeEmpId)
+                    ]);
 
-                            if (activeRole === 'ADMIN') {
-                                if (i === 4) setTotalEmployees(val?.total || 0);
-                                if (i === 5) setRecentEods(val || []);
-                                if (i === 6) setAllKpis(val || []);
-                                if (i === 7) setRecentKpiLogs(val || []);
-                            } else if (activeRole === 'MANAGER') {
-                                if (i === 4) setRecentEods(val || []);
-                                if (i === 5) setAllKpis(val || []);
-                                if (i === 6) setRecentKpiLogs(val || []);
-                            } else if (activeRole === 'EMPLOYEE') {
-                                if (i === 4) setRecentLogs(val || []);
-                                if (i === 5) setRecentEods(val || []);
-                            }
-                        }
-                    });
-
-                    // Hydrate Tasks with assignees
-                    const hydrated = rawTasks.map(task => {
-                        const assigned = employeesList.filter(e => 
-                            (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
-                        );
-                        return {
-                            ...task,
-                            assignees: assigned.length > 0 ? assigned.map(e => ({
-                                id: e.id,
-                                firstName: e.firstName,
-                                lastName: e.lastName,
-                                profilePhoto: e.profilePhoto
-                            })) : (task.assignee ? [task.assignee] : [])
-                        };
-                    });
-                    setTasks(hydrated);
-                    setAllEmployees(employeesList);
-
-
-                    // Update local KPI state with real calculated hours
-                    if (fetchedKpis) {
-                        const finalKpis = { ...fetchedKpis, total_hours_worked: realMonthlyHours };
-                        setKpis(finalKpis);
-                        setMonthlyHours(realMonthlyHours);
-
-                        // Proactive Performance Alert Popup (Login only)
-                        if (activeRole === 'EMPLOYEE' && (finalKpis.current_score ?? 0) < 50) {
-                            const sessionKey = `perf_alert_shown_${activeEmpId}`;
-                            if (!sessionStorage.getItem(sessionKey)) {
-                                addNotification({
-                                    title: 'Performance Alert',
-                                    message: `Your current KPI score is ${finalKpis.current_score}. Efficiency improvements are recommended.`,
-                                    type: 'SYSTEM',
-                                    metadata: { score: finalKpis.current_score }
-                                });
-                                sessionStorage.setItem(sessionKey, 'true');
-                            }
-                        }
-                    } else {
-                        setKpis({ total_hours_worked: realMonthlyHours });
-                        setMonthlyHours(realMonthlyHours);
-                    }
-
-                } catch (err) {
-                    console.error("CRITICAL DASHBOARD LOAD FAILURE:", err);
-                    setTasks([]);
-                } finally {
-                    setLoading(false);
+                    if (tasksRes.status === 'fulfilled') rawTasks = tasksRes.value || [];
+                    if (employeesRes.status === 'fulfilled') employeesList = employeesRes.value?.data || [];
+                    if (kpiRes.status === 'fulfilled') fetchedKpis = kpiRes.value;
+                    if (monthlyHoursRes.status === 'fulfilled') realMonthlyHours = monthlyHoursRes.value || 0;
+                    if (recentLogsRes.status === 'fulfilled') setRecentLogs(recentLogsRes.value || []);
+                    if (eodsRes.status === 'fulfilled') setRecentEods(eodsRes.value || []);
                 }
-            };
 
-            fetchDataAsync();
+                if (!mounted) return;
 
-            // Fetch unread messages
-            const fetchUnread = async () => {
-                try {
-                    const count = await api.getUnreadCount(String(activeEmpId));
-                    setUnreadCount(count);
-                } catch { /* silent */ }
-            };
-            fetchUnread();
-            const unreadInterval = setInterval(fetchUnread, 30000);
+                // Hydrate Tasks with assignees
+                const hydrated = rawTasks.map(task => {
+                    const assigned = employeesList.filter(e =>
+                        (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
+                    );
+                    return {
+                        ...task,
+                        assignees: assigned.length > 0 ? assigned.map(e => ({
+                            id: e.id,
+                            firstName: e.firstName,
+                            lastName: e.lastName,
+                            profilePhoto: e.profilePhoto
+                        })) : (task.assignee ? [task.assignee] : [])
+                    };
+                });
+                setTasks(hydrated);
+                setAllEmployees(employeesList);
 
-            // Fetch rules to check for "new" status (last 48 hours)
-            const fetchRulesCheck = async () => {
-                try {
-                    const rules = await api.getRules();
-                    const now = new Date();
-                    const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
-                    const hasNew = rules.some(r => r.createdAt && new Date(r.createdAt) > fortyEightHoursAgo);
-                    setHasNewRules(hasNew);
-                } catch { /* silent */ }
-            };
-            fetchRulesCheck();
+                // Update local KPI state with real calculated hours
+                if (fetchedKpis) {
+                    const finalKpis = { ...fetchedKpis, total_hours_worked: realMonthlyHours };
+                    setKpis(finalKpis);
+                    setMonthlyHours(realMonthlyHours);
 
-            return () => {
-                clearInterval(unreadInterval);
-            };
-        }
+                    // Proactive Performance Alert Popup (Login only)
+                    if (activeRole === 'EMPLOYEE' && (finalKpis.current_score ?? 0) < 50) {
+                        const sessionKey = `perf_alert_shown_${activeEmpId}`;
+                        if (!sessionStorage.getItem(sessionKey)) {
+                            addNotification({
+                                title: 'Performance Alert',
+                                message: `Your current KPI score is ${finalKpis.current_score}. Efficiency improvements are recommended.`,
+                                type: 'SYSTEM',
+                                metadata: { score: finalKpis.current_score }
+                            });
+                            sessionStorage.setItem(sessionKey, 'true');
+                        }
+                    }
+                } else {
+                    setKpis({ total_hours_worked: realMonthlyHours });
+                    setMonthlyHours(realMonthlyHours);
+                }
 
-        if (!authLoading) {
-            fetchData();
-        }
+            } catch (err) {
+                logger.error("Error", "CRITICAL DASHBOARD LOAD FAILURE:", err);
+                if (mounted) setTasks([]);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
 
-        // Listen for Real-Time Notification dispatches
+        // Fetch tasks only (lightweight) on live task notifications
+        const fetchTasksOnly = async () => {
+            if (!authEmployee) return;
+            let activeRole = authEmployee.roleId || 'EMPLOYEE';
+            activeRole = activeRole.toUpperCase();
+            if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
+            try {
+                const [rawTasks, employeesList] = await Promise.all([
+                    api.getTasks(activeRole === 'EMPLOYEE' ? authEmployee.id : undefined, undefined, activeRole === 'ADMIN' ? 7 : 15),
+                    api.getEmployees({ limit: 100 })
+                ]);
+                if (!mounted) return;
+                const employees = employeesList?.data || [];
+                const hydrated = (rawTasks || []).map((task: TaskDTO) => {
+                    const assigned = employees.filter((e: EmployeeDTO) =>
+                        (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
+                    );
+                    return {
+                        ...task,
+                        assignees: assigned.length > 0 ? assigned.map((e: EmployeeDTO) => ({
+                            id: e.id, firstName: e.firstName, lastName: e.lastName, profilePhoto: e.profilePhoto
+                        })) : (task.assignee ? [task.assignee] : [])
+                    };
+                });
+                setTasks(hydrated);
+            } catch { /* silent */ }
+        };
+
+        fetchDataAsync();
+
+        // Unread count — dashboard polls every 60s (sidebar handles the 30s cadence)
+        const fetchUnread = async () => {
+            try {
+                const count = await api.getUnreadCount(String(authEmployee.id));
+                setUnreadCount(count);
+            } catch { /* silent */ }
+        };
+        fetchUnread();
+        const unreadInterval = setInterval(fetchUnread, 60000);
+
+        // Listen for Real-Time Notification dispatches — only re-fetch tasks, not all data
         const handleLiveUpdate = (e: any) => {
             const detail = e.detail;
             if (detail?.type === 'TASK_ASSIGNED' || detail?.type === 'TASK_UPDATED') {
-                fetchData(); // Live refresh!
+                fetchTasksOnly();
             }
         };
 
         window.addEventListener('app:live-notification', handleLiveUpdate);
-        return () => window.removeEventListener('app:live-notification', handleLiveUpdate);
-    }, [authEmployee, authLoading]);
+        return () => {
+            mounted = false;
+            window.removeEventListener('app:live-notification', handleLiveUpdate);
+            clearInterval(unreadInterval);
+        };
+    // Depend on the stable ID string, not the object reference
+    }, [authEmployeeId, authLoading]);
+
 
     // SEEDING LOGIC: Populate 22 Dummy Tasks
 
-    // Only block if we strictly have no user found yet
-    if (authLoading && !authEmployee) {
+    // Block render while data is fetching to prevent empty cards and huge layout shifts
+    if (loading || (authLoading && !authEmployee)) {
         return <div className="page-loader"><div className="spinner"></div></div>;
     }
 
@@ -959,10 +1010,6 @@ export default function DashboardPage() {
                         </div>
                         <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/rulebook'}>
                             <BookOpen size={18} />
-                            {/* System Update Badge */}
-                            {hasNewRules && (
-                                <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#F59E0B', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)' }}></span>
-                            )}
                         </div>
                     </div>
 
