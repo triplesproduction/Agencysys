@@ -290,7 +290,7 @@ function EODReviewsContent() {
                                                     <div>
                                                         {report.blockers && <><div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Blockers</div><p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', background: 'rgba(239,68,68,0.05)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(239,68,68,0.15)' }}>{report.blockers}</p></>}
                                                     </div>
-                                                    {report.status !== 'APPROVED' && report.status !== 'ADJUSTED' && (
+                                                    {report.status !== 'APPROVED' && (
                                                         <div style={{ gridColumn: 'span 2', marginTop: '12px', padding: '20px', background: 'rgba(139, 92, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.15)' }} onClick={e => e.stopPropagation()}>
                                                             <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '20px', marginBottom: '16px' }}>
                                                                 <div><label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Adjusted Hours</label><input type="number" step="0.5" value={editHours} onChange={e => setEditHours(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px', color: 'white' }} /></div>
@@ -298,7 +298,7 @@ function EODReviewsContent() {
                                                             </div>
                                                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                                                 <button onClick={() => handleReviewUpdate(report.id, 'APPROVED')} style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10B981', padding: '8px 16px', borderRadius: '10px', fontWeight: 600 }}>Approve</button>
-                                                                <button onClick={() => handleReviewUpdate(report.id, 'ADJUSTED')} style={{ background: 'var(--purple-main)', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '10px', fontWeight: 600 }}>Update Hours</button>
+                                                                <button onClick={() => handleReviewUpdate(report.id, 'APPROVED')} style={{ background: 'var(--purple-main)', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '10px', fontWeight: 600 }}>Update Hours & Approve</button>
                                                             </div>
                                                         </div>
                                                     )}
