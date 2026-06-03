@@ -65,7 +65,9 @@ export const api = {
         }
         if (options?.roleId) {
             query = query.eq('roleId', options.roleId);
-        } else if (options?.excludeAdmin) {
+        } 
+        
+        if (options?.excludeAdmin) {
             query = query.neq('roleId', 'ADMIN');
         }
         

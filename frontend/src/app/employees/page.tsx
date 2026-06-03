@@ -75,7 +75,7 @@ export default function EmployeesPage() {
                     roleId: roleFilter || undefined,
                     department: deptFilter || undefined,
                     status: statusFilter || undefined,
-                    excludeAdmin: activeView !== 'SECURITY',
+                    excludeAdmin: true,
                 });
                 if (cancelled) return;
                 const employeeData = res?.data || (Array.isArray(res) ? res : []);
