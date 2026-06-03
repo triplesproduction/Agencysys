@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
 import GlassCard from '@/components/GlassCard';
 import DeadlineIndicator from '@/components/DeadlineIndicator';
 import { api } from '@/lib/api';
@@ -83,6 +85,8 @@ function AdminDashboard({
     recentKpiLogs?: any[],
     allEmployees?: EmployeeDTO[]
 }) {
+    const router = useRouter();
+
     const taskList = tasks || [];
     const eodList = recentEods || [];
     const kpiList = useMemo(() => allEmployees
@@ -413,6 +417,8 @@ function ManagerDashboard({
     recentEods?: any[],
     monthlyHours?: number
 }) {
+    const router = useRouter();
+
     const taskList = tasks || [];
     const kpiLogList = recentKpiLogs || [];
 
@@ -558,6 +564,8 @@ function ManagerDashboard({
 // EMPLOYEE DASHBOARD (Clean & High Density)
 // ---------------------------------------------------------------------------
 function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eodList = [] }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number, eodList?: any[] }) {
+    const router = useRouter();
+
     const taskList = tasks || [];
     const pendingTasks = taskList.filter(t => t && t.status !== 'DONE' && t.status !== 'APPROVED');
     const kpiScore = kpis?.current_score ?? 0;
@@ -1001,14 +1009,14 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="ad2-header-actions" style={{ display: 'flex', gap: '8px' }}>
-                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/messaging'}>
+                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => router.push('/messaging')}>
                             <MessageCircle size={18} />
                             {/* Chat Notification Badge */}
                             {unreadCount > 0 && (
                                 <span style={{ position: 'absolute', top: '2px', right: '2px', width: '8px', height: '8px', background: '#EF4444', borderRadius: '50%', border: '1.5px solid #000', boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)' }}></span>
                             )}
                         </div>
-                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => window.location.href = '/rulebook'}>
+                        <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => router.push('/rulebook')}>
                             <BookOpen size={18} />
                         </div>
                     </div>

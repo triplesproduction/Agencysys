@@ -182,32 +182,6 @@ export default function EODPage() {
 
             const createdReport = await api.submitEOD(payload);
 
-            // Sync/Update work hours log
-            try {
-                const todayDate = new Date().toISOString().split('T')[0];
-                const existingLog = workHourLogs.find(l => new Date(l.date).toDateString() === new Date().toDateString());
-                
-                if (existingLog) {
-                    // Update existing log
-                    await api.reviewEOD(createdReport.id, { // api.reviewEOD is basically a "upsert work hour log" with review metadata
-                         employeeId: empId,
-                         date: todayDate,
-                         workHours: hours,
-                         adminNote: 'Updated by employee',
-                         status: 'PENDING'
-                    });
-                } else {
-                    await api.logWorkHours({
-                        employeeId: empId,
-                        date: todayDate,
-                        hoursLogged: hours,
-                        description: 'EOD Daily Submission',
-                    });
-                }
-            } catch (hourError: any) {
-                logger.warn('System', '[EOD] Work hour sync skipped:', hourError?.message);
-            }
-
             setFormData({ tasksCompleted: '', blockers: '', workHours: '', sentiment: 'GOOD' });
             setSuccess(true);
             setTimeout(() => setSuccess(false), 5000);
