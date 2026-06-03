@@ -768,6 +768,7 @@ export default function DashboardPage() {
     const [unreadCount, setUnreadCount] = useState(0);
 
     const { addNotification } = useNotifications();
+    const router = useRouter();
 
     // Modal State
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
