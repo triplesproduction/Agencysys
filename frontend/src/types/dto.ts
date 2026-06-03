@@ -143,7 +143,7 @@ export interface KPIMetricDTO {
 export interface LeaveApplicationDTO {
     id: string;
     employeeId: string;
-    leaveType: 'Paid Leave' | 'Unpaid Leave';
+    leaveType: string;
     startDate: string; // ISO Date
     endDate: string; // ISO Date
     reason: string;

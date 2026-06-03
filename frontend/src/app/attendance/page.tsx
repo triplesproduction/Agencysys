@@ -114,7 +114,7 @@ export default function AttendancePage() {
         const isSunday = date.getDay() === 0;
 
         const leave = data.leaves.find((l: LeaveApplicationDTO) => l.status === 'APPROVED' && dateStr >= l.startDate && dateStr <= l.endDate);
-        if (leave) return leave.leaveType === 'Paid Leave' ? 'PAID_LEAVE' : 'UNPAID_LEAVE';
+        if (leave) return leave.leaveType === 'UNPAID' ? 'UNPAID_LEAVE' : 'PAID_LEAVE';
 
         if (eod) return (holiday || isSunday) ? 'WORKED_ON_HOLIDAY' : 'PRESENT';
         
