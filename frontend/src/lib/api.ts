@@ -1399,13 +1399,17 @@ export const api = {
     },
 
     createProject: async (payload: Partial<ProjectDTO>) => {
-        const { data, error } = await supabase.from('projects').insert(payload).select().single();
+        const { createdBy, ...rest } = payload as any;
+        const dbPayload = { ...rest, ...(createdBy ? { created_by: createdBy } : {}) };
+        const { data, error } = await supabase.from('projects').insert(dbPayload).select().single();
         handleSupabaseEvent(data, error, 'Create Project');
         return data as ProjectDTO;
     },
 
     updateProject: async (id: string, payload: Partial<ProjectDTO>) => {
-        const { data, error } = await supabase.from('projects').update(payload).eq('id', id).select().single();
+        const { createdBy, ...rest } = payload as any;
+        const dbPayload = { ...rest, ...(createdBy ? { created_by: createdBy } : {}) };
+        const { data, error } = await supabase.from('projects').update(dbPayload).eq('id', id).select().single();
         handleSupabaseEvent(data, error, 'Update Project');
         return data as ProjectDTO;
     },
