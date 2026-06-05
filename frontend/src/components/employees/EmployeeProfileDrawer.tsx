@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye, Plus, ShieldCheck, RefreshCw, Printer, ArrowUpRight } from 'lucide-react';
+import { X, User, CheckSquare, Clock, Calendar, TrendingUp, MessageSquare, Download, ShieldAlert, Mail, MapPin, Phone, QrCode, Image as ImageIcon, FileText, Eye, Plus, ShieldCheck, RefreshCw, Printer, ArrowUpRight, Trash2 } from 'lucide-react';
 import { EmployeeDTO } from '@/types/dto';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
@@ -995,6 +995,32 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                                 a.click();
                                                 document.body.removeChild(a);
                                             }} className="secondary-button" style={{ padding: '6px', display: 'flex' }} title="Download"><Download size={16} /></button>
+                                            
+                                            {isAdminUser && (
+                                                <button onClick={async () => {
+                                                    if (!confirm(`Are you sure you want to permanently delete "${doc.name}"?`)) return;
+                                                    try {
+                                                        // 1. Delete from storage if it's a relative bucket path
+                                                        if (!doc.content.startsWith('http')) {
+                                                            await supabase.storage.from('private-docs').remove([doc.content]);
+                                                        }
+                                                        
+                                                        // 2. Delete from database
+                                                        const { error } = await supabase.from('employee_documents').delete().eq('id', doc.id);
+                                                        if (error) throw error;
+                                                        
+                                                        addNotification({
+                                                            title: 'Document Deleted',
+                                                            message: `Successfully removed ${doc.name}.`,
+                                                            type: 'SUCCESS'
+                                                        });
+                                                        
+                                                        onRefresh?.();
+                                                    } catch (err: any) {
+                                                        alert('Failed to delete document: ' + err.message);
+                                                    }
+                                                }} className="secondary-button" style={{ padding: '6px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', marginLeft: '8px' }} title="Delete"><Trash2 size={16} /></button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
