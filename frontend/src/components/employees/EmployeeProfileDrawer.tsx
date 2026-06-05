@@ -15,6 +15,7 @@ import DatePicker from '../common/DatePicker';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useEmployeeLeaves } from '@/hooks/queries/domains/leaves/useLeaves';
+import { calculateLeaveBalance } from '@/lib/leaveUtils';
 
 const DEPARTMENT_ROLES: Record<string, string[]> = {
     'Admin': ['Admin'],
@@ -79,7 +80,7 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     const [leaves, setLeaves] = useState<any[]>([]);
     const [isLoadingTabData, setIsLoadingTabData] = useState(false);
 
-    const { data: leavesData, isLoading: isLeavesLoading, refetch: refetchLeaves } = useEmployeeLeaves(activeTab === 'LEAVES' ? employee.id : undefined);
+    const { data: leavesData, isLoading: isLeavesLoading, refetch: refetchLeaves } = useEmployeeLeaves(employee.id);
 
     useEffect(() => {
         if (leavesData) {
@@ -465,8 +466,8 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
     // Accurate calculations using real data from the employee object
     const kpiScore = employee.kpis?.[0]?.currentValue || 0;
     const activeTasksCount = employee.tasksAssigned?.filter(t => t.status !== 'DONE' && t.status !== 'APPROVED').length || 0;
-    const leaveRecords = employee.leaves || [];
-    const leaveBal = 12 - leaveRecords.filter(l => l.status === 'APPROVED' && l.leaveType !== 'UNPAID').length;
+    const leaveRecords = leavesData || employee.leaves || [];
+    const leaveBal = calculateLeaveBalance(employee, leaveRecords);
 
     const renderTabContent = () => {
         switch (activeTab) {

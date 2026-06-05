@@ -9,9 +9,10 @@ import Input from '@/components/Input';
 import DatePicker from '@/components/common/DatePicker';
 import { LeaveApplicationDTO } from '@/types/dto';
 import { useMyLeaves, useApplyForLeave } from '@/hooks/queries/domains/leaves/useLeaves';
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import './Leaves.css';
 import { useAuth } from '@/context/AuthContext';
+import { calculateLeaveBalance } from '@/lib/leaveUtils';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: typeof Clock }> = {
     PENDING: { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)', icon: Clock },
@@ -21,7 +22,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string;
 };
 
 export default function LeavesPage() {
-    const { user, loading: authLoading } = useAuth();
+    const { user, employee, loading: authLoading } = useAuth();
     const { data: leaves = [], isLoading: isLeavesLoading } = useMyLeaves(user?.id);
     const { mutateAsync: applyForLeave, isPending: submitting } = useApplyForLeave();
     const loading = authLoading || isLeavesLoading;
@@ -83,6 +84,7 @@ export default function LeavesPage() {
 
     const pendingCount = leaves.filter(l => l.status === 'PENDING').length;
     const approvedCount = leaves.filter(l => l.status === 'APPROVED').length;
+    const availableLeaves = calculateLeaveBalance(employee || undefined, leaves);
 
     if (authLoading) {
         return <div className="page-loader"><div className="spinner"></div></div>;
@@ -122,6 +124,15 @@ export default function LeavesPage() {
                     <div>
                         <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{leaves.length}</div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Total</div>
+                    </div>
+                </GlassCard>
+                <GlassCard style={{ flex: 1, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Activity size={18} style={{ color: '#10B981' }} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>{availableLeaves}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Available Paid</div>
                     </div>
                 </GlassCard>
             </div>

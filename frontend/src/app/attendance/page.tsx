@@ -21,7 +21,9 @@ import { useNotifications } from '@/components/notifications/NotificationProvide
 import { HolidayDTO, AttendanceOverrideDTO, EODSubmissionDTO, LeaveApplicationDTO, EmployeeDTO, AttendanceReportDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import { useAttendanceReport, useAddHoliday, useDeleteHoliday } from '@/hooks/queries/domains/attendance/useAttendance';
+import { useEmployeeLeaves } from '@/hooks/queries/domains/leaves/useLeaves';
 import { api } from '@/lib/api'; // still needed for getEmployees
+import { calculateLeaveBalance } from '@/lib/leaveUtils';
 import './Attendance.css';
 
 type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'PAID_LEAVE' | 'UNPAID_LEAVE' | 'HOLIDAY' | 'WORKED_ON_HOLIDAY' | 'NONE';
@@ -47,6 +49,7 @@ export default function AttendancePage() {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
     const monthYearStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
     const { data: reportData, isLoading: isReportLoading } = useAttendanceReport(selectedEmployeeId, monthYearStr);
+    const { data: employeeLeaves } = useEmployeeLeaves(selectedEmployeeId || undefined);
     const { mutateAsync: addHoliday } = useAddHoliday();
     const { mutateAsync: deleteHoliday } = useDeleteHoliday();
 
@@ -155,6 +158,9 @@ export default function AttendancePage() {
         return counts;
     }, [calendarDays, data, getDayStatus]);
 
+    const selectedEmployeeObj = employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId);
+    const availableLeaves = calculateLeaveBalance(selectedEmployeeObj, employeeLeaves || []);
+
     return (
         <div className="attendance-root page-root fade-in">
             <PageHeader
@@ -258,7 +264,7 @@ export default function AttendancePage() {
                         <div className="stat-v-item full-width">
                             <span className="stat-v-label">Remaining Paid Leaves</span>
                             <span className="stat-v-value">
-                                {employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId)?.leave_balance || 0}
+                                {availableLeaves}
                             </span>
                         </div>
                     </div>
