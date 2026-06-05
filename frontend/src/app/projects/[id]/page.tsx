@@ -41,6 +41,7 @@ import {
 
 import '../ProjectDetail.css';
 import '../../tasks/Tasks.css';
+import '../../tasks/KanbanDrawer.css';
 
 const COLUMNS = [
     { id: 'TODO', title: 'To Do' },
