@@ -471,14 +471,14 @@ function ManagerDashboard({
                             <Zap size={18} color="var(--purple-main)" /> Manager Toolkit
                         </h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && (window.location.href = '/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
-                            <button className="ad2-btn-add" onClick={() => window.location.href = '/tasks'} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
+                            <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && router.push('/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
+                            <button className="ad2-btn-add" onClick={() => router.push('/tasks')} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
                                 <CheckSquare size={16} /> Oversee Tasks
                             </button>
-                            <button className="ad2-btn-add" onClick={() => window.location.href = '/leaves'} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
+                            <button className="ad2-btn-add" onClick={() => router.push('/leaves')} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
                                 <CalendarDays size={16} /> Apply for Leave
                             </button>
-                            <button className="ad2-btn-add" onClick={() => window.location.href = '/rulebook'} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
+                            <button className="ad2-btn-add" onClick={() => router.push('/rulebook')} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }}>
                                 <BookOpen size={16} /> View Rulebook
                             </button>
                         </div>
@@ -706,10 +706,10 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                             <h3><Zap size={16} color="#F59E0B" /> Actions</h3>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && (window.location.href = '/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/tasks'}>Tasks Board</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/leaves'}>Request Leave</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => window.location.href = '/rulebook'}>Agency Rules</button>
+                            <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && router.push('/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/tasks')}>Tasks Board</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/leaves')}>Request Leave</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/rulebook')}>Agency Rules</button>
                         </div>
                     </div>
 
