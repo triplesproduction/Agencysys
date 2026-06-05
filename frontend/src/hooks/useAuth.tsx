@@ -14,6 +14,7 @@ interface EmployeeProfile {
     firstName: string;
     lastName: string;
     profilePhoto?: string;
+    joinedAt?: string;
 }
 
 interface AuthContextType {
@@ -71,7 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 designation: data.designation,
                 firstName: data.firstName || data.first_name || email?.split('@')[0] || 'User',
                 lastName: data.lastName || data.last_name || 'Member',
-                profilePhoto: data.profilePhoto || data.profile_photo
+                profilePhoto: data.profilePhoto || data.profile_photo,
+                joinedAt: data.joinedAt || data.joined_at
             };
 
             logger.log('[Auth DEBUG] Profile successfully resolved. Role:', profile.roleId);

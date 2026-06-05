@@ -21,7 +21,7 @@ export function getDayCount(startDate: string, endDate: string): number {
  * Calculates the total accrued leaves minus used paid leaves.
  * Accrual: 2 leaves per month starting from joinedAt date, including the current month.
  */
-export function calculateLeaveBalance(employee: EmployeeDTO | undefined, leaves: LeaveApplicationDTO[]): number {
+export function calculateLeaveBalance(employee: any, leaves: LeaveApplicationDTO[]): number {
     if (!employee) return 0;
     
     // 1. Determine months since joined
