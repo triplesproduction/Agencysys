@@ -497,9 +497,10 @@ function ManagerDashboard({
                             <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)' }}>logged this month</span>
                         </div>
 
-                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+                        <div style={{ height: '8px', minHeight: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
                             <div style={{
                                 height: '100%',
+                                minHeight: '8px',
                                 width: `${Math.min(100, Math.max((Number(monthlyHours || 0) > 0 ? 2 : 0), (Number(monthlyHours || 0) / 200) * 100))}%`,
                                 background: 'linear-gradient(90deg, #10B981 0%, #3B82F6 100%)',
                                 transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -725,9 +726,10 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                             <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)' }}>logged this month</span>
                         </div>
 
-                        <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+                        <div style={{ height: '8px', minHeight: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
                             <div style={{
                                 height: '100%',
+                                minHeight: '8px',
                                 width: `${Math.min(100, Math.max((Number(monthlyHours || 0) > 0 ? 2 : 0), (Number(monthlyHours || 0) / 200) * 100))}%`,
                                 background: 'linear-gradient(90deg, #10B981 0%, #3B82F6 100%)',
                                 transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
