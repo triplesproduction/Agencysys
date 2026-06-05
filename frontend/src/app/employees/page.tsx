@@ -387,7 +387,15 @@ export default function EmployeesPage() {
                 <EmployeeProfileDrawer
                     employee={selectedEmployee}
                     onClose={() => setIsDrawerOpen(false)}
-                    onRefresh={() => setRefreshKey(k => k + 1)}
+                    onRefresh={async () => {
+                        setRefreshKey(k => k + 1);
+                        try {
+                            const fullEmp = await api.getEmployeeById(selectedEmployee.id);
+                            setSelectedEmployee(fullEmp);
+                        } catch (e) {
+                            console.error('Failed to refetch employee profile', e);
+                        }
+                    }}
                 />
             )}
         </div>

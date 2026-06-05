@@ -893,8 +893,8 @@ export default function EmployeeProfileDrawer({ employee, onClose, onRefresh }: 
                                     <button 
                                         onClick={() => docInputRef.current?.click()} 
                                         disabled={isUploadingDoc}
-                                        className="primary-button" 
-                                        style={{ padding: '8px 16px', fontSize: '0.95rem' }}
+                                        className="secondary-button" 
+                                        style={{ padding: '8px 16px', fontSize: '0.95rem', background: 'rgba(139,92,246,0.1)', color: 'var(--purple-light)', borderColor: 'rgba(139,92,246,0.2)' }}
                                     >
                                         <Plus size={18} /> {isUploadingDoc ? 'Uploading...' : 'Add Document'}
                                     </button>
