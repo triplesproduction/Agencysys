@@ -122,25 +122,13 @@ export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { ma
                         return (
                             <Link key={msg.id} href="/messaging" style={{ textDecoration: 'none' }}>
                                 <div className="ad2-task-list-item" style={{ padding: '12px' }}>
-                                    <div style={{
-                                        width: '36px',
-                                        height: '36px',
-                                        borderRadius: '50%',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.8rem',
-                                        fontWeight: 600,
-                                        color: 'white',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        flexShrink: 0,
-                                        overflow: 'hidden'
-                                    }}>
-                                        {photo ? (
+                                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                                        {String(msg.partner?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                            <img src="/white-logo.png" alt="Admin" style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'black', padding: '6px' }} />
+                                        ) : photo ? (
                                             <img src={photo} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         ) : (
-                                            name.charAt(0)
+                                            <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--purple-accent)' }}>{name.charAt(0).toUpperCase()}</span>
                                         )}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>

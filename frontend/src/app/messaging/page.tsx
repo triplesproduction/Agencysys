@@ -781,7 +781,9 @@ export default function MessagingPage() {
                                 >
                                     <div className="msg-avatar-container">
                                         <div className="msg-avatar">
-                                            {contact.profilePhoto ? (
+                                            {isAdminUser ? (
+                                                <img src="/white-logo.png" alt="Admin" style={{ padding: '6px', objectFit: 'contain', background: 'black' }} />
+                                            ) : contact.profilePhoto ? (
                                                 <img src={contact.profilePhoto} alt={contact.firstName} />
                                             ) : (
                                                 contact.firstName?.charAt(0).toUpperCase() || '?'
@@ -839,7 +841,9 @@ export default function MessagingPage() {
                             {/* Chat Header */}
                             <div className="msg-chat-header">
                                 <div className="msg-header-avatar">
-                                    {activeOtherUser?.profilePhoto ? (
+                                    {String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                        <img src="/white-logo.png" alt="Admin" style={{ padding: '6px', objectFit: 'contain', background: 'black' }} />
+                                    ) : activeOtherUser?.profilePhoto ? (
                                         <img src={activeOtherUser.profilePhoto} alt={activeOtherUser?.firstName} />
                                     ) : (
                                         activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
@@ -918,7 +922,9 @@ export default function MessagingPage() {
                                                 <div key={msg.id} className={`msg-row ${isMine ? 'sent' : 'received'} ${isLast || isSingle ? 'group-end' : ''}`}>
                                                     {!isMine && (
                                                         <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
-                                                            {(msg.senderPhoto || activeOtherUser?.profilePhoto) ? (
+                                                            {String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                                                <img src="/white-logo.png" alt="Admin" style={{ padding: '4px', objectFit: 'contain', background: 'black', borderRadius: '50%' }} />
+                                                            ) : (msg.senderPhoto || activeOtherUser?.profilePhoto) ? (
                                                                 <img src={msg.senderPhoto || activeOtherUser.profilePhoto} alt="" />
                                                             ) : (
                                                                 activeOtherUser?.firstName?.charAt(0) || '?'
@@ -938,7 +944,9 @@ export default function MessagingPage() {
 
                                                     {isMine && (
                                                         <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
-                                                            {(authEmployee as any)?.profilePhoto ? (
+                                                            {String((authEmployee as any)?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                                                <img src="/white-logo.png" alt="Admin" style={{ padding: '4px', objectFit: 'contain', background: 'black', borderRadius: '50%' }} />
+                                                            ) : (authEmployee as any)?.profilePhoto ? (
                                                                 <img src={String((authEmployee as any).profilePhoto)} alt="" />
                                                             ) : (
                                                                 authEmployee?.firstName?.charAt(0) || 'M'
