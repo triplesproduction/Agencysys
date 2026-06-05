@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { MessageSquare, Loader2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { useConversations } from '@/hooks/useMessaging';
+import { useQueryClient } from '@tanstack/react-query';
+import { messagingKeys } from '@/hooks/messagingKeys';
 import Link from 'next/link';
 
 interface Message {
@@ -19,48 +23,76 @@ interface Message {
 
 export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { maxItems?: number, style?: React.CSSProperties }) {
     const { employee: authEmployee, loading: authLoading } = useAuth();
-    const [threads, setThreads] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const { data: convsData, isLoading } = useConversations(authEmployee?.id, authEmployee?.roleId);
+
+    const threads = React.useMemo(() => {
+        if (!convsData) return [];
+        const convs = Array.isArray(convsData) ? convsData : [];
+        return convs
+            .filter(c => c.lastMessage) // Only conversations with messages
+            .sort((a, b) => {
+                if (!a.lastMessage || !b.lastMessage) return 0;
+                return new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime();
+            })
+            .slice(0, maxItems)
+            .map(c => {
+                if (!c.lastMessage) return null;
+                return {
+                    id: c.lastMessage.id,
+                    content: c.lastMessage.content,
+                    senderId: (c.lastMessage as any).sender_id || c.lastMessage.senderId,
+                    sentAt: c.lastMessage.createdAt,
+                    partner: c.otherUser,
+                    unread: c.unreadCount
+                };
+            })
+            .filter(Boolean) as any[];
+    }, [convsData, maxItems]);
+
+    const myId = authEmployee?.id;
 
     useEffect(() => {
-        async function fetchChats() {
-            if (authLoading || !authEmployee) return;
+        if (!myId) return;
+        const channel = supabase.channel('dashboard-recent-messages')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages' },
+                (payload) => {
+                    const newMsg = payload.new;
+                    if (String(newMsg.sender_id) === String(myId) || String(newMsg.receiver_id) === String(myId) || newMsg.conversation_id) {
+                        queryClient.setQueryData(messagingKeys.conversations(String(myId)), (oldData: any) => {
+                            if (!oldData) return oldData;
+                            const idx = oldData.findIndex((c: any) => String(c.conversationId) === String(newMsg.conversation_id));
+                            if (idx === -1) {
+                                queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(String(myId)) });
+                                return oldData;
+                            }
+                            const updated = [...oldData];
+                            updated[idx] = {
+                                ...updated[idx],
+                                lastMessage: {
+                                    id: newMsg.id,
+                                    content: newMsg.content,
+                                    sender_id: newMsg.sender_id,
+                                    created_at: newMsg.created_at,
+                                },
+                                unreadCount: String(newMsg.sender_id) === String(myId) ? updated[idx].unreadCount : updated[idx].unreadCount + 1
+                            };
+                            return updated;
+                        });
+                    }
+                }
+            ).subscribe();
 
-            try {
-                const myId = authEmployee.id;
-                // getConversations returns { conversationId, otherUser, lastMessage, unreadCount }[]
-                const response: any = await api.getConversations(myId, authEmployee.roleId);
-                const convs = Array.isArray(response) ? response : [];
-
-                const lastMessages = convs
-                    .filter(c => c.lastMessage) // Only conversations with messages
-                    .sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime())
-                    .slice(0, maxItems)
-                    .map(c => ({
-                        id: c.lastMessage.id,
-                        content: c.lastMessage.content,
-                        senderId: c.lastMessage.sender_id || c.lastMessage.senderId,
-                        sentAt: c.lastMessage.createdAt,
-                        partner: c.otherUser,
-                        unread: c.unreadCount
-                    }));
-
-                setThreads(lastMessages);
-            } catch (err) {
-                logger.error('Error', 'Failed to fetch dashboard chats:', err);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
-        fetchChats();
-    }, [authLoading, authEmployee, maxItems]);
+        return () => { supabase.removeChannel(channel); };
+    }, [myId, queryClient]);
 
     return (
         <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column', ...style }}>
-            <div className="ad2-card-header" style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                <h3><MessageSquare size={16} color="var(--purple-main)" /> Recent Chats</h3>
-                <Link href="/messaging" className="ad2-badge" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.05)', fontSize: '0.65rem' }}>
+            <div className="ad2-card-header" style={{ marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}><MessageSquare size={16} color="var(--purple-main)" /> Recent Chats</h3>
+                <Link href="/messaging" className="ad2-badge" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.05)', fontSize: '0.65rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     Open Inbox <ArrowRight size={10} style={{ marginLeft: '4px' }} />
                 </Link>
             </div>
@@ -112,14 +144,14 @@ export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { ma
                                         )}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'white' }}>{name}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px', gap: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                                                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
                                                 {msg.unread > 0 && (
-                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--purple-main)' }}></span>
+                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--purple-main)', flexShrink: 0 }}></span>
                                                 )}
                                             </div>
-                                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+                                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap', flexShrink: 0, paddingTop: '2px' }}>
                                                 {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
                                             </span>
                                         </div>

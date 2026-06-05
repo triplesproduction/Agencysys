@@ -4,9 +4,12 @@ import { PageHeader } from '@/components/common/PageHeader';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, AtSign, ChevronDown } from 'lucide-react';
+import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, MessageCircle, FileText, Users, AtSign, ChevronDown } from 'lucide-react';
 import { getResolvedRole } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
+import { useQueryClient } from '@tanstack/react-query';
+import { useConversations, useMessages } from '@/hooks/useMessaging';
+import { messagingKeys } from '@/hooks/messagingKeys';
 
 // --- Secure Image Component for Chat Media ---
 const SecureChatImage = ({ path, alt, className, onClick }: { path: string, alt?: string, className?: string, onClick?: (url: string) => void }) => {
@@ -16,7 +19,7 @@ const SecureChatImage = ({ path, alt, className, onClick }: { path: string, alt?
     useEffect(() => {
         let mounted = true;
         if (!path) return;
-        if (path.startsWith('http')) {
+        if (path.startsWith('http') || path.startsWith('blob:')) {
             setSignedUrl(path);
             return;
         }
@@ -84,12 +87,12 @@ export default function MessagingPage() {
     const myRole = String(authEmployee?.roleId || '');
     const isAdmin = ['ADMIN', 'MANAGER'].includes(myRole.toUpperCase());
 
+    const queryClient = useQueryClient();
+
     // ── State ──────────────────────────────────────────────────────────────────
-    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [allContacts, setAllContacts] = useState<any[]>([]);
     const [activeConvId, setActiveConvId] = useState<string | null>(null);
     const [activeOtherUser, setActiveOtherUser] = useState<any>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [messageInput, setMessageInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -97,13 +100,88 @@ export default function MessagingPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [messagesLoading, setMessagesLoading] = useState(false); // per-conversation load
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
     const [myTasks, setMyTasks] = useState<any[]>([]);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
     const [dbReady, setDbReady] = useState(true);
     const [dbProbeError, setDbProbeError] = useState<string | null>(null);
     const [onlineUsers, setOnlineUsers] = useState<Record<string, any>>({});
+    const [lastSeenMap, setLastSeenMap] = useState<Record<string, string>>({});
+    
+    // React Query hooks for conversations and messages
+    const { data: conversationsData } = useConversations(myId || undefined, myRole);
+    const conversations = conversationsData || [];
+
+    const { data: messagesData, isLoading: isMessagesQueryLoading } = useMessages(activeConvId || undefined);
+    const messages = messagesData || [];
+
+    // Eliminate full messages block spinner unless we have zero cache data
+    const messagesLoading = activeConvId ? (isMessagesQueryLoading && !messagesData) : false;
+
+    // Helper to update the conversation sidebar list in cache optimistically
+    const updateConversationInCache = useCallback((newMsg: any, isOutgoing: boolean) => {
+        if (!myId) return;
+        queryClient.setQueryData(messagingKeys.conversations(myId), (oldConvs: any[] | undefined) => {
+            if (!oldConvs) return oldConvs;
+            
+            const idx = oldConvs.findIndex(c => c.conversationId === newMsg.conversation_id || c.conversationId === newMsg.conversationId);
+            
+            if (idx === -1) {
+                // Not found, invalidate to let React Query fetch the new conversation list
+                queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId) });
+                return oldConvs;
+            }
+            
+            const updated = [...oldConvs];
+            const currentConv = updated[idx];
+            
+            updated[idx] = {
+                ...currentConv,
+                lastMessage: {
+                    id: newMsg.id,
+                    content: newMsg.content,
+                    type: newMsg.type,
+                    createdAt: newMsg.created_at || newMsg.createdAt,
+                    senderId: newMsg.sender_id || newMsg.senderId,
+                },
+                unreadCount: isOutgoing 
+                    ? currentConv.unreadCount 
+                    : (activeConvIdRef.current === currentConv.conversationId ? currentConv.unreadCount : currentConv.unreadCount + 1)
+            };
+            
+            // Re-sort
+            return updated.sort((a, b) => {
+                const aIsAdmin = String(a.otherUser?.roleId || '').toUpperCase() === 'ADMIN';
+                const bIsAdmin = String(b.otherUser?.roleId || '').toUpperCase() === 'ADMIN';
+                if (aIsAdmin && !bIsAdmin) return -1;
+                if (!aIsAdmin && bIsAdmin) return 1;
+                const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+                const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+                return bTime - aTime;
+            });
+        });
+    }, [myId, queryClient]);
+
+    // DEBUG MODE TRACES
+    const [renderError, setRenderError] = useState<string | null>(null);
+    useEffect(() => {
+        logger.log('[Chat-Trace] activeConvId =', activeConvId);
+        logger.log('[Chat-Trace] messages loaded =', messages.length);
+        
+        // Inspect DOM
+        setTimeout(() => {
+            const mainEl = document.querySelector('.msg-main');
+            if (mainEl) {
+                const style = window.getComputedStyle(mainEl);
+                logger.log('[Chat-Trace] .msg-main exists:', !!mainEl);
+                logger.log('[Chat-Trace] .msg-main display:', style.display);
+                logger.log('[Chat-Trace] .msg-main visibility:', style.visibility);
+                logger.log('[Chat-Trace] .msg-main width/height:', style.width, style.height);
+            } else {
+                logger.log('[Chat-Trace] .msg-main missing from DOM');
+            }
+        }, 500);
+    }, [activeConvId, messages.length]);
 
     // ── Refs ───────────────────────────────────────────────────────────────────
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -119,10 +197,8 @@ export default function MessagingPage() {
     const loadConversations = useCallback(async () => {
         if (!myId) return;
         try {
-            logger.log('[Chat] loadConversations myId:', myId, 'role:', myRole);
-            const convs = await api.getConversations(myId, myRole);
-            logger.log('[Chat] conversations loaded:', convs.length);
-            setConversations(convs as Conversation[]);
+            logger.log('[Chat] Invalidate/refetch conversations...');
+            await queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId) });
             setDbReady(true);
         } catch (e: any) {
             logger.error('Error', '[Chat] loadConversations error:', e);
@@ -130,7 +206,7 @@ export default function MessagingPage() {
                 setDbReady(false);
             }
         }
-    }, [myId, myRole]);
+    }, [myId, myRole, queryClient]);
 
     // ── Init: runs ONLY after auth settles, with duplicate-fetch guard ──────────
     useEffect(() => {
@@ -166,7 +242,7 @@ export default function MessagingPage() {
                 // ✅ Fix 2: All data fetches in parallel for speed
                 const [empRes, tasks] = await Promise.all([
                     api.getEmployees({ limit: 100 }),
-                    api.getTasks(myId, undefined, 30),
+                    api.getTasks(undefined, undefined, 50),
                 ]);
                 const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
                 setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
@@ -183,6 +259,11 @@ export default function MessagingPage() {
             }
         };
         init();
+
+        // ✅ Cleanup ref for React 18 Strict Mode remounts
+        return () => {
+            initDoneRef.current = false;
+        };
     // ✅ Fix 2: Remove authEmployee from dependencies since myId is sufficient and stable
     }, [authLoading, myId]);
 
@@ -218,7 +299,10 @@ export default function MessagingPage() {
                     if (String(newMsg.sender_id) === myId) return;
                     // If user is already viewing this conversation, skip (handled locally)
                     if (newMsg.conversation_id === activeConvIdRef.current) return;
-                    await loadConversations();
+                    
+                    // In-place cache injection for sidebar list update
+                    updateConversationInCache(newMsg, false);
+                    
                     addNotification({
                         title: 'New Message',
                         message: newMsg.content || '📷 Image',
@@ -228,60 +312,26 @@ export default function MessagingPage() {
             )
             .subscribe();
         return () => { supabase.removeChannel(globalChannel); };
-    }, [myId]);
+    }, [myId, updateConversationInCache]);
 
-    // ── Load messages when active conversation changes ─────────────────────────
+    // ── Keep activeConvIdRef in sync and mark messages as read on switch ────────
     useEffect(() => {
         activeConvIdRef.current = activeConvId;
-        // Fix 6: clear any pending retry from a previous conversation
-        if (retryTimerRef.current) {
-            clearTimeout(retryTimerRef.current);
-            retryTimerRef.current = null;
-        }
+        if (!activeConvId || !myId) return;
 
-        if (!activeConvId || !myId) {
-            setMessages([]);
-            setMessagesLoading(false);
-            return;
-        }
+        // Reset local unread badge instantly in cache
+        queryClient.setQueryData(messagingKeys.conversations(myId), (oldConvs: any[] | undefined) => {
+            if (!oldConvs) return oldConvs;
+            return oldConvs.map(c => c.conversationId === activeConvId ? { ...c, unreadCount: 0 } : c);
+        });
 
-        const convSnapshot = activeConvId;
-
-        const load = async () => {
-            setMessagesLoading(true);
-            try {
-                logger.log('[Chat] Loading messages for conv:', convSnapshot);
-                const msgs = await api.getMessages(convSnapshot);
-                
-                if (activeConvIdRef.current !== convSnapshot) return;
-                
-                setMessages(msgs as Message[]);
-                api.markMessagesRead(convSnapshot, myId).catch(() => {});
-                await loadConversations();
-
-                // Retry once after 2s if messages came back empty (race on brand-new conv)
-                if (msgs.length === 0) {
-                    retryTimerRef.current = setTimeout(async () => {
-                        if (activeConvIdRef.current !== convSnapshot) return;
-                        logger.log('[Chat] Retry: empty on first load, retrying...');
-                        const retried = await api.getMessages(convSnapshot);
-                        if (retried.length > 0) setMessages(retried as Message[]);
-                    }, 2000);
-                }
-            } catch (err: any) {
-                logger.error('Error', '[Chat] load messages error:', err);
-            } finally {
-                if (activeConvIdRef.current === convSnapshot) {
-                    setMessagesLoading(false);
-                }
-            }
-        };
-        load();
-
-        return () => {
-            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-        };
-    }, [activeConvId, myId]);
+        // Sync read status on server and refresh conversations
+        api.markMessagesRead(activeConvId, myId)
+            .then(() => {
+                queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId) });
+            })
+            .catch(() => {});
+    }, [activeConvId, myId, queryClient]);
 
     // ── Per-conversation Realtime subscription ─────────────────────────────────
     useEffect(() => {
@@ -304,10 +354,14 @@ export default function MessagingPage() {
                         mediaUrl: newMsg.media_url,
                         taskRef: newMsg.task_ref,
                     };
-                    setMessages((prev) => {
+                    
+                    // Direct cache injection for messages
+                    queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                        const prev = oldMsgs || [];
                         if (prev.find((m) => m.id === mappedMsg.id)) return prev;
                         return [...prev, mappedMsg];
                     });
+
                     if (String(mappedMsg.senderId) !== myId) {
                         await api.markMessagesRead(activeConvId, myId);
                         addNotification({
@@ -318,7 +372,9 @@ export default function MessagingPage() {
                             type: 'REMINDER',
                         });
                     }
-                    await loadConversations();
+
+                    // Direct cache update for conversation sidebar (prevents 5 HTTP requests)
+                    updateConversationInCache(newMsg, String(mappedMsg.senderId) === myId);
                 }
             )
             .on(
@@ -337,16 +393,17 @@ export default function MessagingPage() {
                 { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${activeConvId}` },
                 (payload: any) => {
                     const updated = payload.new as Message;
-                    setMessages((prev) =>
-                        prev.map((m) => (m.id === updated.id ? { ...m, status: updated.status } : m))
-                    );
+                    queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                        const prev = oldMsgs || [];
+                        return prev.map((m: any) => (m.id === updated.id ? { ...m, status: updated.status } : m));
+                    });
                 }
             )
             .subscribe();
 
         realtimeRef.current = channel;
         return () => { supabase.removeChannel(channel); };
-    }, [activeConvId, myId]);
+    }, [activeConvId, myId, activeOtherUser, updateConversationInCache, queryClient]);
 
     // ── Auto-scroll ────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -374,7 +431,7 @@ export default function MessagingPage() {
             const convId = await api.getOrCreateConversation(myId, String(contact.id));
             setActiveConvId(convId);
             setActiveOtherUser(contact);
-            await loadConversations();
+            queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId) });
         } catch (err: any) {
             logger.error('Error', '[Chat] openConversation failed:', err.message);
             if (err.message?.includes('schema cache') || err.message?.includes('does not exist')) {
@@ -394,33 +451,65 @@ export default function MessagingPage() {
         e?.preventDefault();
         if (!activeConvId || !myId || isSending) return;
 
-        // Image send
+        // Image send (with instant optimistic image preview rendering)
         if (imagePreview) {
+            const optimisticId = `optimistic-${Date.now()}`;
+            const optimisticMsg: Message = {
+                id: optimisticId,
+                conversationId: activeConvId,
+                senderId: myId,
+                type: 'image',
+                mediaUrl: imagePreview.url, // Local Object URL (blob:)
+                content: messageInput.trim() || undefined,
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+                taskRef: extractTaggedTaskId(messageInput) ? { taskId: extractTaggedTaskId(messageInput) } : undefined,
+            };
+
+            // Push optimistic image message
+            queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                const prev = oldMsgs || [];
+                return [...prev, optimisticMsg];
+            });
+
+            const imgFile = imagePreview.file;
+            const textInput = messageInput;
+            setImagePreview(null);
+            setMessageInput('');
+
             try {
                 setIsSending(true);
                 setIsUploading(true);
                 logger.log('[Chat] Uploading image...');
-                const { url } = await api.uploadChatMedia(imagePreview.file, activeConvId);
+                const { url } = await api.uploadChatMedia(imgFile, activeConvId);
                 logger.log('[Chat] Image uploaded:', url);
-                const taggedTaskId = extractTaggedTaskId(messageInput);
+                const taggedTaskId = extractTaggedTaskId(textInput);
                 const sent = await api.sendMessage({
                     conversationId: activeConvId,
                     senderId: myId,
                     type: 'image',
                     mediaUrl: url,
-                    content: messageInput.trim() || undefined,
+                    content: textInput.trim() || undefined,
                     taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
                 });
-                // Show immediately without waiting for realtime echo
+                
+                // Swap placeholder with real DB record
                 if (sent) {
-                    setMessages((prev) => {
-                        if (prev.find((m) => m.id === sent.id)) return prev;
-                        return [...prev, sent as Message];
+                    queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                        const prev = oldMsgs || [];
+                        return prev.map((m: any) => (m.id === optimisticId ? (sent as Message) : m));
                     });
+                    
+                    updateConversationInCache(sent, true);
                 }
-                setImagePreview(null);
-                setMessageInput('');
             } catch (err: any) {
+                // Rollback optimistic image message
+                queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                    const prev = oldMsgs || [];
+                    return prev.filter((m: any) => m.id !== optimisticId);
+                });
+                setImagePreview({ file: imgFile, url: optimisticMsg.mediaUrl! });
+                setMessageInput(textInput);
                 logger.error('Error', '[Chat] Image send failed:', err.message);
             } finally {
                 setIsSending(false);
@@ -446,7 +535,12 @@ export default function MessagingPage() {
             createdAt: new Date().toISOString(),
             taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
         };
-        setMessages((prev) => [...prev, optimisticMsg]);
+
+        queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+            const prev = oldMsgs || [];
+            return [...prev, optimisticMsg];
+        });
+        
         setMessageInput('');
 
         try {
@@ -461,14 +555,20 @@ export default function MessagingPage() {
             });
             // Swap placeholder with real DB record (correct id, createdAt, status)
             if (sent) {
-                setMessages((prev) =>
-                    prev.map((m) => (m.id === optimisticId ? (sent as Message) : m))
-                );
+                queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                    const prev = oldMsgs || [];
+                    return prev.map((m: any) => (m.id === optimisticId ? (sent as Message) : m));
+                });
+                
+                updateConversationInCache(sent, true);
             }
             if (myId && activeConvId) api.setTypingStatus(myId, activeConvId, false).catch(() => {});
         } catch (err: any) {
             // Roll back on failure
-            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+            queryClient.setQueryData(messagingKeys.messages(activeConvId), (oldMsgs: any[] | undefined) => {
+                const prev = oldMsgs || [];
+                return prev.filter((m: any) => m.id !== optimisticId);
+            });
             setMessageInput(text);
             logger.error('Error', '[Chat] Send failed:', err.message);
         } finally {
@@ -691,31 +791,32 @@ export default function MessagingPage() {
                                     </div>
 
                                     <div className="msg-conv-info">
-                                        <div className="msg-conv-top">
+                                        <div className="msg-conv-name-row">
                                             <span className="msg-conv-name">
                                                 {contact.firstName} {contact.lastName}
-                                                {isAdminUser && (
-                                                    <span className="msg-admin-badge">ADMIN</span>
-                                                )}
                                             </span>
-                                            {lastMessage && (
-                                                <span className="msg-conv-time">
-                                                    {formatTime(lastMessage.createdAt)}
-                                                </span>
+                                            {isAdminUser && (
+                                                <span className="msg-admin-badge">ADMIN</span>
                                             )}
                                         </div>
-                                        <div className="msg-conv-bottom">
-                                            <span className="msg-conv-snippet">
-                                                {lastMessage
-                                                    ? lastMessage.type === 'image'
-                                                        ? '📷 Image'
-                                                        : lastMessage.content
-                                                    : <span className="msg-no-conv-hint">{contact.designation || contact.roleId || 'Team Member'}</span>}
-                                            </span>
-                                            {unreadCount > 0 && (
-                                                <span className="msg-unread-badge">{unreadCount}</span>
-                                            )}
+                                        <div className="msg-conv-role">{contact.designation || contact.roleId || 'Staff'}</div>
+                                        <div className="msg-conv-snippet">
+                                            {lastMessage
+                                                ? lastMessage.type === 'image'
+                                                    ? '📷 Image'
+                                                    : lastMessage.content
+                                                : <span className="msg-no-conv-hint">Tap to start chat</span>}
                                         </div>
+                                    </div>
+                                    <div className="msg-conv-meta">
+                                        {lastMessage && (
+                                            <span className="msg-conv-time">
+                                                {formatTime(lastMessage.createdAt)}
+                                            </span>
+                                        )}
+                                        {unreadCount > 0 && (
+                                            <span className="msg-unread-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -737,28 +838,23 @@ export default function MessagingPage() {
                         <>
                             {/* Chat Header */}
                             <div className="msg-chat-header">
-                                <div className="msg-avatar-container">
-                                    <div className="msg-avatar">
-                                        {activeOtherUser?.profilePhoto ? (
-                                            <img src={activeOtherUser.profilePhoto} alt={activeOtherUser?.firstName} />
-                                        ) : (
-                                            activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
-                                        )}
-                                    </div>
-                                    {onlineUsers[String(activeOtherUser?.id)] && (
-                                        <div className="msg-online-dot" />
+                                <div className="msg-header-avatar">
+                                    {activeOtherUser?.profilePhoto ? (
+                                        <img src={activeOtherUser.profilePhoto} alt={activeOtherUser?.firstName} />
+                                    ) : (
+                                        activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
                                     )}
+                                    <div className={onlineUsers[String(activeOtherUser?.id)] ? "msg-header-online-dot" : "msg-header-offline-dot"} />
                                 </div>
                                 <div className="msg-chat-header-info">
                                     <div className="msg-chat-header-name">
                                         {activeOtherUser?.firstName} {activeOtherUser?.lastName}
                                     </div>
+                                    <div className="msg-chat-header-role">
+                                        {activeOtherUser?.designation || activeOtherUser?.roleId || 'Team Member'}
+                                    </div>
                                     <div className="msg-chat-header-sub">
-                                        {onlineUsers[String(activeOtherUser?.id)] ? (
-                                            <span style={{ color: '#10B981' }}>Online</span>
-                                        ) : (
-                                            <span style={{ color: 'var(--text-secondary)' }}>Offline</span>
-                                        )}
+                                        {onlineUsers[String(activeOtherUser?.id)] ? 'Online' : 'Offline'}
                                     </div>
                                 </div>
                                 <button
@@ -781,44 +877,82 @@ export default function MessagingPage() {
                                     </div>
                                 ) : null}
 
-                                {messages.map((msg, idx) => {
-                                    const isMine = String(msg.senderId) === String(myId);
-                                    const showAvatar = idx === 0 || messages[idx - 1]?.senderId !== msg.senderId;
+                                {(() => {
+                                    try {
+                                        logger.log('[Chat-Trace] rendering chat panel');
+                                        
+                                        // Validation pass
+                                        messages.forEach(msg => {
+                                            if (!msg.createdAt) {
+                                                logger.log('[Chat-Trace] Invalid Date - Missing createdAt for msg:', msg.id);
+                                            } else {
+                                                const d = new Date(msg.createdAt);
+                                                if (isNaN(d.getTime())) {
+                                                    logger.log('[Chat-Trace] Invalid Date - isNaN for msg:', msg.id, msg.createdAt);
+                                                }
+                                            }
+                                        });
 
-                                    return (
-                                        <div key={msg.id} className={`msg-row ${isMine ? 'sent' : 'received'}`}>
-                                            {!isMine && (
-                                                <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
-                                                    {(msg.senderPhoto || activeOtherUser?.profilePhoto) ? (
-                                                        <img src={msg.senderPhoto || activeOtherUser.profilePhoto} alt="" />
-                                                    ) : (
-                                                        activeOtherUser?.firstName?.charAt(0) || '?'
+                                        return messages.map((msg, idx) => {
+                                            const prevMsg = messages[idx - 1];
+                                            const nextMsg = messages[idx + 1];
+                                            
+                                            const isMine = String(msg.senderId) === String(myId);
+                                            const isPrevSame = prevMsg && String(prevMsg.senderId) === String(msg.senderId);
+                                            const isNextSame = nextMsg && String(nextMsg.senderId) === String(msg.senderId);
+                                            
+                                            const isSingle = !isPrevSame && !isNextSame;
+                                            const isFirst = !isPrevSame && isNextSame;
+                                            const isMiddle = isPrevSame && isNextSame;
+                                            const isLast = isPrevSame && !isNextSame;
+                                            
+                                            const showAvatar = isLast || isSingle;
+
+                                            let bubbleClass = isMine ? 'msg-bubble-sent' : 'msg-bubble-recv';
+                                            if (isSingle) bubbleClass += ' msg-bubble-single';
+                                            else if (isFirst) bubbleClass += ' msg-bubble-first';
+                                            else if (isMiddle) bubbleClass += ' msg-bubble-middle';
+                                            else if (isLast) bubbleClass += ' msg-bubble-last';
+
+                                            return (
+                                                <div key={msg.id} className={`msg-row ${isMine ? 'sent' : 'received'} ${isLast || isSingle ? 'group-end' : ''}`}>
+                                                    {!isMine && (
+                                                        <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
+                                                            {(msg.senderPhoto || activeOtherUser?.profilePhoto) ? (
+                                                                <img src={msg.senderPhoto || activeOtherUser.profilePhoto} alt="" />
+                                                            ) : (
+                                                                activeOtherUser?.firstName?.charAt(0) || '?'
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="msg-bubble-wrap">
+                                                        <div className={`msg-bubble ${bubbleClass}`}>
+                                                            {renderContent(msg)}
+                                                        </div>
+                                                        <div className={`msg-meta ${isMine ? 'msg-meta-sent' : ''} ${!showAvatar ? 'invisible' : ''}`}>
+                                                            <span>{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown'}</span>
+                                                            {isMine && <StatusTick status={msg.status} />}
+                                                        </div>
+                                                    </div>
+
+                                                    {isMine && (
+                                                        <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
+                                                            {(authEmployee as any)?.profilePhoto ? (
+                                                                <img src={String((authEmployee as any).profilePhoto)} alt="" />
+                                                            ) : (
+                                                                authEmployee?.firstName?.charAt(0) || 'M'
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
-                                            )}
-
-                                            <div className="msg-bubble-wrap">
-                                                <div className={`msg-bubble ${isMine ? 'msg-bubble-sent' : 'msg-bubble-recv'}`}>
-                                                    {renderContent(msg)}
-                                                </div>
-                                                <div className={`msg-meta ${isMine ? 'msg-meta-sent' : ''}`}>
-                                                    <span>{formatTime(msg.createdAt)}</span>
-                                                    {isMine && <StatusTick status={msg.status} />}
-                                                </div>
-                                            </div>
-
-                                            {isMine && (
-                                                <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
-                                                    {(authEmployee as any)?.profilePhoto ? (
-                                                        <img src={String((authEmployee as any).profilePhoto)} alt="" />
-                                                    ) : (
-                                                        authEmployee?.firstName?.charAt(0) || 'M'
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                            );
+                                        });
+                                    } catch (err: any) {
+                                        logger.log('[Chat-Trace] Render Exception:', err.message);
+                                        return <div style={{ color: 'red', padding: '20px' }}>Render Exception: {err.message}</div>;
+                                    }
+                                })()}
 
                                 {/* Typing indicator */}
                                 {isTyping && (
@@ -881,16 +1015,16 @@ export default function MessagingPage() {
                                     accept="image/jpeg,image/jpg,image/png"
                                     onChange={handleFileChange}
                                 />
-                                <button
-                                    type="button"
-                                    className="msg-attach-btn"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    title="Send image"
-                                >
-                                    <ImageIcon size={18} />
-                                </button>
-
                                 <div className="msg-input-wrap">
+                                    <button
+                                        type="button"
+                                        className="msg-attach-btn"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        title="Send image"
+                                    >
+                                        <ImageIcon size={18} />
+                                    </button>
+
                                     <input
                                         ref={inputRef}
                                         type="text"
@@ -910,31 +1044,34 @@ export default function MessagingPage() {
                                         }}
                                         autoComplete="off"
                                     />
-                                    <button
-                                        type="button"
-                                        className="msg-at-btn"
-                                        title="Tag a task"
-                                        onClick={() => {
-                                            setMessageInput((prev) => prev + '@');
-                                            setShowTaskDropdown(true);
-                                            inputRef.current?.focus();
-                                        }}
-                                    >
-                                        <AtSign size={15} />
-                                    </button>
-                                </div>
 
-                                <button
-                                    type="submit"
-                                    className="msg-send-btn"
-                                    disabled={(!messageInput.trim() && !imagePreview) || isSending || isUploading}
-                                >
-                                    {isSending || isUploading ? (
-                                        <div className="msg-send-spinner" />
-                                    ) : (
-                                        <Send size={17} />
-                                    )}
-                                </button>
+                                    <div className="msg-composer-actions">
+                                        <button
+                                            type="button"
+                                            className="msg-at-btn"
+                                            title="Tag a task"
+                                            onClick={() => {
+                                                setMessageInput((prev) => prev + '@');
+                                                setShowTaskDropdown(true);
+                                                inputRef.current?.focus();
+                                            }}
+                                        >
+                                            <AtSign size={15} />
+                                        </button>
+
+                                        <button
+                                            type="submit"
+                                            className="msg-send-btn"
+                                            disabled={(!messageInput.trim() && !imagePreview) || isSending || isUploading}
+                                        >
+                                            {isSending || isUploading ? (
+                                                <div className="msg-send-spinner" />
+                                            ) : (
+                                                <Send size={15} />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
                             </form>
                         </>
                     )}

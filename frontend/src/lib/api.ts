@@ -1052,26 +1052,32 @@ export const api = {
         }
 
         // Create new conversation
-        const { data: conv, error: convError } = await supabase
+        const convId = crypto.randomUUID();
+        const { error: convError } = await supabase
             .from('conversations')
-            .insert({})
-            .select()
-            .single();
+            .insert({ id: convId });
+            
         if (convError) throw new Error(convError.message);
 
         // Add both participants
         const { error: partError } = await supabase.from('conversation_participants').insert([
-            { conversation_id: conv.id, user_id: myId },
-            { conversation_id: conv.id, user_id: otherId },
+            { conversation_id: convId, user_id: myId },
+            { conversation_id: convId, user_id: otherId },
         ]);
-        if (partError) throw new Error(partError.message);
+        
+        if (partError) {
+            // Attempt to rollback conversation to prevent orphans
+            await supabase.from('conversations').delete().eq('id', convId);
+            throw new Error(partError.message);
+        }
 
-        return conv.id;
+        return convId;
     },
 
     /** Get all conversations for a user, with last message and unread count */
     getConversations: async (myId: string, role?: string) => {
         logger.log('[Chat] getConversations called, myId:', myId);
+        fetch('/api/debug-log', { method: 'POST', body: JSON.stringify({ type: 'getConversations' }) }).catch(() => {});
 
         let convIds: string[] = [];
 
@@ -1180,6 +1186,7 @@ export const api = {
     /** Get messages for a conversation (newest last, with sender name) */
     getMessages: async (conversationId: string, limit = 50): Promise<any[]> => {
         logger.log('[Chat] getMessages for conv:', conversationId, 'limit:', limit);
+        fetch('/api/debug-log', { method: 'POST', body: JSON.stringify({ type: 'getMessages' }) }).catch(() => {});
         const { data, error } = await supabase
             .from('messages')
             .select('*')
@@ -1234,7 +1241,7 @@ export const api = {
         conversationId: string;
         senderId: string;
         content?: string;
-        type?: 'text' | 'image';
+        type?: 'text' | 'image' | 'pdf';
         mediaUrl?: string;
         taskRef?: any;
     }): Promise<any> => {
