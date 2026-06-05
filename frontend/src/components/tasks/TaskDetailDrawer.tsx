@@ -17,6 +17,7 @@ import TaskQualityRater from './TaskQualityRater';
 import { useNotifications } from '../notifications/NotificationProvider';
 import MarkdownEditor from '../common/MarkdownEditor';
 import MultiMemberPicker from '../common/MultiMemberPicker';
+import DatePicker from '../common/DatePicker';
 import { useAuth } from '@/context/AuthContext';
 import { useUpdateTask, useDeleteTask } from '@/hooks/queries/domains/projects/useProjects';
 import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
@@ -446,18 +447,15 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                             <button type="button" className="sidebar-btn" onClick={() => setActiveTab('CHECKLIST')}>
                                 <CheckSquare size={14} /> Checklist
                             </button>
-                            <div className="sidebar-btn sidebar-date-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                <Clock size={14} />
-                                <span style={{ marginLeft: '8px' }}>Dates &nbsp;</span>
-                                <input 
-                                    type="date" 
-                                    style={{ position: 'absolute', opacity: 0, top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer', width: '100%' }}
+                            <div style={{ marginBottom: '8px' }}>
+                                <DatePicker 
                                     value={task?.dueDate ? task.dueDate.split('T')[0] : ''}
-                                    onChange={(e) => {
-                                        if(e.target.value) {
-                                            handleUpdateField('dueDate', new Date(e.target.value).toISOString());
+                                    onChange={(val) => {
+                                        if(val) {
+                                            handleUpdateField('dueDate', new Date(val).toISOString());
                                         }
                                     }}
+                                    placeholder="Set Date"
                                 />
                             </div>
                             <button type="button" className="sidebar-btn" onClick={() => {
