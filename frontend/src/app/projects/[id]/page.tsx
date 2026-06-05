@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
     Plus, ChevronLeft, Calendar, Clock, 
     CheckCircle2, Users, Target, Activity,
-    Flame, Briefcase, Zap, MoreVertical, LayoutGrid, CheckCircle, BarChart3, ShieldCheck
+    Flame, Briefcase, Zap, MoreVertical, LayoutGrid, CheckCircle, BarChart3, ShieldCheck, Trash2
 } from 'lucide-react';
 import Button from '@/components/Button';
 import GlassCard from '@/components/GlassCard';
@@ -17,7 +17,7 @@ import { api } from '@/lib/api';
 import { ProjectDTO, TaskDTO, EmployeeDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import { getResolvedRole } from '@/lib/permissions';
-import { useProjectDetail, useTasks, useUpdateTaskStatus } from '@/hooks/queries/domains/projects/useProjects';
+import { useProjectDetail, useTasks, useUpdateTaskStatus, useDeleteProject } from '@/hooks/queries/domains/projects/useProjects';
 import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 
 // Kanban Components
@@ -77,6 +77,7 @@ export default function ProjectDetailPage() {
     const { data: project, isLoading: isProjectLoading, refetch: refetchProject } = useProjectDetail(String(id));
     const { data: rawTasks = [], isLoading: isTasksLoading, refetch: refetchTasks } = useTasks(undefined, undefined, 500, String(id));
     const { mutateAsync: updateTaskStatus } = useUpdateTaskStatus();
+    const { mutateAsync: deleteProject } = useDeleteProject();
     const { data: employees = [], isLoading: isEmployeesLoading } = useEmployees({ limit: 1000 });
 
     const loading = isProjectLoading || isTasksLoading || isEmployeesLoading;
@@ -120,6 +121,17 @@ export default function ProjectDetailPage() {
         }
     };
 
+    const handleDeleteProject = async () => {
+        if (!confirm('Are you absolutely sure you want to delete this project? This action cannot be undone and will delete all associated tasks.')) return;
+        try {
+            await deleteProject(String(id));
+            addNotification({ title: 'Success', message: 'Project deleted successfully.', type: 'success' });
+            router.push('/projects');
+        } catch (err: any) {
+            addNotification({ title: 'Error', message: err.message || 'Failed to delete project.', type: 'error' });
+        }
+    };
+
     if (loading || !project) {
         return <div className="page-loader"><div className="spinner"></div></div>;
     }
@@ -159,6 +171,11 @@ export default function ProjectDetailPage() {
                     {isAdmin && activeTab === 'FORCE' && (
                         <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)}>
                             <ShieldCheck size={16} /> Manage Force
+                        </Button>
+                    )}
+                    {isAdmin && (
+                        <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '8px', opacity: 0.8 }} title="Delete Project">
+                            <Trash2 size={16} />
                         </Button>
                     )}
                 </div>
