@@ -407,7 +407,10 @@ export default function MessagingPage() {
 
     // ── Auto-scroll ────────────────────────────────────────────────────────────
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesEndRef.current && messagesEndRef.current.parentElement) {
+            const parent = messagesEndRef.current.parentElement;
+            parent.scrollTo({ top: parent.scrollHeight, behavior: 'smooth' });
+        }
     }, [messages, isTyping]);
 
     // ── Typing indicator ───────────────────────────────────────────────────────
