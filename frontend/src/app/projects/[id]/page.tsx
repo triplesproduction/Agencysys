@@ -5,19 +5,18 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
     Plus, ChevronLeft, Calendar, Clock, 
     CheckCircle2, Users, Target, Activity,
-    Flame, Briefcase, Zap, MoreVertical, LayoutGrid, CheckCircle, BarChart3, ShieldCheck, Trash2
+    Flame, Briefcase, Zap, MoreVertical, LayoutGrid, CheckCircle, BarChart3, ShieldCheck, Trash2, Search, PlusCircle
 } from 'lucide-react';
 import Button from '@/components/Button';
 import GlassCard from '@/components/GlassCard';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
 import TaskDetailDrawer from '@/components/tasks/TaskDetailDrawer';
-import ManageProjectMembersModal from '@/components/projects/ManageProjectMembersModal';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { api } from '@/lib/api';
 import { ProjectDTO, TaskDTO, EmployeeDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
 import { getResolvedRole } from '@/lib/permissions';
-import { useProjectDetail, useTasks, useUpdateTaskStatus, useDeleteProject } from '@/hooks/queries/domains/projects/useProjects';
+import { useProjectDetail, useTasks, useUpdateTaskStatus, useDeleteProject, useAddProjectMember, useRemoveProjectMember } from '@/hooks/queries/domains/projects/useProjects';
 import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 
 // Kanban Components
@@ -66,6 +65,8 @@ export default function ProjectDetailPage() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [syncing, setSyncing] = useState<string | null>(null);
 
     const userRole = authEmployee ? getResolvedRole(authEmployee.roleId) : 'EMPLOYEE';
     const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER';
@@ -80,6 +81,43 @@ export default function ProjectDetailPage() {
     const { mutateAsync: updateTaskStatus } = useUpdateTaskStatus();
     const { mutateAsync: deleteProject } = useDeleteProject();
     const { data: employees = [], isLoading: isEmployeesLoading } = useEmployees({ limit: 1000 });
+    const { mutateAsync: addProjectMember } = useAddProjectMember();
+    const { mutateAsync: removeProjectMember } = useRemoveProjectMember();
+
+    const isMember = (employeeId: string) => {
+        return project?.members?.some((m: any) => m.userId === employeeId);
+    };
+
+    const handleAddMember = async (employeeId: string) => {
+        if (!project) return;
+        setSyncing(employeeId);
+        try {
+            await addProjectMember({ projectId: project.id, userId: employeeId, role: 'MEMBER' });
+            addNotification({ title: 'Access Granted', message: 'Member successfully assigned.', type: 'success' });
+            refetchProject();
+        } catch (err) {
+            addNotification({ title: 'Error', message: 'Could not assign member.', type: 'error' });
+        } finally {
+            setSyncing(null);
+        }
+    };
+
+    const handleRemoveMember = async (employeeId: string) => {
+        if (!project) return;
+        const membership = project?.members?.find((m: any) => m.userId === employeeId);
+        if (!membership) return;
+
+        setSyncing(employeeId);
+        try {
+            await removeProjectMember({ id: membership.id, projectId: project.id });
+            addNotification({ title: 'Access Revoked', message: 'Member successfully removed.', type: 'info' });
+            refetchProject();
+        } catch (err) {
+            addNotification({ title: 'Error', message: 'Could not remove member.', type: 'error' });
+        } finally {
+            setSyncing(null);
+        }
+    };
 
     const loading = isProjectLoading || isTasksLoading || isEmployeesLoading;
 
@@ -189,14 +227,9 @@ export default function ProjectDetailPage() {
                             <Plus size={16} /> New Unit
                         </Button>
                     )}
-                    {isAdmin && activeTab === 'MEMBERS' && (
-                        <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)}>
-                            <ShieldCheck size={16} /> Manage Access
-                        </Button>
-                    )}
                     {isAdmin && (
-                        <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '0 12px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px' }} title="Delete Project">
-                            <Trash2 size={16} /> <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Delete Project</span>
+                        <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '0 10px', opacity: 0.9, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete Project">
+                            <Trash2 size={16} />
                         </Button>
                     )}
                 </div>
@@ -318,23 +351,80 @@ export default function ProjectDetailPage() {
 
                 {activeTab === 'MEMBERS' && (
                     <div className="force-wrapper slide-up">
+                        {isAdmin && (
+                            <div className="emp-search" style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0 16px', marginBottom: '24px' }}>
+                                <Search size={16} color="rgba(255,255,255,0.4)" />
+                                <input 
+                                    placeholder="Search personnel to add or manage..." 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    style={{ background: 'transparent', border: 'none', outline: 'none', color: 'white', padding: '16px 12px', width: '100%', fontSize: '0.9rem' }}
+                                />
+                            </div>
+                        )}
                         <div className="force-grid">
-                            {project.members && project.members.length > 0 ? project.members.map(m => {
-                                const u = m.user || m; 
-                                return (
-                                <div key={m.userId || u.id} className="member-item">
-                                    <div className="member-avatar">
-                                        {u.profilePhoto ? <img src={u.profilePhoto} /> : <span>{u.firstName?.charAt(0) || '?'}</span>}
-                                    </div>
-                                    <div className="member-info">
-                                        <h4>{u.firstName} {u.lastName}</h4>
-                                        <p>{m.role || u.designation || 'Specialist'}</p>
-                                    </div>
-                                </div>
-                                );
-                            }) : (
-                                <p style={{ opacity: 0.3, padding: '40px', gridColumn: '1/-1', textAlign: 'center' }}>No specialist units assigned to this initiative.</p>
-                            )}
+                            {(() => {
+                                let displayList = isAdmin ? employees : (project.members?.map((m: any) => m.user || m) || []);
+                                
+                                if (searchQuery) {
+                                    displayList = displayList.filter((e: any) => 
+                                        `${e.firstName} ${e.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                        (e.designation || e.role)?.toLowerCase().includes(searchQuery.toLowerCase())
+                                    );
+                                }
+
+                                if (isAdmin) {
+                                    displayList = [...displayList].sort((a: any, b: any) => {
+                                        const aMem = isMember(a.id);
+                                        const bMem = isMember(b.id);
+                                        if (aMem && !bMem) return -1;
+                                        if (!aMem && bMem) return 1;
+                                        return 0;
+                                    });
+                                }
+
+                                return displayList.length > 0 ? displayList.map((emp: any) => {
+                                    const active = isMember(emp.id);
+                                    const isSyncing = syncing === emp.id;
+                                    
+                                    return (
+                                        <div key={emp.id} className="member-item" style={{ border: active ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(255,255,255,0.05)', background: active ? 'rgba(139, 92, 246, 0.05)' : 'rgba(255,255,255,0.02)' }}>
+                                            <div className="member-avatar">
+                                                {emp.profilePhoto ? <img src={emp.profilePhoto} /> : <span>{emp.firstName?.charAt(0) || '?'}</span>}
+                                            </div>
+                                            <div className="member-info">
+                                                <h4>{emp.firstName} {emp.lastName}</h4>
+                                                <p>{emp.designation || emp.role}</p>
+                                            </div>
+                                            {isAdmin && (
+                                                <div style={{ marginLeft: 'auto' }}>
+                                                    {isSyncing ? (
+                                                        <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                                                    ) : active ? (
+                                                        <button 
+                                                            onClick={() => handleRemoveMember(emp.id)}
+                                                            style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '8px', color: '#ef4444', cursor: 'pointer' }}
+                                                            title="Remove Member"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    ) : (
+                                                        <button 
+                                                            onClick={() => handleAddMember(emp.id)}
+                                                            style={{ padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', cursor: 'pointer' }}
+                                                            title="Add Member"
+                                                        >
+                                                            <PlusCircle size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }) : (
+                                    <p style={{ opacity: 0.3, padding: '40px', gridColumn: '1/-1', textAlign: 'center' }}>No personnel found.</p>
+                                )
+                            })()}
                         </div>
                     </div>
                 )}
@@ -351,14 +441,6 @@ export default function ProjectDetailPage() {
                 initialStatus={newTaskStatus || undefined}
             />
             <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={() => refetchTasks()} currentUserRole={userRole} />
-            {project && (
-                <ManageProjectMembersModal 
-                    isOpen={isManageMembersOpen} 
-                    onClose={() => setIsManageMembersOpen(false)} 
-                    project={project}
-                    onRefresh={() => refetchProject()}
-                />
-            )}
         </div>
     );
 }
