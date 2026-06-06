@@ -65,7 +65,7 @@ interface Message {
     conversationId: string;
     senderId: string;
     content?: string;
-    type: 'text' | 'image';
+    type: 'text' | 'image' | 'pdf';
     mediaUrl?: string;
     taskRef?: any;
     status: 'sent' | 'delivered' | 'seen';
@@ -454,14 +454,18 @@ export default function MessagingPage() {
         e?.preventDefault();
         if (!activeConvId || !myId || isSending) return;
 
-        // Image send (with instant optimistic image preview rendering)
+        // Image/PDF send (with instant optimistic preview rendering)
         if (imagePreview) {
+            const imgFile = imagePreview.file;
+            const isPdf = imgFile.type === 'application/pdf';
+            const mediaType = isPdf ? 'pdf' : 'image';
+            
             const optimisticId = `optimistic-${Date.now()}`;
             const optimisticMsg: Message = {
                 id: optimisticId,
                 conversationId: activeConvId,
                 senderId: myId,
-                type: 'image',
+                type: mediaType,
                 mediaUrl: imagePreview.url, // Local Object URL (blob:)
                 content: messageInput.trim() || undefined,
                 status: 'sent',
@@ -475,7 +479,6 @@ export default function MessagingPage() {
                 return [...prev, optimisticMsg];
             });
 
-            const imgFile = imagePreview.file;
             const textInput = messageInput;
             setImagePreview(null);
             setMessageInput('');
@@ -483,14 +486,14 @@ export default function MessagingPage() {
             try {
                 setIsSending(true);
                 setIsUploading(true);
-                logger.log('[Chat] Uploading image...');
+                logger.log(`[Chat] Uploading ${mediaType}...`);
                 const { url } = await api.uploadChatMedia(imgFile, activeConvId);
-                logger.log('[Chat] Image uploaded:', url);
+                logger.log(`[Chat] ${mediaType} uploaded:`, url);
                 const taggedTaskId = extractTaggedTaskId(textInput);
                 const sent = await api.sendMessage({
                     conversationId: activeConvId,
                     senderId: myId,
-                    type: 'image',
+                    type: mediaType,
                     mediaUrl: url,
                     content: textInput.trim() || undefined,
                     taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
@@ -513,7 +516,7 @@ export default function MessagingPage() {
                 });
                 setImagePreview({ file: imgFile, url: optimisticMsg.mediaUrl! });
                 setMessageInput(textInput);
-                logger.error('Error', '[Chat] Image send failed:', err.message);
+                logger.error('Error', `[Chat] ${mediaType} send failed:`, err.message);
             } finally {
                 setIsSending(false);
                 setIsUploading(false);
@@ -583,7 +586,7 @@ export default function MessagingPage() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+        if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(file.type)) {
             logger.warn('System', '[Chat] File type rejected:', file.type);
             return;
         }
@@ -648,6 +651,23 @@ export default function MessagingPage() {
                         onClick={(url) => setExpandedImage(url)}
                     />
                     {msg.content && <p className="msg-caption">{msg.content}</p>}
+                </div>
+            );
+        }
+        if (msg.type === 'pdf' && msg.mediaUrl) {
+            return (
+                <div className="msg-pdf-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={24} color="#ef4444" />
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500, wordBreak: 'break-all' }}>PDF Document</span>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={async () => {
+                        const url = await api.getSignedChatMediaUrl(msg.mediaUrl!);
+                        window.open(url, '_blank');
+                    }} style={{ alignSelf: 'flex-start' }}>
+                        View Document
+                    </Button>
+                    {msg.content && <p className="msg-caption" style={{ marginTop: '8px' }}>{msg.content}</p>}
                 </div>
             );
         }
@@ -980,11 +1000,17 @@ export default function MessagingPage() {
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            {/* Image Preview before send */}
+                            {/* Image/File Preview before send */}
                             {imagePreview && (
                                 <div className="msg-img-preview-bar">
                                     <div className="msg-img-preview-thumb">
-                                        <img src={imagePreview.url} alt="Preview" />
+                                        {imagePreview.file.type === 'application/pdf' ? (
+                                            <div style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>
+                                                <FileText size={20} color="#ef4444" />
+                                            </div>
+                                        ) : (
+                                            <img src={imagePreview.url} alt="Preview" />
+                                        )}
                                         <button
                                             className="msg-img-preview-remove"
                                             onClick={() => { URL.revokeObjectURL(imagePreview.url); setImagePreview(null); }}
