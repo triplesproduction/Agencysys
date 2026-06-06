@@ -58,6 +58,7 @@ const COLUMNS = [
 export default function TasksPage() {
     const { employee: authEmployee, loading: authLoading } = useAuth();
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+    const [newTaskStatus, setNewTaskStatus] = useState<string | null>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -236,7 +237,10 @@ export default function TasksPage() {
                             id={col.id} 
                             title={col.title}
                             count={filteredTasks.filter(t => t.status === col.id).length}
-                            onAddCard={() => setIsAllocateModalOpen(true)}
+                            onAddCard={() => {
+                                setNewTaskStatus(col.id);
+                                setIsAllocateModalOpen(true);
+                            }}
                         >
                             <SortableContext 
                                 items={filteredTasks.filter(t => t.status === col.id).map(t => t.id)}
@@ -284,11 +288,15 @@ export default function TasksPage() {
             {/* Modals & Drawers */}
             <AllocateTaskModal 
                 isOpen={isAllocateModalOpen}
-                onClose={() => setIsAllocateModalOpen(false)}
+                onClose={() => {
+                    setIsAllocateModalOpen(false);
+                    setNewTaskStatus(null);
+                }}
                 onSuccess={() => {
                     addNotification({ title: 'Success', message: 'Task allocated successfully', type: 'success' });
                     queryClient.invalidateQueries({ queryKey: ['tasks'] });
                 }}
+                initialStatus={newTaskStatus || undefined}
             />
 
             <TaskDetailDrawer 

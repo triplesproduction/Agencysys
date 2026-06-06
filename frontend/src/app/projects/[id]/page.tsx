@@ -61,6 +61,7 @@ export default function ProjectDetailPage() {
     const [activeTab, setActiveTab] = useState<TabType>('BOARD');
     
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+    const [newTaskStatus, setNewTaskStatus] = useState<string | null>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
@@ -194,7 +195,16 @@ export default function ProjectDetailPage() {
                             >
                                 <div className="kanban-board">
                                     {COLUMNS.map(col => (
-                                        <KanbanColumn key={col.id} id={col.id} title={col.title} count={tasks.filter(t => t.status === col.id).length}>
+                                        <KanbanColumn 
+                                            key={col.id} 
+                                            id={col.id} 
+                                            title={col.title} 
+                                            count={tasks.filter(t => t.status === col.id).length}
+                                            onAddCard={() => {
+                                                setNewTaskStatus(col.id);
+                                                setIsAllocateModalOpen(true);
+                                            }}
+                                        >
                                             <SortableContext items={tasks.filter(t => t.status === col.id).map(t => t.id)} strategy={verticalListSortingStrategy}>
                                                 {tasks.filter(t => t.status === col.id).map(task => (
                                                     <SortableCard key={task.id} task={task} onClick={() => { setSelectedTaskId(task.id); setIsDrawerOpen(true); }} />
@@ -284,7 +294,16 @@ export default function ProjectDetailPage() {
                 )}
             </div>
 
-            <AllocateTaskModal isOpen={isAllocateModalOpen} onClose={() => setIsAllocateModalOpen(false)} onSuccess={() => refetchTasks()} projectId={String(id)} />
+            <AllocateTaskModal 
+                isOpen={isAllocateModalOpen} 
+                onClose={() => {
+                    setIsAllocateModalOpen(false);
+                    setNewTaskStatus(null);
+                }} 
+                onSuccess={() => refetchTasks()} 
+                projectId={String(id)} 
+                initialStatus={newTaskStatus || undefined}
+            />
             <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={() => refetchTasks()} currentUserRole={userRole} />
             {project && (
                 <ManageProjectMembersModal 
