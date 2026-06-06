@@ -1306,7 +1306,7 @@ export const api = {
 
         // Sanitize extension to prevent path traversal
         const ext = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
-        const fileName = `chat/${conversationId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+        const fileName = `chat/${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
         logger.log('[Chat] uploadChatMedia: uploading', fileName, 'size:', file.size);
         const { error } = await supabase.storage.from('chat-media').upload(fileName, file, { upsert: false });
         if (error) {

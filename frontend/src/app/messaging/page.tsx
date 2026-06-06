@@ -1055,7 +1055,7 @@ export default function MessagingPage() {
                                     type="file"
                                     ref={fileInputRef}
                                     style={{ display: 'none' }}
-                                    accept="image/jpeg,image/jpg,image/png"
+                                    accept="image/jpeg,image/jpg,image/png,application/pdf"
                                     onChange={handleFileChange}
                                 />
                                 <div className="msg-input-wrap">
