@@ -142,8 +142,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         // 1. Single source of truth for session resolution
-        // onAuthStateChange fires immediately on initialization with the current session.
-        // We no longer need a manual initialCheck() as it causes race conditions with lockers.
+        // We do an explicit getSession() to avoid race conditions with INITIAL_SESSION
+        // which can sometimes fire with null before localStorage is parsed.
+        const initializeSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                await resolveAuth(session?.user || null, session, 'INITIAL_GET_SESSION');
+            } catch (err) {
+                logger.error('[AUTH DEBUG] Error getting initial session:', err);
+                setLoadingSync(false);
+            }
+        };
+        
+        initializeSession();
 
         // 2. Persistent listener for all auth events
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -153,9 +164,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // IGNORE neutral events or events that shouldn't trigger local state changes yet
                 logger.log(`[AUTH DEBUG] Supabase Auth Event: ${event}`);
 
-                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
                     // Force resolve for initializing or active sessions
                     await resolveAuth(currentSession?.user || null, currentSession, event);
+                } else if (event === 'INITIAL_SESSION') {
+                    // We handle INITIAL_SESSION via the explicit getSession() above to prevent
+                    // premature null resolutions. We only resolve if there is a session here.
+                    if (currentSession) {
+                        await resolveAuth(currentSession.user, currentSession, event);
+                    }
                 } else if (event === 'SIGNED_OUT') {
                     logger.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
                     setUser(null);
