@@ -1000,20 +1000,26 @@ export default function MessagingPage() {
                             {showTaskDropdown && (
                                 <div className="msg-task-dropdown">
                                     <div className="msg-task-dropdown-header">📌 Tag a Task</div>
-                                    {myTasks.length === 0 && (
-                                        <div className="msg-empty-note">No tasks found.</div>
-                                    )}
-                                    {myTasks.map((task) => (
-                                        <div
-                                            key={task.id}
-                                            className="msg-task-item"
-                                            onClick={() => insertTaskTag(task)}
-                                        >
-                                            <span className={`task-priority-dot priority-${task.priority?.toLowerCase()}`} />
-                                            <span className="msg-task-title">{task.title}</span>
-                                            <span className="msg-task-status">{task.status}</span>
-                                        </div>
-                                    ))}
+                                    {(() => {
+                                        const filteredTasks = myTasks.filter(task => 
+                                            String(task.assigneeId) === String(activeOtherUser?.id) || 
+                                            (task.assigneeIds && task.assigneeIds.includes(String(activeOtherUser?.id)))
+                                        );
+                                        if (filteredTasks.length === 0) {
+                                            return <div className="msg-empty-note">No assigned tasks found for this user.</div>;
+                                        }
+                                        return filteredTasks.map((task) => (
+                                            <div
+                                                key={task.id}
+                                                className="msg-task-item"
+                                                onClick={() => insertTaskTag(task)}
+                                            >
+                                                <span className={`task-priority-dot priority-${task.priority?.toLowerCase()}`} />
+                                                <span className="msg-task-title">{task.title}</span>
+                                                <span className="msg-task-status">{task.status}</span>
+                                            </div>
+                                        ));
+                                    })()}
                                 </div>
                             )}
 
