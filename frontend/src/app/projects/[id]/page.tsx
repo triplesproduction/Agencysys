@@ -228,9 +228,9 @@ export default function ProjectDetailPage() {
                         </Button>
                     )}
                     {isAdmin && (
-                        <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '0 10px', opacity: 0.9, display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete Project">
+                        <button className="icon-btn-danger" onClick={handleDeleteProject} title="Delete Project">
                             <Trash2 size={16} />
-                        </Button>
+                        </button>
                     )}
                 </div>
             </div>
