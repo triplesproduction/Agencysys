@@ -319,21 +319,20 @@ export default function ProjectDetailPage() {
                 {activeTab === 'MEMBERS' && (
                     <div className="force-wrapper slide-up">
                         <div className="force-grid">
-                            {project.members && project.members.length > 0 ? project.members.map(m => (
-                                <div key={m.id} className="member-item">
+                            {project.members && project.members.length > 0 ? project.members.map(m => {
+                                const u = m.user || m; 
+                                return (
+                                <div key={m.userId || u.id} className="member-item">
                                     <div className="member-avatar">
-                                        {m.user?.profilePhoto && m.user.profilePhoto.trim() !== '' ? (
-                                            <img src={m.user.profilePhoto} alt={`${m.user.firstName} ${m.user.lastName}`} />
-                                        ) : (
-                                            <span>{m.user?.firstName?.[0] || '?'}</span>
-                                        )}
+                                        {u.profilePhoto ? <img src={u.profilePhoto} /> : <span>{u.firstName?.charAt(0) || '?'}</span>}
                                     </div>
                                     <div className="member-info">
-                                        <h4>{m.user?.firstName} {m.user?.lastName}</h4>
-                                        <p>{m.role || 'Specialist'}</p>
+                                        <h4>{u.firstName} {u.lastName}</h4>
+                                        <p>{m.role || u.designation || 'Specialist'}</p>
                                     </div>
                                 </div>
-                            )) : (
+                                );
+                            }) : (
                                 <p style={{ opacity: 0.3, padding: '40px', gridColumn: '1/-1', textAlign: 'center' }}>No specialist units assigned to this initiative.</p>
                             )}
                         </div>
