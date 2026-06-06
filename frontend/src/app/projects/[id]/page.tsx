@@ -50,7 +50,7 @@ const COLUMNS = [
     { id: 'DONE', title: 'Done' }
 ];
 
-type TabType = 'BOARD' | 'METRICS' | 'FORCE';
+type TabType = 'BOARD' | 'METRICS' | 'MEMBERS';
 
 export default function ProjectDetailPage() {
     const { id } = useParams();
@@ -100,7 +100,27 @@ export default function ProjectDetailPage() {
         const total = tasks.length;
         const completed = tasks.filter((t: any) => t.status === 'DONE' || t.status === 'APPROVED').length;
         const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-        return { total, completed, progress };
+        
+        const byStatus = {
+            todo: tasks.filter((t: any) => t.status === 'TODO').length,
+            inProgress: tasks.filter((t: any) => t.status === 'IN_PROGRESS').length,
+            review: tasks.filter((t: any) => t.status === 'IN_REVIEW' || t.status === 'SUBMITTED').length,
+        };
+
+        const byPriority = {
+            critical: tasks.filter((t: any) => t.priority === 'CRITICAL').length,
+            high: tasks.filter((t: any) => t.priority === 'HIGH').length,
+            medium: tasks.filter((t: any) => t.priority === 'MEDIUM').length,
+            low: tasks.filter((t: any) => t.priority === 'LOW').length,
+        };
+
+        const overdue = tasks.filter((t: any) => {
+            if (t.status === 'DONE' || t.status === 'APPROVED') return false;
+            if (!t.dueDate) return false;
+            return new Date(t.dueDate) < new Date();
+        }).length;
+
+        return { total, completed, progress, byStatus, byPriority, overdue };
     }, [tasks]);
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -158,8 +178,8 @@ export default function ProjectDetailPage() {
                     <button className={`tab-btn ${activeTab === 'METRICS' ? 'active' : ''}`} onClick={() => setActiveTab('METRICS')}>
                         <BarChart3 size={14} /> Analytics
                     </button>
-                    <button className={`tab-btn ${activeTab === 'FORCE' ? 'active' : ''}`} onClick={() => setActiveTab('FORCE')}>
-                        <Users size={14} /> Force Detail
+                    <button className={`tab-btn ${activeTab === 'MEMBERS' ? 'active' : ''}`} onClick={() => setActiveTab('MEMBERS')}>
+                        <Users size={14} /> Members
                     </button>
                 </div>
 
@@ -169,14 +189,14 @@ export default function ProjectDetailPage() {
                             <Plus size={16} /> New Unit
                         </Button>
                     )}
-                    {isAdmin && activeTab === 'FORCE' && (
+                    {isAdmin && activeTab === 'MEMBERS' && (
                         <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)}>
-                            <ShieldCheck size={16} /> Manage Force
+                            <ShieldCheck size={16} /> Manage Members
                         </Button>
                     )}
                     {isAdmin && (
-                        <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '8px', opacity: 0.8 }} title="Delete Project">
-                            <Trash2 size={16} />
+                        <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '0 12px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px' }} title="Delete Project">
+                            <Trash2 size={16} /> <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Delete Project</span>
                         </Button>
                     )}
                 </div>
@@ -252,7 +272,9 @@ export default function ProjectDetailPage() {
                             </GlassCard>
                             <GlassCard className="detail-stat-card">
                                 <div className="stat-label">Operational Health</div>
-                                <div className="stat-value" style={{ color: '#10b981' }}>Optimized</div>
+                                <div className="stat-value" style={{ color: stats.overdue > 0 ? '#ef4444' : '#10b981' }}>
+                                    {stats.overdue > 0 ? `${stats.overdue} Overdue Tasks` : 'Optimized'}
+                                </div>
                                 <p style={{ fontSize: '0.8rem', opacity: 0.4, marginTop: '8px' }}>Real-time synchronization with tactical units is active.</p>
                             </GlassCard>
                             <GlassCard className="detail-stat-card">
@@ -261,15 +283,40 @@ export default function ProjectDetailPage() {
                                 <p style={{ fontSize: '0.8rem', opacity: 0.4, marginTop: '8px' }}>Target date for mission parameters completion.</p>
                             </GlassCard>
                             <GlassCard className="detail-stat-card">
-                                <div className="stat-label">Current Momentum</div>
-                                <div className="stat-value">{stats.completed} Done</div>
-                                <p style={{ fontSize: '0.8rem', opacity: 0.4, marginTop: '8px' }}>Units successfully pushed through the operational pipeline.</p>
+                                <div className="stat-label">Task Status Breakdown</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '0.85rem' }}>
+                                    <span>To Do: <strong>{stats.byStatus.todo}</strong></span>
+                                    <span>In Progress: <strong>{stats.byStatus.inProgress}</strong></span>
+                                    <span>Review: <strong>{stats.byStatus.review}</strong></span>
+                                    <span>Done: <strong>{stats.completed}</strong></span>
+                                </div>
+                            </GlassCard>
+                            <GlassCard className="detail-stat-card" style={{ gridColumn: 'span 2' }}>
+                                <div className="stat-label">Priority Distribution</div>
+                                <div style={{ display: 'flex', gap: '24px', marginTop: '12px' }}>
+                                    <div style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid #ef4444' }}>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '4px' }}>CRITICAL</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ef4444' }}>{stats.byPriority.critical}</div>
+                                    </div>
+                                    <div style={{ flex: 1, background: 'rgba(249, 115, 22, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid #f97316' }}>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '4px' }}>HIGH</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f97316' }}>{stats.byPriority.high}</div>
+                                    </div>
+                                    <div style={{ flex: 1, background: 'rgba(59, 130, 246, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid #3b82f6' }}>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '4px' }}>MEDIUM</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#3b82f6' }}>{stats.byPriority.medium}</div>
+                                    </div>
+                                    <div style={{ flex: 1, background: 'rgba(34, 197, 94, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '3px solid #22c55e' }}>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '4px' }}>LOW</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#22c55e' }}>{stats.byPriority.low}</div>
+                                    </div>
+                                </div>
                             </GlassCard>
                         </div>
                     </div>
                 )}
 
-                {activeTab === 'FORCE' && (
+                {activeTab === 'MEMBERS' && (
                     <div className="force-wrapper slide-up">
                         <div className="force-grid">
                             {project.members && project.members.length > 0 ? project.members.map(m => (
