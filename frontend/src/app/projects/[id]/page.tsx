@@ -189,6 +189,10 @@ export default function ProjectDetailPage() {
                             <Plus size={16} /> New Unit
                         </Button>
                     )}
+                    {isAdmin && activeTab === 'MEMBERS' && (
+                        <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)}>
+                            <ShieldCheck size={16} /> Manage Access
+                        </Button>
                     )}
                     {isAdmin && (
                         <Button variant="danger" size="sm" onClick={handleDeleteProject} style={{ padding: '0 12px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '6px' }} title="Delete Project">
@@ -314,13 +318,6 @@ export default function ProjectDetailPage() {
 
                 {activeTab === 'MEMBERS' && (
                     <div className="force-wrapper slide-up">
-                        {isAdmin && (
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-                                <Button variant="secondary" size="sm" onClick={() => setIsManageMembersOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <ShieldCheck size={16} /> Manage Members
-                                </Button>
-                            </div>
-                        )}
                         <div className="force-grid">
                             {project.members && project.members.length > 0 ? project.members.map(m => {
                                 const u = m.user || m; 
