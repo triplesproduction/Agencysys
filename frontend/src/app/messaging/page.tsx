@@ -1,6 +1,7 @@
 'use client';
 
 import { PageHeader } from '@/components/common/PageHeader';
+import Button from '@/components/Button';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
