@@ -222,9 +222,9 @@ export default function ProjectDetailPage() {
                 </div>
 
                 <div className="nav-right">
-                    {isAdmin && activeTab === 'BOARD' && (
+                    {isAdmin && (
                         <Button variant="primary" size="sm" onClick={() => setIsAllocateModalOpen(true)}>
-                            <Plus size={16} /> New Unit
+                            <Plus size={16} /> New Task
                         </Button>
                     )}
                     {isAdmin && (
