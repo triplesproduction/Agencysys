@@ -518,6 +518,11 @@ export default function MessagingPage() {
                 setImagePreview({ file: imgFile, url: optimisticMsg.mediaUrl! });
                 setMessageInput(textInput);
                 logger.error('Error', `[Chat] ${mediaType} send failed:`, err.message);
+                addNotification({
+                    title: 'Send Error',
+                    message: err.message,
+                    type: 'SYSTEM'
+                });
             } finally {
                 setIsSending(false);
                 setIsUploading(false);
