@@ -1,53 +1,72 @@
 .task-quality-rater {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 12px;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    width: fit-content;
-    margin-top: 16px;
 }
 
 .rater-label {
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.6);
-    font-weight: 500;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.35);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .stars-container {
     display: flex;
-    gap: 4px;
+    gap: 6px;
+    align-items: center;
 }
 
 .star-btn {
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.2);
-    transition: all 0.2s ease;
+    color: rgba(255, 255, 255, 0.15);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: 8px;
 }
 
 .star-btn:hover {
-    transform: scale(1.1);
+    transform: scale(1.25);
+    color: #ffd700;
 }
 
 .star-btn.filled {
     color: #ffd700;
-    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.3));
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+    transform: scale(1.05);
+}
+
+.star-btn.filled:hover {
+    transform: scale(1.25);
 }
 
 .task-quality-rater.disabled .star-btn {
     cursor: default;
+    pointer-events: none;
 }
 
 .task-quality-rater.disabled .star-btn:hover {
-    transform: none;
+    transform: scale(1.05);
+}
+
+.rater-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-left: 4px;
 }
 
 .rater-loader {

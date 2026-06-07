@@ -44,23 +44,30 @@ export default function TaskQualityRater({ taskId, initialRating, disabled, onRa
 
     return (
         <div className={`task-quality-rater ${disabled ? 'disabled' : ''}`}>
-            <span className="rater-label">Quality Rating:</span>
-            <div className="stars-container">
-                {[1, 2, 3, 4, 5].map((value) => (
-                    <button
-                        key={value}
-                        className={`star-btn ${(hoverRating || rating) >= value ? 'filled' : ''}`}
-                        onClick={() => handleRate(value)}
-                        onMouseEnter={() => !disabled && setHoverRating(value)}
-                        onMouseLeave={() => !disabled && setHoverRating(0)}
-                        disabled={disabled || submitting}
-                        title={`Rate ${value} stars`}
-                    >
-                        <Star size={20} className="star-icon" />
-                    </button>
-                ))}
+            <span className="rater-label">Quality Rating</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                <div className="stars-container">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                            key={value}
+                            className={`star-btn ${(hoverRating || rating) >= value ? 'filled' : ''}`}
+                            onClick={() => handleRate(value)}
+                            onMouseEnter={() => !disabled && setHoverRating(value)}
+                            onMouseLeave={() => !disabled && setHoverRating(0)}
+                            disabled={disabled || submitting}
+                            title={`Rate ${value} star${value !== 1 ? 's' : ''}`}
+                        >
+                            <Star size={26} className="star-icon" fill={(hoverRating || rating) >= value ? '#ffd700' : 'none'} />
+                        </button>
+                    ))}
+                </div>
+                {rating > 0 && (
+                    <span className="rater-score">
+                        {rating}/5
+                    </span>
+                )}
+                {submitting && <span className="rater-loader">Saving...</span>}
             </div>
-            {submitting && <span className="rater-loader">Saving...</span>}
         </div>
     );
 }

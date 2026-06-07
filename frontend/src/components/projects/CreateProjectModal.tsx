@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Button from '../Button';
 import Input from '../Input';
-import { 
+import {
     X, Plus, Trash2, Target, Users, Calendar, Flag,
     ChevronDown, ChevronUp, CheckSquare, BarChart3, Clock, FileText, CheckCircle2
 } from 'lucide-react';
@@ -34,19 +34,19 @@ type TaskEntry = {
 export default function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
     const { employee: authEmployee } = useAuth();
     const [step, setStep] = useState(1);
-    
+
     // Step 1: Project Details
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [deadline, setDeadline] = useState('');
     const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-    
+
     // Step 2: Tasks
     const [tasks, setTasks] = useState<TaskEntry[]>([]);
     const [expandedTask, setExpandedTask] = useState<number | null>(0);
     const [newChecklistItem, setNewChecklistItem] = useState('');
-    
+
     // Helpers
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
@@ -198,7 +198,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
         <div className="wizard-overlay fade-in">
             <div className="wizard-card slide-up">
                 <div className="wizard-glow"></div>
-                
+
                 {/* Header */}
                 <div className="wizard-header">
                     <div>
@@ -218,20 +218,20 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
                 {/* Body */}
                 <div className="wizard-body custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '75vh' }}>
-                    
+
                     {/* ───── STEP 1: PROJECT DETAILS ───── */}
                     {step === 1 && (
                         <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                             <div className="wizard-field-group">
                                 <label className="wizard-label">Project Details</label>
-                                <input 
-                                    className="wizard-input" 
-                                    placeholder="Project name" 
+                                <input
+                                    className="wizard-input"
+                                    placeholder="Project name"
                                     value={name}
                                     autoFocus
                                     onChange={(e) => setName(e.target.value)}
                                 />
-                                <textarea 
+                                <textarea
                                     className="wizard-input"
                                     placeholder="Brief description of this project..."
                                     value={description}
@@ -251,7 +251,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                 </div>
                                 <div className="wizard-field-group">
                                     <label className="wizard-label"><Users size={12} style={{ marginRight: 6 }} /> Team Members</label>
-                                    <MultiMemberPicker 
+                                    <MultiMemberPicker
                                         selectedIds={selectedMemberIds}
                                         members={employees as any}
                                         onChange={setSelectedMemberIds}
@@ -275,7 +275,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                     {validTasks.length} task{validTasks.length !== 1 ? 's' : ''}
                                 </span>
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {tasks.map((t, idx) => {
                                     const isExpanded = expandedTask === idx;
@@ -288,7 +288,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                     return (
                                         <div key={idx} className={`wiz-task-card ${isExpanded ? 'expanded' : ''}`}>
                                             {/* Collapsed Header */}
-                                            <div 
+                                            <div
                                                 className="wiz-task-header"
                                                 onClick={() => setExpandedTask(isExpanded ? null : idx)}
                                             >
@@ -309,7 +309,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     {tasks.length > 1 && (
-                                                        <button 
+                                                        <button
                                                             className="wiz-task-remove"
                                                             onClick={(e) => { e.stopPropagation(); handleRemoveTask(idx); }}
                                                             type="button"
@@ -327,7 +327,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                     {/* Title */}
                                                     <div className="wiz-task-field">
                                                         <label className="wiz-task-label">Task Title</label>
-                                                        <input 
+                                                        <input
                                                             className="wizard-input"
                                                             placeholder="What needs to be done?"
                                                             value={t.title}
@@ -340,7 +340,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                     {/* Description */}
                                                     <div className="wiz-task-field">
                                                         <label className="wiz-task-label"><FileText size={11} /> Description</label>
-                                                        <MarkdownEditor 
+                                                        <MarkdownEditor
                                                             value={t.description}
                                                             onChange={(val) => updateTask(idx, { description: val })}
                                                             placeholder="Add task details, instructions, or scope..."
@@ -351,7 +351,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                                         <div className="wiz-task-field">
                                                             <label className="wiz-task-label"><Users size={11} /> Assign To</label>
-                                                            <MultiMemberPicker 
+                                                            <MultiMemberPicker
                                                                 selectedIds={t.assigneeIds}
                                                                 members={teamMembers as any}
                                                                 onChange={(ids) => updateTask(idx, { assigneeIds: ids })}
@@ -359,7 +359,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                         </div>
                                                         <div className="wiz-task-field">
                                                             <label className="wiz-task-label"><Calendar size={11} /> Due Date</label>
-                                                            <DatePicker 
+                                                            <DatePicker
                                                                 value={t.dueDate}
                                                                 onChange={(dt) => updateTask(idx, { dueDate: dt })}
                                                             />
@@ -371,7 +371,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                         <label className="wiz-task-label"><Flag size={11} /> Priority</label>
                                                         <div className="wiz-priority-group">
                                                             {(['LOW', 'MEDIUM', 'HIGH'] as const).map(p => (
-                                                                <button 
+                                                                <button
                                                                     key={p}
                                                                     type="button"
                                                                     className={`wiz-priority-btn ${p.toLowerCase()} ${t.priority === p ? 'active' : ''}`}
@@ -397,7 +397,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                                 </div>
                                                             ))}
                                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                                <Input 
+                                                                <Input
                                                                     placeholder="Add checklist item + Enter..."
                                                                     value={newChecklistItem}
                                                                     onChange={(e) => setNewChecklistItem(e.target.value)}
@@ -505,7 +505,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                         {assignedAvatars.length > 0 && (
                                                             <div style={{ display: 'flex' }}>
                                                                 {assignedAvatars.slice(0, 3).map((m, i) => (
-                                                                    <img 
+                                                                    <img
                                                                         key={m!.id}
                                                                         src={m!.profilePhoto || `https://ui-avatars.com/api/?name=${m!.firstName}&background=6366f1&color=fff&size=24`}
                                                                         alt={m!.firstName}
@@ -533,7 +533,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                         <div className="wiz-timeline-bar">
                                             {validTasks.map((t, idx) => (
                                                 t.dueDate && (
-                                                    <div 
+                                                    <div
                                                         key={idx}
                                                         className={`wiz-timeline-dot ${t.priority.toLowerCase()}`}
                                                         style={{ left: `${getTimelinePosition(t.dueDate)}%` }}
@@ -558,10 +558,10 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                 {/* Footer */}
                 <div className="wizard-footer">
                     {step > 1 ? (
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             size="lg"
-                            onClick={() => setStep(step - 1)} 
+                            onClick={() => setStep(step - 1)}
                             disabled={isSubmitting}
                         >
                             Back
@@ -572,8 +572,8 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
                     <div style={{ display: 'flex', gap: '12px' }}>
                         {step < 3 ? (
-                            <Button 
-                                variant="primary" 
+                            <Button
+                                variant="primary"
                                 size="lg"
                                 onClick={() => setStep(step + 1)}
                                 disabled={step === 1 && !name}
@@ -581,8 +581,8 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                 Next
                             </Button>
                         ) : (
-                            <Button 
-                                variant="primary" 
+                            <Button
+                                variant="primary"
                                 size="lg"
                                 onClick={handleFinalLaunch}
                                 disabled={isSubmitting}

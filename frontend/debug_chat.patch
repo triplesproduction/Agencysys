@@ -1,0 +1,124 @@
+--- src/app/messaging/page.tsx
++++ src/app/messaging/page.tsx
+@@ -131,6 +131,27 @@
+     const [dbReady, setDbReady] = useState(true);
+     const [dbProbeError, setDbProbeError] = useState<string | null>(null);
+     const [onlineUsers, setOnlineUsers] = useState<Record<string, any>>({});
+     const [lastSeenMap, setLastSeenMap] = useState<Record<string, string>>({});
++    
++    // DEBUG MODE TRACES
++    const [renderError, setRenderError] = useState<string | null>(null);
++    useEffect(() => {
++        logger.log('[Chat-Trace] activeConvId =', activeConvId);
++        logger.log('[Chat-Trace] messages loaded =', messages.length);
++        
++        // Inspect DOM
++        setTimeout(() => {
++            const mainEl = document.querySelector('.msg-main');
++            if (mainEl) {
++                const style = window.getComputedStyle(mainEl);
++                logger.log('[Chat-Trace] .msg-main exists:', !!mainEl);
++                logger.log('[Chat-Trace] .msg-main display:', style.display);
++                logger.log('[Chat-Trace] .msg-main visibility:', style.visibility);
++                logger.log('[Chat-Trace] .msg-main width/height:', style.width, style.height);
++            } else {
++                logger.log('[Chat-Trace] .msg-main missing from DOM');
++            }
++        }, 500);
++    }, [activeConvId, messages.length]);
+ 
+     const getPresenceStatus = (userId: string | undefined) => {
+@@ -936,44 +957,48 @@
+                                         <p>Say hello to {activeOtherUser?.firstName} 👋</p>
+                                     </div>
+                                 ) : (() => {
++                                    logger.log('[Chat-Trace] rendering chat panel');
+                                     const filteredMsgs = messages.filter(m => !messageSearchQuery || m.type !== 'text' || (m.content && m.content.toLowerCase().includes(messageSearchQuery.toLowerCase())));
+-                                    let lastDateStr = '';
+-                                    return filteredMsgs.map((msg, idx) => {
+-                                        const msgDate = new Date(msg.createdAt);
+-                                        const dateStr = msgDate.toLocaleDateString();
+-                                        const showDateSeparator = dateStr !== lastDateStr;
+-                                        lastDateStr = dateStr;
+-
+-                                        const isMine = String(msg.senderId) === String(myId);
+-                                        
+-                                        const prevMsg = filteredMsgs[idx - 1];
+-                                        const nextMsg = filteredMsgs[idx + 1];
+-                                        const isFirstInGroup = !prevMsg || prevMsg.senderId !== msg.senderId || new Date(prevMsg.createdAt).toLocaleDateString() !== dateStr;
+-                                        const isLastInGroup = !nextMsg || nextMsg.senderId !== msg.senderId || new Date(nextMsg.createdAt).toLocaleDateString() !== dateStr;
+-                                        
+-                                        let bubbleClass = isMine ? 'msg-bubble-sent' : 'msg-bubble-recv';
+-                                        if (isFirstInGroup && isLastInGroup) {
+-                                            bubbleClass += ' msg-bubble-single';
+-                                        } else if (isFirstInGroup) {
+-                                            bubbleClass += ' msg-bubble-first';
+-                                        } else if (isLastInGroup) {
+-                                            bubbleClass += ' msg-bubble-last';
+-                                        } else {
+-                                            bubbleClass += ' msg-bubble-middle';
+-                                        }
+-
+-                                        const showAvatar = isLastInGroup;
+-                                        
+-                                        const todayStr = new Date().toLocaleDateString();
+-                                        const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString();
+-                                        const displayDate = dateStr === todayStr ? 'Today' : dateStr === yesterdayStr ? 'Yesterday' : msgDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+-
+-                                        return (
+-                                            <React.Fragment key={msg.id}>
+-                                                {showDateSeparator && (
+-                                                    <div className="msg-date-separator">
+-                                                        <span>{displayDate}</span>
+-                                                    </div>
+-                                                )}
+-                                                <div className={`msg-row ${isMine ? 'sent' : 'received'} ${isFirstInGroup ? 'group-start' : ''} ${isLastInGroup ? 'group-end' : ''}`}>
++                                    
++                                    try {
++                                        // Validation pass
++                                        filteredMsgs.forEach(msg => {
++                                            if (!msg.createdAt) {
++                                                logger.log('[Chat-Trace] Invalid Date - Missing createdAt for msg:', msg.id);
++                                            } else {
++                                                const d = new Date(msg.createdAt);
++                                                if (isNaN(d.getTime())) {
++                                                    logger.log('[Chat-Trace] Invalid Date - isNaN for msg:', msg.id, msg.createdAt);
++                                                }
++                                            }
++                                        });
++
++                                        return filteredMsgs.map((msg, idx) => {
++                                            const isMine = String(msg.senderId) === String(myId);
++                                            
++                                            // DISABLE GROUPING FOR DEBUG MODE
++                                            const isFirstInGroup = true;
++                                            const isLastInGroup = true;
++                                            const showDateSeparator = false;
++                                            
++                                            let bubbleClass = isMine ? 'msg-bubble-sent msg-bubble-single' : 'msg-bubble-recv msg-bubble-single';
++                                            const showAvatar = isLastInGroup;
++
++                                            return (
++                                                <React.Fragment key={msg.id}>
++                                                    <div className={`msg-row ${isMine ? 'sent' : 'received'} group-start group-end`}>
+                                                     {!isMine && (
+                                                         <div className={`msg-mini-avatar ${showAvatar ? '' : 'invisible'}`}>
+@@ -992,10 +1017,14 @@
+                                                         </div>
+                                                         {isLastInGroup && (
+                                                             <div className={`msg-meta ${isMine ? 'msg-meta-sent' : ''}`}>
+-                                                                <span>{formatTime(msg.createdAt)}</span>
++                                                                <span>{msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown'}</span>
+                                                                 {isMine && <StatusTick status={msg.status} />}
+                                                             </div>
+                                                         )}
+                                                     </div>
+                                                 </div>
+                                             </React.Fragment>
+                                         );
+                                     });
++                                    } catch (err: any) {
++                                        logger.log('[Chat-Trace] Render Exception:', err.message);
++                                        return <div style={{ color: 'red', padding: '20px' }}>Render Exception: {err.message}</div>;
++                                    }
+                                 })()}

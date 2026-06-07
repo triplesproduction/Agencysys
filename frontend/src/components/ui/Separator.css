@@ -1,0 +1,14 @@
+.ui-separator {
+  flex-shrink: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ui-separator.orientation-horizontal {
+  height: 1px;
+  width: 100%;
+}
+
+.ui-separator.orientation-vertical {
+  height: 100%;
+  width: 1px;
+}

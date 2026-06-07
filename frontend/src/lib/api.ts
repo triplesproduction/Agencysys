@@ -275,6 +275,7 @@ export const api = {
         if (projectId) query = query.eq('projectId', projectId);
         
         const { data, error } = await query
+            .order('order_index', { ascending: true })
             .order('createdAt', { ascending: false })
             .limit(limit);
 
@@ -317,7 +318,7 @@ export const api = {
         }
 
         // Strict whitelist to prevent Supabase schema cache errors
-        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'projectId'];
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'projectId', 'order_index'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -349,7 +350,7 @@ export const api = {
         }
 
         // Strict whitelist to prevent Supabase schema cache errors
-        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'quality_rating', 'projectId'];
+        const whitelist = ['title', 'description', 'status', 'priority', 'assigneeId', 'assigneeIds', 'dueDate', 'attachments', 'creatorId', 'quality_rating', 'projectId', 'order_index'];
         const dbPayload: any = {};
         Object.keys(data).forEach(key => {
             if (whitelist.includes(key) && (data as any)[key] !== undefined) {
@@ -1028,6 +1029,14 @@ export const api = {
         }
         handleSupabaseEvent(null, error, 'File Upload');
         return { url: fileName };
+    },
+    deleteFile: async (fileName: string) => {
+        const { error } = await supabase.storage.from('private-docs').remove([fileName]);
+        if (error) {
+            logger.error('Delete', 'Failed private document delete:', { error: error.message, fileName });
+            throw new Error(error.message);
+        }
+        return { success: true };
     },
 
     /** Find or create a 1-to-1 conversation between two users */

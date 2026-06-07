@@ -1,0 +1,15 @@
+--- src/app/messaging/page.tsx
++++ src/app/messaging/page.tsx
+@@ -432,10 +432,12 @@
+     const openConversation = async (contact: any) => {
+         if (!myId || !dbReady) return;
+         try {
++            logger.log('[Chat-Trace] Clicking User:', contact.id);
+             const convId = await api.getOrCreateConversation(myId, String(contact.id));
++            logger.log('[Chat-Trace] Conversation ID resolved:', convId);
+             setActiveConvId(convId);
+             setActiveOtherUser(contact);
++            logger.log('[Chat-Trace] activeConvId updated to:', convId);
+             await loadConversations();
+         } catch (err: any) {
+             logger.error('Error', '[Chat] openConversation failed:', err.message);

@@ -42,7 +42,8 @@ import {
 import { KanbanColumn, SortableCard } from './KanbanComponents';
 import { useAuth } from '@/context/AuthContext';
 import { hasPermission, getResolvedRole } from '@/lib/permissions';
-import { useTasks, useUpdateTaskStatus } from '@/hooks/queries/domains/projects/useProjects';
+import { useTasks, useUpdateTaskStatus, useProjects } from '@/hooks/queries/domains/projects/useProjects';
+import { taskKeys } from '@/hooks/queries/domains/projects/keys';
 import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -88,18 +89,22 @@ export default function TasksPage() {
         { enabled: !!authEmployee }
     );
     const { data: employeesList, isLoading: employeesLoading } = useEmployees(undefined, { enabled: !!authEmployee });
+    const { data: projectsList } = useProjects(undefined, { enabled: !!authEmployee });
     const updateTaskStatusMutation = useUpdateTaskStatus();
 
     const loading = authLoading || tasksLoading || employeesLoading;
     const employees = employeesList || [];
+    const projects = projectsList || [];
 
     const tasks = useMemo(() => {
         return (rawTasks || []).map(task => {
             const assignedDocs = employees.filter(e => 
                 (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
             );
+            const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
             return {
                 ...task,
+                projectName: project?.name || null,
                 assignees: assignedDocs.length > 0 ? assignedDocs.map(e => ({
                     id: e.id,
                     firstName: e.firstName,
@@ -108,7 +113,7 @@ export default function TasksPage() {
                 })) : (task.assignee ? [task.assignee] : [])
             };
         });
-    }, [rawTasks, employees]);
+    }, [rawTasks, employees, projects]);
 
     // Derived State: Filtered Tasks
     const filteredTasks = useMemo(() => {
@@ -119,7 +124,7 @@ export default function TasksPage() {
                                  task.assigneeId === assigneeFilter || 
                                  (task.assigneeIds && task.assigneeIds.includes(assigneeFilter));
             return matchesSearch && matchesPriority && matchesMember;
-        });
+        }).sort((a, b) => ((a as any).order_index || 0) - ((b as any).order_index || 0));
         return filteredTasks;
     }, [tasks, searchQuery, priorityFilter, assigneeFilter]);
 
@@ -139,6 +144,7 @@ export default function TasksPage() {
 
         // Determine destination status
         let newStatus = activeTask.status;
+        let overTask = null;
         
         // If dropped over a column
         if (over.data.current?.type === 'Column') {
@@ -147,17 +153,69 @@ export default function TasksPage() {
         // If dropped over another task
         else if (over.data.current?.type === 'Task') {
             newStatus = over.data.current.task.status;
+            overTask = over.data.current.task;
         }
 
-        if (newStatus !== activeTask.status) {
-            updateTaskStatusMutation.mutate(
-                { id: active.id as string, status: newStatus },
-                {
-                    onError: (err: any) => {
-                        addNotification({ title: 'Move Failed', message: err.message || 'Status update failed.', type: 'error' });
+        const tasksInStatus = filteredTasks.filter(t => t.status === newStatus);
+
+        if (newStatus === activeTask.status) {
+            // Reorder within same column
+            const oldIndex = tasksInStatus.findIndex(t => t.id === active.id);
+            const newIndex = tasksInStatus.findIndex(t => t.id === over.id);
+            if (oldIndex !== newIndex && newIndex !== -1) {
+                const newTasks = arrayMove(tasksInStatus, oldIndex, newIndex);
+                // Optimistic cache update
+                queryClient.setQueriesData({ queryKey: taskKeys.all }, (old: any) => {
+                    if (!old) return old;
+                    return old.map((t: any) => {
+                        const idx = newTasks.findIndex(nt => nt.id === t.id);
+                        if (idx !== -1) return { ...t, order_index: idx * 1000 };
+                        return t;
+                    });
+                });
+                // Background update to DB
+                Promise.all(newTasks.map((t, index) => {
+                    if (((t as any).order_index || 0) !== index * 1000) {
+                        return api.updateTask(t.id, { order_index: index * 1000 } as any);
                     }
+                    return Promise.resolve();
+                })).then(() => {
+                    queryClient.invalidateQueries({ queryKey: taskKeys.all });
+                }).catch(console.error);
+            }
+        } else {
+            // Move to different column
+            let newIndex = overTask ? tasksInStatus.findIndex(t => t.id === overTask.id) : tasksInStatus.length;
+            if (newIndex === -1) newIndex = tasksInStatus.length;
+            
+            const newTasks = [...tasksInStatus];
+            newTasks.splice(newIndex, 0, activeTask);
+
+            // Optimistic cache update
+            queryClient.setQueriesData({ queryKey: taskKeys.all }, (old: any) => {
+                if (!old) return old;
+                return old.map((t: any) => {
+                    if (t.id === activeTask.id) return { ...t, status: newStatus, order_index: newIndex * 1000 };
+                    const idx = newTasks.findIndex(nt => nt.id === t.id);
+                    if (idx !== -1) return { ...t, order_index: idx * 1000 };
+                    return t;
+                });
+            });
+
+            // Background update to DB
+            Promise.all(newTasks.map((t, index) => {
+                if (t.id === activeTask.id) {
+                    return api.updateTask(t.id, { status: newStatus, order_index: index * 1000 } as any);
+                } else if (((t as any).order_index || 0) !== index * 1000) {
+                    return api.updateTask(t.id, { order_index: index * 1000 } as any);
                 }
-            );
+                return Promise.resolve();
+            })).then(() => {
+                queryClient.invalidateQueries({ queryKey: taskKeys.all });
+            }).catch((err: any) => {
+                addNotification({ title: 'Move Failed', message: err.message || 'Status update failed.', type: 'error' });
+                queryClient.invalidateQueries({ queryKey: taskKeys.all });
+            });
         }
     };
 

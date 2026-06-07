@@ -278,10 +278,16 @@
 
 .progress-bar-inner {
     height: 100%;
-    background: linear-gradient(90deg, #7C3AED, #A855F7);
+    background: linear-gradient(90deg, #7C3AED, #A855F7, #C084FC);
     border-radius: 10px;
-    box-shadow: 0 0 15px rgba(124, 58, 237, 0.3);
-    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+    transform-origin: left;
+    animation: progressSlide 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes progressSlide {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
 }
 
 /* Team Avatars */
