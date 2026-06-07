@@ -1376,7 +1376,8 @@ export const api = {
             members:project_members(
                 *,
                 user:employees!fk_project_members_user(id, firstName, lastName, profilePhoto)
-            )
+            ),
+            tasks:tasks(id, status)
         `);
         
         if (userId) {
