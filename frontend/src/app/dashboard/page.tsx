@@ -301,43 +301,80 @@ function AdminDashboard({
                     </div>
                 </div>
 
-                {/* Column 2: Tasks Requiring Action */}
-                <div className="ad2-col ad2-col-2">
-                    <div className="ad2-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
+                {/* Column 2: My Task Runway (Admin's own tasks) + Submitted Tasks */}
+                <div className="ad2-col ad2-col-2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Admin My Task Runway */}
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
+                            <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
+                        </div>
+                        {(() => {
+                            const now = new Date();
+                            const myTasks = taskList
+                                .filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED'
+                                    && (t.priority === 'HIGH' || t.priority === 'CRITICAL' || t.priority === 'MEDIUM')
+                                    && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
+                                )
+                                .sort((a: any, b: any) => {
+                                    const aOver = a.dueDate && new Date(a.dueDate) < now;
+                                    const bOver = b.dueDate && new Date(b.dueDate) < now;
+                                    if (aOver && !bOver) return -1;
+                                    if (!aOver && bOver) return 1;
+                                    const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
+                                    return (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                });
+                            return (
+                                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {myTasks.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>No high/medium priority tasks assigned to you.</div>
+                                    ) : myTasks.slice(0, 5).map((task: any) => {
+                                        const isOverdue = task.dueDate && new Date(task.dueDate) < now;
+                                        const pc: Record<string,string> = { HIGH: '#EF4444', CRITICAL: '#8B5CF6', MEDIUM: '#F59E0B' };
+                                        return (
+                                            <div key={task.id} style={{ padding: '10px 14px', borderRadius: '10px', background: isOverdue ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isOverdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
+                                                        {isOverdue && <span style={{ fontSize: '0.57rem', fontWeight: 800, color: '#EF4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>OVERDUE</span>}
+                                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '6px', fontSize: '0.68rem', alignItems: 'center' }}>
+                                                        <span style={{ color: pc[task.priority] || '#A78BFA', fontWeight: 800 }}>{task.priority}</span>
+                                                        {task.dueDate && <span style={{ color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
+                                                    </div>
+                                                </div>
+                                                <Link href={`/tasks/${task.id}`} className="ad2-circle-btn" style={{ flexShrink: 0 }}><ChevronRight size={12} /></Link>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </div>
+
+                    {/* Submitted Tasks needing action */}
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
                             <h3>Action Required: Submitted Tasks</h3>
                             <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
                         </div>
-                        <div className="ad2-calendar-grid custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_PROGRESS')).length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                                    <CheckSquare size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                                    <p>All clear! No tasks await your review right now.</p>
+                        <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {taskList.filter((t: any) => t && t.status === 'SUBMITTED').length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                                    <CheckSquare size={32} style={{ opacity: 0.1, marginBottom: '8px' }} />
+                                    <p>All clear — no tasks pending review.</p>
                                 </div>
                             ) : (
-                                taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_PROGRESS')).map((task: any) => {
+                                taskList.filter((t: any) => t && t.status === 'SUBMITTED').map((task: any) => {
                                     if (!task) return null;
-                                    const isSub = task.status === 'SUBMITTED';
                                     return (
-                                        <div key={task.id} style={{
-                                            background: isSub ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-                                            border: `1px solid ${isSub ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.05)'}`,
-                                            borderRadius: '8px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                        }}>
+                                        <div key={task.id} style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
-                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                    <span style={{ fontSize: '0.75rem', background: isSub ? '#3B82F622' : '#A78BFA22', color: isSub ? '#60A5FA' : '#A78BFA', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{task.status}</span>
-                                                    <TaskAssigneeStack assignees={task.assignees} />
-                                                </div>
+                                                <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
+                                                <TaskAssigneeStack assignees={task.assignees} />
                                             </div>
                                             <Link href={`/tasks/${task.id}`} style={{ textDecoration: 'none' }}>
-                                                <button style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'white', padding: '6px 14px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = 'var(--glass-bg)'}
-                                                >
-                                                    {isSub ? 'Review & Grade' : 'View Task'}
-                                                </button>
+                                                <button style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60A5FA', padding: '5px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}>Review</button>
                                             </Link>
                                         </div>
                                     );
@@ -516,36 +553,57 @@ function ManagerDashboard({
                     </div>
                 </div>
 
-                {/* Column 2: Team Management & Activity */}
+                {/* Column 2: My Task Runway (Manager's own tasks) */}
                 <div className="ad2-col ad2-col-2">
-                    {/* Team Tasks Oversight */}
-                    <div className="ad2-card" style={{ flex: 1 }}>
-                        <div className="ad2-card-header">
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <CheckSquare size={18} color="#A78BFA" /> Team Tasks Overview
+                                <Zap size={16} color="var(--purple-main)" /> My Task Runway
                             </h3>
                             <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {taskList.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>No active team tasks.</div>
-                            ) : (
-                                taskList.slice(0, 4).map((task: any) => (
-                                    <div key={task.id} style={{ padding: '12px 16px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ minWidth: 0 }}>
-                                            <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                                <TaskAssigneeStack assignees={task.assignees} />
-                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>• Due {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</span>
+                        {(() => {
+                            const now = new Date();
+                            const myTasks = taskList
+                                .filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED'
+                                    && (t.priority === 'HIGH' || t.priority === 'CRITICAL' || t.priority === 'MEDIUM')
+                                    && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
+                                )
+                                .sort((a: any, b: any) => {
+                                    const aOver = a.dueDate && new Date(a.dueDate) < now;
+                                    const bOver = b.dueDate && new Date(b.dueDate) < now;
+                                    if (aOver && !bOver) return -1;
+                                    if (!aOver && bOver) return 1;
+                                    const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
+                                    return (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                });
+                            return (
+                                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {myTasks.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No high/medium priority tasks assigned to you.</div>
+                                    ) : myTasks.slice(0, 8).map((task: any) => {
+                                        const isOverdue = task.dueDate && new Date(task.dueDate) < now;
+                                        const pc: Record<string,string> = { HIGH: '#EF4444', CRITICAL: '#8B5CF6', MEDIUM: '#F59E0B' };
+                                        return (
+                                            <div key={task.id} style={{ padding: '12px 14px', borderRadius: '10px', background: isOverdue ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isOverdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                                        {isOverdue && <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#EF4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>OVERDUE</span>}
+                                                        <div style={{ fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.7rem', alignItems: 'center' }}>
+                                                        <span style={{ color: pc[task.priority] || '#A78BFA', fontWeight: 800 }}>{task.priority}</span>
+                                                        {task.dueDate && <span style={{ color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
+                                                    </div>
+                                                </div>
+                                                <Link href={`/tasks/${task.id}`} className="ad2-circle-btn" style={{ flexShrink: 0 }}><ChevronRight size={12} /></Link>
                                             </div>
-                                        </div>
-                                        <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', color: '#A78BFA', border: '1px solid rgba(139, 92, 246, 0.2)', fontWeight: 700 }}>{task.status}</span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
                     </div>
-
                 </div>
 
                 {/* Column 3: Communication & Rules */}
@@ -661,34 +719,53 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                             <h3><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
                             <Link href="/tasks" className="ad2-badge-btn">View All</Link>
                         </div>
-                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-                            {pendingTasks.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-                                    <CheckSquare size={40} style={{ opacity: 0.1, marginBottom: '12px' }} />
-                                    <p style={{ fontSize: '0.9rem', fontWeight: 500 }}>No pending tasks.</p>
-                                </div>
-                            ) : (
-                                pendingTasks.slice(0, 10).map(task => {
-                                    const sc = statusStyle[task.status] || statusStyle.TODO;
-                                    const pc = priorityColor[task.priority] || '#6B7280';
-                                    return (
-                                        <div key={task.id} className="ad2-task-list-item" style={{ padding: '12px 16px', marginBottom: '8px' }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem', color: 'white' }}>{task.title}</h4>
-                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                    <span className="ad2-badge ad2-tag" style={{ background: sc.bg, color: sc.color, borderColor: 'transparent', padding: '2px 8px' }}>{task.status.replace('_', ' ')}</span>
-                                                    <span style={{ fontSize: '0.68rem', color: pc, fontWeight: 800 }}>{task.priority}</span>
-                                                    <div style={{ marginLeft: '4px' }}>
-                                                        <TaskAssigneeStack assignees={task.assignees} />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <Link href={`/tasks/${task.id}`} className="ad2-circle-btn"><ChevronRight size={14} /></Link>
+                        {(() => {
+                            const now = new Date();
+                            const runwayTasks = taskList
+                                .filter(t => t && t.status !== 'DONE' && t.status !== 'APPROVED' && (t.priority === 'HIGH' || t.priority === 'CRITICAL' || t.priority === 'MEDIUM'))
+                                .sort((a, b) => {
+                                    const aOverdue = a.dueDate && new Date(a.dueDate) < now;
+                                    const bOverdue = b.dueDate && new Date(b.dueDate) < now;
+                                    if (aOverdue && !bOverdue) return -1;
+                                    if (!aOverdue && bOverdue) return 1;
+                                    const priorityOrder: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+                                    const pDiff = (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
+                                    if (pDiff !== 0) return pDiff;
+                                    return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+                                });
+                            return (
+                                <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                                    {runwayTasks.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                                            <CheckSquare size={40} style={{ opacity: 0.1, marginBottom: '12px' }} />
+                                            <p style={{ fontSize: '0.9rem', fontWeight: 500 }}>No high/medium priority tasks.</p>
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
+                                    ) : (
+                                        runwayTasks.slice(0, 12).map(task => {
+                                            const sc = statusStyle[task.status] || statusStyle.TODO;
+                                            const pc = priorityColor[task.priority] || '#6B7280';
+                                            const isOverdue = task.dueDate && new Date(task.dueDate) < now && task.status !== 'DONE';
+                                            return (
+                                                <div key={task.id} className="ad2-task-list-item" style={{ padding: '12px 16px', marginBottom: '8px', borderColor: isOverdue ? 'rgba(239,68,68,0.25)' : undefined, background: isOverdue ? 'rgba(239,68,68,0.04)' : undefined }}>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                                            {isOverdue && <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#EF4444', background: 'rgba(239,68,68,0.1)', padding: '1px 6px', borderRadius: '4px', letterSpacing: '0.04em' }}>OVERDUE</span>}
+                                                            <h4 style={{ margin: 0, fontSize: '0.88rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                            <span className="ad2-badge ad2-tag" style={{ background: sc.bg, color: sc.color, borderColor: 'transparent', padding: '2px 8px' }}>{task.status.replace('_', ' ')}</span>
+                                                            <span style={{ fontSize: '0.68rem', color: pc, fontWeight: 800 }}>{task.priority}</span>
+                                                            {task.dueDate && <span style={{ fontSize: '0.65rem', color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <Link href={`/tasks/${task.id}`} className="ad2-circle-btn"><ChevronRight size={14} /></Link>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                     {employee && <KpiAuditLedger employeeId={employee.id} />}
                 </div>
