@@ -124,7 +124,13 @@ export default function TasksPage() {
                                  task.assigneeId === assigneeFilter || 
                                  (task.assigneeIds && task.assigneeIds.includes(assigneeFilter));
             return matchesSearch && matchesPriority && matchesMember;
-        }).sort((a, b) => ((a as any).order_index || 0) - ((b as any).order_index || 0));
+        }).sort((a, b) => {
+            const aOrder = (a as any).order_index || 0;
+            const bOrder = (b as any).order_index || 0;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            // Fallback to due date if order_index is the same (default)
+            return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+        });
         return filteredTasks;
     }, [tasks, searchQuery, priorityFilter, assigneeFilter]);
 
