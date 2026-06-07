@@ -322,7 +322,9 @@ function AdminDashboard({
                                     if (aOver && !bOver) return -1;
                                     if (!aOver && bOver) return 1;
                                     const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
-                                    return (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                    const pDiff = (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                    if (pDiff !== 0) return pDiff;
+                                    return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
                                 });
                             return (
                                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -575,7 +577,9 @@ function ManagerDashboard({
                                     if (aOver && !bOver) return -1;
                                     if (!aOver && bOver) return 1;
                                     const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
-                                    return (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                    const pDiff = (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                    if (pDiff !== 0) return pDiff;
+                                    return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
                                 });
                             return (
                                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
