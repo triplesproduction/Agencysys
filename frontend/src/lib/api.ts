@@ -270,7 +270,7 @@ export const api = {
     // Tasks
     getTasks: async (assigneeId?: string, status?: string, limit: number = 20, projectId?: string) => {
         let query = supabase.from('tasks').select('*, assignee:employees!assigneeId(id, firstName, lastName, profilePhoto)');
-        if (assigneeId) query = query.eq('assigneeId', assigneeId);
+        if (assigneeId) query = query.or(`assigneeId.eq.${assigneeId},assigneeIds.cs.{${assigneeId}}`);
         if (status) query = query.eq('status', status);
         if (projectId) query = query.eq('projectId', projectId);
         
