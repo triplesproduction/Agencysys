@@ -136,17 +136,17 @@ export default function BroadcastPage() {
                 icon={<MessageSquare size={28} style={{ color: 'var(--purple-main)' }} />}
                 subtitle={
                     <p className="subtitle" style={{ maxWidth: '650px' }}>
-                        Stay informed with the latest agency updates, urgent alerts, and system news. Use the filters below to browse through different categories.
+                        Latest agency updates, urgent alerts, and system news.
                     </p>
                 }
                 actions={
                     isAdmin && (
-                        <button 
+                        <Button 
+                            variant="primary"
                             onClick={() => setIsCreateModalOpen(true)} 
-                            className="page-action-btn-primary"
                         >
-                            <Plus size={18} /> Launch Announcement
-                        </button>
+                            <Plus size={18} /> New Announcement
+                        </Button>
                     )
                 }
             />
