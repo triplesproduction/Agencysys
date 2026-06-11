@@ -17,7 +17,12 @@ export default function LogsPage() {
     const [workHourLogs, setWorkHourLogs] = useState<WorkHourLogDTO[]>([]);
     const [adminEods, setAdminEods] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().substring(0, 7));
+    const now = new Date();
+    const [selectedMonthNum, setSelectedMonthNum] = useState(now.getMonth() + 1); // 1-12
+    const [selectedYear, setSelectedYear]         = useState(now.getFullYear());
+
+    // Derived: 'YYYY-MM' string used for API calls and labels
+    const selectedMonth = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`;
 
     const isAdmin = String(employee?.roleId || '').toUpperCase().includes('ADMIN');
 
@@ -127,10 +132,9 @@ export default function LogsPage() {
 
     // Derive human-readable month label for the selected month
     const selectedMonthLabel = useMemo(() => {
-        if (!selectedMonth) return '';
-        const [year, month] = selectedMonth.split('-');
-        return new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-    }, [selectedMonth]);
+        return new Date(selectedYear, selectedMonthNum - 1, 1)
+            .toLocaleString('default', { month: 'long', year: 'numeric' });
+    }, [selectedYear, selectedMonthNum]);
 
     if (loading && reports.length === 0 && adminEods.length === 0) {
         return (
@@ -158,14 +162,30 @@ export default function LogsPage() {
                 }
                 actions={
                     isAdmin ? (
-                        <div className="filter-group" style={{ alignItems: 'center' }}>
+                        <div className="filter-group" style={{ alignItems: 'center', gap: '8px' }}>
                             <Filter size={15} color="var(--text-secondary)" />
-                            <label style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Month</label>
-                            <input
-                                type="month"
-                                value={selectedMonth}
-                                onChange={(e) => setSelectedMonth(e.target.value)}
-                            />
+                            <select
+                                className="filter-select"
+                                value={selectedMonthNum}
+                                onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
+                                style={{ minWidth: '130px' }}
+                            >
+                                {['January','February','March','April','May','June',
+                                  'July','August','September','October','November','December'
+                                ].map((m, i) => (
+                                    <option key={i + 1} value={i + 1}>{m}</option>
+                                ))}
+                            </select>
+                            <select
+                                className="filter-select"
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                style={{ minWidth: '90px' }}
+                            >
+                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
                         </div>
                     ) : (
                         <div className="header-badge">
