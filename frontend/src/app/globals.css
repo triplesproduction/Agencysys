@@ -64,6 +64,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 /* Removed Ambient Glow Background */
 
 a {
