@@ -17,6 +17,7 @@ export default function LogsPage() {
     const [workHourLogs, setWorkHourLogs] = useState<WorkHourLogDTO[]>([]);
     const [adminEods, setAdminEods] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().substring(0, 7));
 
     const isAdmin = String(employee?.roleId || '').toUpperCase().includes('ADMIN');
 
@@ -32,9 +33,9 @@ export default function LogsPage() {
             ];
 
             if (isAdmin) {
-                const now = new Date();
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                const [year, month] = selectedMonth.split('-');
+                const startOfMonth = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString().split('T')[0];
+                const endOfMonth = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
                 promises.push(api.getAllEODs({ startDate: startOfMonth, endDate: endOfMonth, limit: 2000 }));
             }
 
@@ -50,7 +51,7 @@ export default function LogsPage() {
         } finally {
             setLoading(false);
         }
-    }, [employee?.id]);
+    }, [employee?.id, isAdmin, selectedMonth]);
 
     useEffect(() => {
         if (employee?.id) {
@@ -164,6 +165,24 @@ export default function LogsPage() {
                 }
             />
 
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
+                <input 
+                    type="month" 
+                    value={selectedMonth} 
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    style={{ 
+                        padding: '10px 16px', 
+                        borderRadius: '8px', 
+                        background: 'rgba(255,255,255,0.05)', 
+                        color: 'white', 
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        cursor: 'pointer'
+                    }}
+                />
+            </div>
+
             <div className="summary-cards">
                 <GlassCard className="summary-card">
                     <History className="card-icon-bg" size={120} />
@@ -250,6 +269,11 @@ export default function LogsPage() {
                 </div>
             )}
 
+            {isAdmin && (
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '40px 0 16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-main)' }}>
+                    <History size={20} /> My Personal Work Ledger
+                </h2>
+            )}
             <div className="timeline-container">
                 {reports.length === 0 ? (
                     <div className="empty-state">
