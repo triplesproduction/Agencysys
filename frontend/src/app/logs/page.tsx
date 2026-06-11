@@ -241,7 +241,6 @@ export default function LogsPage() {
             {/* Admin Agency Overview */}
             {isAdmin && (
                 <div className="admin-overview">
-                    </div>
 
                     <div className="admin-stat-cards">
                         <GlassCard className="admin-stat-card admin-stat-card--accent">
