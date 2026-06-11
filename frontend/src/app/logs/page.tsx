@@ -157,26 +157,27 @@ export default function LogsPage() {
                     )
                 }
                 actions={
-                    <div className="header-badge">
-                        <CheckCircle2 size={16} />
-                        <span>Synced with EOD Submissions</span>
-                    </div>
+                    isAdmin ? (
+                        <div className="logs-filter-bar">
+                            <Filter size={16} className="logs-filter-icon" />
+                            <label className="logs-filter-label">Month</label>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="logs-month-input"
+                            />
+                        </div>
+                    ) : (
+                        <div className="header-badge">
+                            <CheckCircle2 size={16} />
+                            <span>Synced with EOD Submissions</span>
+                        </div>
+                    )
                 }
             />
 
-            {/* Month Filter — Admin Only */}
-            {isAdmin && (
-                <div className="logs-filter-bar">
-                    <Filter size={16} className="logs-filter-icon" />
-                    <label className="logs-filter-label">Month</label>
-                    <input
-                        type="month"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="logs-month-input"
-                    />
-                </div>
-            )}
+
 
             {/* Employee Personal Cards */}
             {!isAdmin && (
