@@ -311,7 +311,6 @@ function AdminDashboard({
                             const now = new Date();
                             const myTasks = taskList
                                 .filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED'
-                                    && (t.priority === 'HIGH' || t.priority === 'CRITICAL' || t.priority === 'MEDIUM')
                                     && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
                                 )
                                 .sort((a: any, b: any) => {
@@ -358,13 +357,13 @@ function AdminDashboard({
                             <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
                         </div>
                         <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {taskList.filter((t: any) => t && t.status === 'SUBMITTED').length === 0 ? (
+                            {taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                                     <CheckSquare size={32} style={{ opacity: 0.1, marginBottom: '8px' }} />
                                     <p>All clear — no tasks pending review.</p>
                                 </div>
                             ) : (
-                                taskList.filter((t: any) => t && t.status === 'SUBMITTED').map((task: any) => {
+                                taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).map((task: any) => {
                                     if (!task) return null;
                                     return (
                                         <div key={task.id} style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
