@@ -356,7 +356,7 @@ function AdminDashboard({
                             <h3>Tasks for Review</h3>
                             <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
                         </div>
-                        <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '340px' }}>
                             {taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                                     <CheckSquare size={32} style={{ opacity: 0.1, marginBottom: '8px' }} />
