@@ -328,3 +328,235 @@
         gap: 8px;
     }
 }
+
+/* ─── Filter Bar ─────────────────────────────────────────── */
+.logs-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: -1rem; /* collapses gap with next section */
+}
+
+.logs-filter-icon {
+    color: var(--purple-main);
+    flex-shrink: 0;
+}
+
+.logs-filter-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.logs-month-input {
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    outline: none;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    color-scheme: dark;
+}
+
+.logs-month-input:hover,
+.logs-month-input:focus {
+    border-color: rgba(124, 58, 237, 0.5);
+    background: rgba(124, 58, 237, 0.08);
+}
+
+/* ─── Admin Overview ─────────────────────────────────────── */
+.admin-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.admin-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--purple-main);
+}
+
+.admin-section-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+}
+
+.admin-stat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+}
+
+.admin-stat-card {
+    padding: 1.5rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admin-stat-card--accent {
+    background: rgba(139, 92, 246, 0.07) !important;
+    border-color: rgba(139, 92, 246, 0.25) !important;
+}
+
+.admin-stat-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+}
+
+.admin-stat-value {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.admin-stat-unit {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* ─── Contribution Breakdown ─────────────────────────────── */
+.contribution-card {
+    padding: 1.75rem !important;
+}
+
+.contribution-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 1.25rem 0;
+    letter-spacing: -0.01em;
+}
+
+.contribution-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.contribution-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.contribution-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--purple-light);
+    font-size: 0.875rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.contribution-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.contribution-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.contribution-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.contribution-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contribution-nums {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.contribution-pct {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.contribution-hrs {
+    font-size: 0.875rem;
+    font-weight: 800;
+    color: var(--purple-light);
+}
+
+.contribution-bar-bg {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.contribution-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #8B5CF6, #3B82F6);
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Empty contribution state */
+.contribution-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.contribution-empty-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.contribution-empty-sub {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    margin: 0;
+}

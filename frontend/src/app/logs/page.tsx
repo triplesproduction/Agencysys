@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { EODSubmissionDTO, WorkHourLogDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
-import { Clock, Calendar, TrendingUp, History, Info, CheckCircle2 } from 'lucide-react';
+import { Clock, Calendar, TrendingUp, History, CheckCircle2, Filter } from 'lucide-react';
 import './Logs.css';
 
 export default function LogsPage() {
@@ -23,13 +23,12 @@ export default function LogsPage() {
 
     const loadData = useCallback(async () => {
         if (!employee?.id) return;
-        
+
         try {
             setLoading(true);
-            // Fetch both EOD reports and Work Hour logs for maximum sync accuracy
             const promises: Promise<any>[] = [
                 api.getMyEODs(employee.id),
-                api.getRecentWorkHours(employee.id, 60) // Fetch last 2 months of logs
+                api.getRecentWorkHours(employee.id, 60)
             ];
 
             if (isAdmin) {
@@ -40,7 +39,6 @@ export default function LogsPage() {
             }
 
             const results = await Promise.all(promises);
-            
             setReports(results[0] || []);
             setWorkHourLogs(results[1] || []);
             if (isAdmin && results[2]) {
@@ -62,36 +60,27 @@ export default function LogsPage() {
     // Helper to get synced hours for a specific date/report
     const getSyncedHours = useCallback((reportDate: string) => {
         const targetDate = new Date(reportDate).toDateString();
-        
-        // 1. Try to find the report for this date
         const report = reports.find(r => new Date(r.reportDate).toDateString() === targetDate);
         const reportHours = report?.workHours || (report as any)?.work_hours;
-        
         if (reportHours && reportHours > 0) return reportHours;
-
-        // 2. Fallback to work_hours table entries for this date
         const matchingLog = workHourLogs.find(l => new Date(l.date).toDateString() === targetDate);
         return matchingLog?.hoursLogged || (matchingLog as any)?.hours_logged || 0;
     }, [reports, workHourLogs]);
 
     const stats = useMemo(() => {
         const now = new Date();
-        
-        // Weekly Calculation (Current Week starting Sunday)
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
 
-        // Map all unique EOD dates to their synced hours
         const weeklyTotal = reports
             .filter(r => new Date(r.reportDate) >= startOfWeek)
             .reduce((acc, r) => acc + getSyncedHours(r.reportDate), 0);
 
-        // Monthly Calculation
         const monthlyTotal = reports
             .filter(r => {
                 const rDate = new Date(r.reportDate);
-                return rDate.getMonth() === new Date().getMonth() && rDate.getFullYear() === new Date().getFullYear();
+                return rDate.getMonth() === now.getMonth() && rDate.getFullYear() === now.getFullYear();
             })
             .reduce((acc, r) => acc + getSyncedHours(r.reportDate), 0);
 
@@ -99,11 +88,10 @@ export default function LogsPage() {
     }, [reports, getSyncedHours]);
 
     const adminStats = useMemo(() => {
-        if (!adminEods.length) return null;
-        
+        if (!isAdmin) return null;
+
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
-
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
@@ -111,15 +99,14 @@ export default function LogsPage() {
         let totalMonth = 0;
         let totalWeek = 0;
         let totalToday = 0;
-        
-        const employeeTotals: Record<string, { name: string, hours: number, avatar: string }> = {};
+
+        const employeeTotals: Record<string, { name: string, hours: number, avatar: string | null }> = {};
 
         adminEods.forEach(r => {
             const h = r.workHours || r.work_hours || 0;
             if (h <= 0) return;
 
             const rDate = new Date(r.reportDate);
-            
             totalMonth += h;
             if (rDate >= startOfWeek) totalWeek += h;
             if (r.reportDate.startsWith(todayStr)) totalToday += h;
@@ -135,11 +122,17 @@ export default function LogsPage() {
         });
 
         const contributors = Object.values(employeeTotals).sort((a, b) => b.hours - a.hours);
-
         return { totalMonth, totalWeek, totalToday, contributors };
-    }, [adminEods]);
+    }, [adminEods, isAdmin]);
 
-    if (loading && reports.length === 0) {
+    // Derive human-readable month label for the selected month
+    const selectedMonthLabel = useMemo(() => {
+        if (!selectedMonth) return '';
+        const [year, month] = selectedMonth.split('-');
+        return new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    }, [selectedMonth]);
+
+    if (loading && reports.length === 0 && adminEods.length === 0) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
@@ -152,10 +145,16 @@ export default function LogsPage() {
             <PageHeader
                 title="Work Ledger"
                 subtitle={
-                    <div className="stats-inline">
-                        <span><Clock size={16} /> {stats.weeklyTotal.toFixed(1)} hrs This Week</span>
-                        <span className="highlight"><History size={16} /> {stats.monthlyTotal.toFixed(1)} hrs This Month</span>
-                    </div>
+                    isAdmin ? (
+                        <div className="stats-inline">
+                            <span><TrendingUp size={16} /> Agency-wide hours view</span>
+                        </div>
+                    ) : (
+                        <div className="stats-inline">
+                            <span><Clock size={16} /> {stats.weeklyTotal.toFixed(1)} hrs This Week</span>
+                            <span className="highlight"><History size={16} /> {stats.monthlyTotal.toFixed(1)} hrs This Month</span>
+                        </div>
+                    )
                 }
                 actions={
                     <div className="header-badge">
@@ -165,175 +164,199 @@ export default function LogsPage() {
                 }
             />
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
-                <input 
-                    type="month" 
-                    value={selectedMonth} 
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    style={{ 
-                        padding: '10px 16px', 
-                        borderRadius: '8px', 
-                        background: 'rgba(255,255,255,0.05)', 
-                        color: 'white', 
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        outline: 'none',
-                        fontFamily: 'inherit',
-                        cursor: 'pointer'
-                    }}
-                />
-            </div>
+            {/* Month Filter — Admin Only */}
+            {isAdmin && (
+                <div className="logs-filter-bar">
+                    <Filter size={16} className="logs-filter-icon" />
+                    <label className="logs-filter-label">Month</label>
+                    <input
+                        type="month"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="logs-month-input"
+                    />
+                </div>
+            )}
 
-            <div className="summary-cards">
-                <GlassCard className="summary-card">
-                    <History className="card-icon-bg" size={120} />
-                    <div className="card-content">
-                        <div className="card-label">
-                            <Clock size={14} /> Weekly Progress
+            {/* Employee Personal Cards */}
+            {!isAdmin && (
+                <div className="summary-cards">
+                    <GlassCard className="summary-card">
+                        <History className="card-icon-bg" size={120} />
+                        <div className="card-content">
+                            <div className="card-label">
+                                <Clock size={14} /> Weekly Progress
+                            </div>
+                            <div className="card-value">
+                                {stats.weeklyTotal.toFixed(1)} <span className="card-unit">hrs</span>
+                            </div>
+                            <div className="card-footer">
+                                <span className="trend-neu">This Week's Activity</span>
+                                <span className={stats.weeklyTotal >= 40 ? 'trend-pos' : ''}>
+                                    {Math.min(100, Math.round((stats.weeklyTotal / 45) * 100))}% Capacity
+                                </span>
+                            </div>
                         </div>
-                        <div className="card-value">
-                            {stats.weeklyTotal.toFixed(1)} <span className="card-unit">hrs</span>
-                        </div>
-                        <div className="card-footer">
-                            <span className="trend-neu">This Week's Activity</span>
-                            <span className={stats.weeklyTotal >= 40 ? 'trend-pos' : ''}>
-                                {Math.min(100, Math.round((stats.weeklyTotal / 45) * 100))}% Capacity
-                            </span>
-                        </div>
-                    </div>
-                </GlassCard>
+                    </GlassCard>
 
-                <GlassCard className="summary-card">
-                    <TrendingUp className="card-icon-bg" size={120} />
-                    <div className="card-content">
-                        <div className="card-label">
-                            <Calendar size={14} /> Monthly Utilization
-                        </div>
-                        <div className="card-value">
-                            {stats.monthlyTotal.toFixed(1)} <span className="card-unit">hrs</span>
-                        </div>
-                        <div className="card-footer">
-                            <span className="trend-neu">Total Hours in {new Date().toLocaleString('default', { month: 'long' })}</span>
-                            <span className="trend-pos">Active Cycle</span>
-                        </div>
-                    </div>
-                </GlassCard>
-            </div>
-
-            {isAdmin && adminStats && (
-                <div style={{ marginBottom: '40px' }}>
-                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-main)' }}>
-                        <TrendingUp size={20} /> Agency Overview (This Month)
-                    </h2>
-                    <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '24px' }}>
-                        <GlassCard style={{ flex: '1 1 200px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>Total Month Hours</div>
-                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>{adminStats.totalMonth.toFixed(1)}<span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>hrs</span></div>
-                        </GlassCard>
-                        <GlassCard style={{ flex: '1 1 200px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>This Week</div>
-                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>{adminStats.totalWeek.toFixed(1)}<span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>hrs</span></div>
-                        </GlassCard>
-                        <GlassCard style={{ flex: '1 1 200px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>Today</div>
-                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>{adminStats.totalToday.toFixed(1)}<span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>hrs</span></div>
-                        </GlassCard>
-                    </div>
-
-                    <GlassCard style={{ padding: '24px' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '20px', color: 'white' }}>Contribution Breakdown</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {adminStats.contributors.map((c, i) => {
-                                const percentage = adminStats.totalMonth > 0 ? (c.hours / adminStats.totalMonth) * 100 : 0;
-                                return (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,92,246,0.2)', color: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0, overflow: 'hidden' }}>
-                                            {c.avatar ? <img src={c.avatar} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.name.charAt(0)}
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.85rem' }}>
-                                                <span style={{ fontWeight: 600, color: 'white' }}>{c.name}</span>
-                                                <div style={{ display: 'flex', gap: '12px' }}>
-                                                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>{percentage.toFixed(1)}%</span>
-                                                    <span style={{ color: 'var(--purple-main)', fontWeight: 800 }}>{c.hours.toFixed(1)} hrs</span>
-                                                </div>
-                                            </div>
-                                            <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                                                <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #8B5CF6, #3B82F6)', borderRadius: '4px' }} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                    <GlassCard className="summary-card">
+                        <TrendingUp className="card-icon-bg" size={120} />
+                        <div className="card-content">
+                            <div className="card-label">
+                                <Calendar size={14} /> Monthly Utilization
+                            </div>
+                            <div className="card-value">
+                                {stats.monthlyTotal.toFixed(1)} <span className="card-unit">hrs</span>
+                            </div>
+                            <div className="card-footer">
+                                <span className="trend-neu">Total Hours in {new Date().toLocaleString('default', { month: 'long' })}</span>
+                                <span className="trend-pos">Active Cycle</span>
+                            </div>
                         </div>
                     </GlassCard>
                 </div>
             )}
 
+            {/* Admin Agency Overview */}
             {isAdmin && (
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '40px 0 16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-main)' }}>
-                    <History size={20} /> My Personal Work Ledger
-                </h2>
-            )}
-            <div className="timeline-container">
-                {reports.length === 0 ? (
-                    <div className="empty-state">
-                        <Clock className="empty-icon" />
-                        <p>No EOD activity detected for this cycle.</p>
-                        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>Hours will appear here after you submit your daily EOD report.</p>
+                <div className="admin-overview">
+                    <div className="admin-section-header">
+                        <TrendingUp size={20} />
+                        <h2 className="admin-section-title">Agency Overview — {selectedMonthLabel}</h2>
                     </div>
-                ) : (
-                    reports.map((report, index) => {
-                        const tasks = Array.isArray(report.tasksCompleted) ? report.tasksCompleted : [];
-                        const status = (report.status || 'SUBMITTED').toLowerCase();
-                        const syncedHours = getSyncedHours(report.reportDate);
-                        
-                        // Only show reports that actually have some time attached
-                        if (syncedHours === 0 && tasks.length === 0) return null;
 
-                        return (
-                            <div 
-                                key={report.id} 
-                                className="timeline-item"
-                                style={{ animationDelay: `${index * 0.1}s` }}
-                            >
-                                <div className="timeline-node" />
-                                <div className="timeline-card">
-                                    <div className="timeline-card-header">
-                                        <div className="timeline-date">
-                                            <span className="date-text">
-                                                {new Date(report.reportDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            </span>
-                                            <span className="time-text">
-                                                {report.submittedAt ? `Report Filed ${new Date(report.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Daily Status'}
-                                            </span>
+                    <div className="admin-stat-cards">
+                        <GlassCard className="admin-stat-card admin-stat-card--accent">
+                            <div className="admin-stat-label">Total Month Hours</div>
+                            <div className="admin-stat-value">
+                                {adminStats?.totalMonth.toFixed(1) ?? '—'}
+                                <span className="admin-stat-unit">hrs</span>
+                            </div>
+                        </GlassCard>
+                        <GlassCard className="admin-stat-card">
+                            <div className="admin-stat-label">This Week</div>
+                            <div className="admin-stat-value">
+                                {adminStats?.totalWeek.toFixed(1) ?? '—'}
+                                <span className="admin-stat-unit">hrs</span>
+                            </div>
+                        </GlassCard>
+                        <GlassCard className="admin-stat-card">
+                            <div className="admin-stat-label">Today</div>
+                            <div className="admin-stat-value">
+                                {adminStats?.totalToday.toFixed(1) ?? '—'}
+                                <span className="admin-stat-unit">hrs</span>
+                            </div>
+                        </GlassCard>
+                    </div>
+
+                    {/* Contribution Breakdown */}
+                    <GlassCard className="contribution-card">
+                        <h3 className="contribution-title">Contribution Breakdown</h3>
+                        {(!adminStats || adminStats.contributors.length === 0) ? (
+                            <div className="contribution-empty">
+                                <Clock size={32} style={{ opacity: 0.2 }} />
+                                <p className="contribution-empty-text">No EOD data for {selectedMonthLabel}.</p>
+                                <p className="contribution-empty-sub">Try selecting a different month using the filter above.</p>
+                            </div>
+                        ) : (
+                            <div className="contribution-list">
+                                {adminStats.contributors.map((c, i) => {
+                                    const percentage = adminStats.totalMonth > 0
+                                        ? (c.hours / adminStats.totalMonth) * 100
+                                        : 0;
+                                    return (
+                                        <div key={i} className="contribution-row">
+                                            <div className="contribution-avatar">
+                                                {c.avatar
+                                                    ? <img src={c.avatar} alt={c.name} />
+                                                    : c.name.charAt(0)}
+                                            </div>
+                                            <div className="contribution-info">
+                                                <div className="contribution-meta">
+                                                    <span className="contribution-name">{c.name}</span>
+                                                    <div className="contribution-nums">
+                                                        <span className="contribution-pct">{percentage.toFixed(1)}%</span>
+                                                        <span className="contribution-hrs">{c.hours.toFixed(1)} hrs</span>
+                                                    </div>
+                                                </div>
+                                                <div className="contribution-bar-bg">
+                                                    <div
+                                                        className="contribution-bar-fill"
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className={`timeline-status ${status}`}>
-                                            {status}
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </GlassCard>
+                </div>
+            )}
+
+            {/* Employee Timeline — not shown for admin */}
+            {!isAdmin && (
+                <div className="timeline-container">
+                    {reports.length === 0 ? (
+                        <div className="empty-state">
+                            <Clock className="empty-icon" />
+                            <p>No EOD activity detected for this cycle.</p>
+                            <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>Hours will appear here after you submit your daily EOD report.</p>
+                        </div>
+                    ) : (
+                        reports.map((report, index) => {
+                            const tasks = Array.isArray(report.tasksCompleted) ? report.tasksCompleted : [];
+                            const status = (report.status || 'SUBMITTED').toLowerCase();
+                            const syncedHours = getSyncedHours(report.reportDate);
+
+                            if (syncedHours === 0 && tasks.length === 0) return null;
+
+                            return (
+                                <div
+                                    key={report.id}
+                                    className="timeline-item"
+                                    style={{ animationDelay: `${index * 0.1}s` }}
+                                >
+                                    <div className="timeline-node" />
+                                    <div className="timeline-card">
+                                        <div className="timeline-card-header">
+                                            <div className="timeline-date">
+                                                <span className="date-text">
+                                                    {new Date(report.reportDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
+                                                <span className="time-text">
+                                                    {report.submittedAt ? `Report Filed ${new Date(report.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Daily Status'}
+                                                </span>
+                                            </div>
+                                            <div className={`timeline-status ${status}`}>
+                                                {status}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="timeline-card-body">
-                                        <div className="timeline-tasks">
-                                            {tasks.length > 0 ? (
-                                                <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: 0 }}>
-                                                    {tasks.map((task, i) => (
-                                                        <li key={i}>{task}</li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <p style={{ margin: 0, opacity: 0.6 }}>Daily operational tasks.</p>
-                                            )}
-                                        </div>
-                                        <div className="timeline-hours">
-                                            <span className="hours-value">{syncedHours.toFixed(1)}</span>
-                                            <span className="hours-label">Hours Logged</span>
+                                        <div className="timeline-card-body">
+                                            <div className="timeline-tasks">
+                                                {tasks.length > 0 ? (
+                                                    <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: 0 }}>
+                                                        {tasks.map((task, i) => (
+                                                            <li key={i}>{task}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p style={{ margin: 0, opacity: 0.6 }}>Daily operational tasks.</p>
+                                                )}
+                                            </div>
+                                            <div className="timeline-hours">
+                                                <span className="hours-value">{syncedHours.toFixed(1)}</span>
+                                                <span className="hours-label">Hours Logged</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })
-                )}
-            </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
         </div>
     );
 }
