@@ -7,6 +7,56 @@
     padding-bottom: 4rem;
 }
 
+/* Toolbar / Filter Pills — matching Tasks page pattern */
+.logs-page .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logs-page .filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 0 16px;
+    height: 44px;
+    transition: all 0.2s ease;
+}
+
+.logs-page .filter-pill:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+}
+
+.logs-page .filter-pill select {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    padding-right: 24px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    color-scheme: dark;
+}
+
+.logs-page .filter-pill select option {
+    background: #121218;
+    color: white;
+    padding: 12px;
+}
+
+
 /* Header Area */
 .header-left {
     flex: 1;

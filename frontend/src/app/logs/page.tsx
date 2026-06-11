@@ -162,30 +162,31 @@ export default function LogsPage() {
                 }
                 actions={
                     isAdmin ? (
-                        <div className="filter-group" style={{ alignItems: 'center', gap: '8px' }}>
-                            <Filter size={15} color="var(--text-secondary)" />
-                            <select
-                                className="filter-select"
-                                value={selectedMonthNum}
-                                onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
-                                style={{ minWidth: '130px' }}
-                            >
-                                {['January','February','March','April','May','June',
-                                  'July','August','September','October','November','December'
-                                ].map((m, i) => (
-                                    <option key={i + 1} value={i + 1}>{m}</option>
-                                ))}
-                            </select>
-                            <select
-                                className="filter-select"
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                style={{ minWidth: '90px' }}
-                            >
-                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                                    <option key={y} value={y}>{y}</option>
-                                ))}
-                            </select>
+                        <div className="toolbar-actions">
+                            <div className="filter-pill">
+                                <Calendar size={16} color="rgba(255,255,255,0.6)" />
+                                <select
+                                    value={selectedMonthNum}
+                                    onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
+                                >
+                                    {['January','February','March','April','May','June',
+                                      'July','August','September','October','November','December'
+                                    ].map((m, i) => (
+                                        <option key={i + 1} value={i + 1}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-pill">
+                                <Filter size={16} color="rgba(255,255,255,0.6)" />
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                >
+                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     ) : (
                         <div className="header-badge">
@@ -240,9 +241,6 @@ export default function LogsPage() {
             {/* Admin Agency Overview */}
             {isAdmin && (
                 <div className="admin-overview">
-                    <div className="admin-section-header">
-                        <TrendingUp size={20} />
-                        <h2 className="admin-section-title">Agency Overview — {selectedMonthLabel}</h2>
                     </div>
 
                     <div className="admin-stat-cards">
