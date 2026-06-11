@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { EODSubmissionDTO, WorkHourLogDTO } from '@/types/dto';
 import { useAuth } from '@/context/AuthContext';
-import { Clock, Calendar, TrendingUp, History, CheckCircle2, Filter } from 'lucide-react';
+import { Clock, Calendar, TrendingUp, History, CheckCircle2, Filter, ChevronDown } from 'lucide-react';
 import './Logs.css';
 
 export default function LogsPage() {
@@ -20,6 +20,10 @@ export default function LogsPage() {
     const now = new Date();
     const [selectedMonthNum, setSelectedMonthNum] = useState(now.getMonth() + 1); // 1-12
     const [selectedYear, setSelectedYear]         = useState(now.getFullYear());
+    
+    // Custom dropdown states
+    const [isMonthOpen, setIsMonthOpen] = useState(false);
+    const [isYearOpen, setIsYearOpen] = useState(false);
 
     // Derived: 'YYYY-MM' string used for API calls and labels
     const selectedMonth = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`;
@@ -161,42 +165,97 @@ export default function LogsPage() {
                     )
                 }
                 actions={
-                    <div className="header-badge">
-                        <CheckCircle2 size={16} />
-                        <span>Synced with EOD Submissions</span>
-                    </div>
+                    isAdmin ? (
+                        <div className="toolbar-actions">
+                            <div 
+                                className="filter-pill" 
+                                style={{ position: 'relative', cursor: 'pointer', minWidth: '140px', display: 'flex', justifyContent: 'space-between' }}
+                                onClick={() => { setIsMonthOpen(!isMonthOpen); setIsYearOpen(false); }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Calendar size={16} color="rgba(255,255,255,0.6)" />
+                                    <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                        {['January','February','March','April','May','June','July','August','September','October','November','December'][selectedMonthNum - 1]}
+                                    </span>
+                                </div>
+                                <ChevronDown size={14} color="rgba(255,255,255,0.5)" />
+                                
+                                {isMonthOpen && (
+                                    <div style={{
+                                        position: 'absolute', top: 'calc(100% + 8px)', left: 0, 
+                                        background: '#121218', border: '1px solid rgba(255,255,255,0.1)', 
+                                        borderRadius: '12px', padding: '8px 0', zIndex: 100, 
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)', width: '100%',
+                                        maxHeight: '300px', overflowY: 'auto'
+                                    }}>
+                                        {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                                            <div 
+                                                key={i+1}
+                                                onClick={(e) => { e.stopPropagation(); setSelectedMonthNum(i+1); setIsMonthOpen(false); }}
+                                                style={{ 
+                                                    padding: '10px 16px', fontSize: '0.85rem', color: selectedMonthNum === i+1 ? 'var(--purple-main)' : 'white',
+                                                    background: selectedMonthNum === i+1 ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+                                                    cursor: 'pointer', transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => { if (selectedMonthNum !== i+1) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                                                onMouseLeave={(e) => { if (selectedMonthNum !== i+1) e.currentTarget.style.background = 'transparent' }}
+                                            >
+                                                {m}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div 
+                                className="filter-pill" 
+                                style={{ position: 'relative', cursor: 'pointer', minWidth: '100px', display: 'flex', justifyContent: 'space-between' }}
+                                onClick={() => { setIsYearOpen(!isYearOpen); setIsMonthOpen(false); }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Filter size={16} color="rgba(255,255,255,0.6)" />
+                                    <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                        {selectedYear}
+                                    </span>
+                                </div>
+                                <ChevronDown size={14} color="rgba(255,255,255,0.5)" />
+
+                                {isYearOpen && (
+                                    <div style={{
+                                        position: 'absolute', top: 'calc(100% + 8px)', left: 0, 
+                                        background: '#121218', border: '1px solid rgba(255,255,255,0.1)', 
+                                        borderRadius: '12px', padding: '8px 0', zIndex: 100, 
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)', width: '100%',
+                                        maxHeight: '300px', overflowY: 'auto'
+                                    }}>
+                                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                            <div 
+                                                key={y}
+                                                onClick={(e) => { e.stopPropagation(); setSelectedYear(y); setIsYearOpen(false); }}
+                                                style={{ 
+                                                    padding: '10px 16px', fontSize: '0.85rem', color: selectedYear === y ? 'var(--purple-main)' : 'white',
+                                                    background: selectedYear === y ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+                                                    cursor: 'pointer', transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => { if (selectedYear !== y) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                                                onMouseLeave={(e) => { if (selectedYear !== y) e.currentTarget.style.background = 'transparent' }}
+                                            >
+                                                {y}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="header-badge">
+                            <CheckCircle2 size={16} />
+                            <span>Synced with EOD Submissions</span>
+                        </div>
+                    )
                 }
             />
 
-            {/* Standalone filter bar — Admin only, placed below header so dropdown opens downward */}
-            {isAdmin && (
-                <div className="toolbar-actions" style={{ marginTop: '-1rem' }}>
-                    <div className="filter-pill">
-                        <Calendar size={16} color="rgba(255,255,255,0.6)" />
-                        <select
-                            value={selectedMonthNum}
-                            onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
-                        >
-                            {['January','February','March','April','May','June',
-                              'July','August','September','October','November','December'
-                            ].map((m, i) => (
-                                <option key={i + 1} value={i + 1}>{m}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="filter-pill">
-                        <Filter size={16} color="rgba(255,255,255,0.6)" />
-                        <select
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        >
-                            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            )}
 
             {/* Employee Personal Cards */}
             {!isAdmin && (
