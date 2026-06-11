@@ -152,21 +152,21 @@ function AdminDashboard({
         <div className="admin-dash-v2 admin-scrollable-layout fade-in">
 
             {/* Quick Stats */}
-            <div className="quick-stats" style={{ marginTop: '24px', marginBottom: '24px', display: 'flex', gap: '16px' }}>
-                <div className="ad2-card" style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px' }}>
+            <div className="quick-stats" style={{ marginTop: '24px', marginBottom: '24px' }}>
+                <div className="ad2-card" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Headcount</div>
                     <div style={{ fontSize: '2rem', fontWeight: 700, color: 'white', lineHeight: 1 }}>{totalEmployees || '...'}</div>
                 </div>
-                <div className="ad2-card" style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px' }}>
+                <div className="ad2-card" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Tasks</div>
                     <div style={{ fontSize: '2rem', fontWeight: 700, color: 'white', lineHeight: 1 }}>{activeTasksCount || '0'}</div>
                 </div>
-                <div className="ad2-card" style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px' }}>
+                <div className="ad2-card" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending Approval</div>
                     <div style={{ fontSize: '2rem', fontWeight: 700, color: 'white', lineHeight: 1 }}>{(tasks || []).filter(t => t && t.status === 'SUBMITTED').length}</div>
                 </div>
-                <Link href="/kpis" style={{ textDecoration: 'none', flex: 1, display: 'flex' }}>
-                    <div className="ad2-card" style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px', background: 'linear-gradient(135deg, rgba(30, 20, 45, 0.95), rgba(15, 10, 25, 0.95))', border: '1px solid rgba(124, 58, 237, 0.4)', boxShadow: '0 4px 20px rgba(124,58,237,0.15)' }}>
+                <Link href="/kpis" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+                    <div className="ad2-card" style={{ height: '100%', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start', justifyContent: 'center', minHeight: '100px', background: 'linear-gradient(135deg, rgba(30, 20, 45, 0.95), rgba(15, 10, 25, 0.95))', border: '1px solid rgba(124, 58, 237, 0.4)', boxShadow: '0 4px 20px rgba(124,58,237,0.15)' }}>
                         <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Team Score</div>
                         <div style={{ fontSize: '2rem', fontWeight: 800, color: 'white', lineHeight: 1, textShadow: '0 0 15px rgba(124, 58, 237, 0.4)' }}>{avgTeamScore}/100</div>
                     </div>
