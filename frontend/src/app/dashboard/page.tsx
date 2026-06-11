@@ -889,7 +889,7 @@ export default function DashboardPage() {
                     // Admin needs: tasks, employees (limit 100), recent EODs, KPI profiles, and KPI audit logs.
                     // Total employees count is retrieved directly from employeesPromise total count.
                     const [tasksRes, employeesRes, eodsRes, kpiProfilesRes, kpiAuditLogsRes] = await Promise.allSettled([
-                        api.getTasks(undefined, undefined, 7),
+                        api.getTasks(undefined, undefined, 100),
                         api.getEmployees({ limit: 100 }),
                         api.getAllEODs({ limit: 12 }),
                         api.getAllKpiProfiles(undefined, 100),
@@ -908,7 +908,7 @@ export default function DashboardPage() {
                 } else if (activeRole === 'MANAGER') {
                     // Manager needs: tasks, employees (limit 100), monthly hours, recent EODs, KPI profiles, and KPI audit logs.
                     const [tasksRes, employeesRes, monthlyHoursRes, eodsRes, kpiProfilesRes, kpiAuditLogsRes] = await Promise.allSettled([
-                        api.getTasks(undefined, undefined, 15),
+                        api.getTasks(undefined, undefined, 100),
                         api.getEmployees({ limit: 100 }),
                         api.getMonthlyWorkHours(activeEmpId),
                         api.getAllEODs({ limit: 10 }),
