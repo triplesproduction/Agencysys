@@ -15,7 +15,10 @@ export default function LogsPage() {
     const { employee } = useAuth();
     const [reports, setReports] = useState<EODSubmissionDTO[]>([]);
     const [workHourLogs, setWorkHourLogs] = useState<WorkHourLogDTO[]>([]);
+    const [adminEods, setAdminEods] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const isAdmin = String(employee?.roleId || '').toUpperCase().includes('ADMIN');
 
     const loadData = useCallback(async () => {
         if (!employee?.id) return;
@@ -23,13 +26,25 @@ export default function LogsPage() {
         try {
             setLoading(true);
             // Fetch both EOD reports and Work Hour logs for maximum sync accuracy
-            const [eodData, hourData] = await Promise.all([
+            const promises: Promise<any>[] = [
                 api.getMyEODs(employee.id),
                 api.getRecentWorkHours(employee.id, 60) // Fetch last 2 months of logs
-            ]);
+            ];
+
+            if (isAdmin) {
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                promises.push(api.getAllEODs({ startDate: startOfMonth, endDate: endOfMonth, limit: 2000 }));
+            }
+
+            const results = await Promise.all(promises);
             
-            setReports(eodData || []);
-            setWorkHourLogs(hourData || []);
+            setReports(results[0] || []);
+            setWorkHourLogs(results[1] || []);
+            if (isAdmin && results[2]) {
+                setAdminEods(results[2]);
+            }
         } catch (err) {
             logger.error('Error', 'Failed to load logs:', err);
         } finally {
@@ -81,6 +96,47 @@ export default function LogsPage() {
 
         return { weeklyTotal, monthlyTotal };
     }, [reports, getSyncedHours]);
+
+    const adminStats = useMemo(() => {
+        if (!adminEods.length) return null;
+        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        let totalMonth = 0;
+        let totalWeek = 0;
+        let totalToday = 0;
+        
+        const employeeTotals: Record<string, { name: string, hours: number, avatar: string }> = {};
+
+        adminEods.forEach(r => {
+            const h = r.workHours || r.work_hours || 0;
+            if (h <= 0) return;
+
+            const rDate = new Date(r.reportDate);
+            
+            totalMonth += h;
+            if (rDate >= startOfWeek) totalWeek += h;
+            if (r.reportDate.startsWith(todayStr)) totalToday += h;
+
+            const empId = r.employeeId || r.employee_id;
+            const empName = r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Unknown Employee';
+            const empAvatar = r.employee?.profilePhoto || null;
+
+            if (!employeeTotals[empId]) {
+                employeeTotals[empId] = { name: empName, hours: 0, avatar: empAvatar };
+            }
+            employeeTotals[empId].hours += h;
+        });
+
+        const contributors = Object.values(employeeTotals).sort((a, b) => b.hours - a.hours);
+
+        return { totalMonth, totalWeek, totalToday, contributors };
+    }, [adminEods]);
 
     if (loading && reports.length === 0) {
         return (
@@ -143,6 +199,56 @@ export default function LogsPage() {
                     </div>
                 </GlassCard>
             </div>
+
+            {isAdmin && adminStats && (
+                <div style={{ marginBottom: '40px' }}>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--purple-main)' }}>
+                        <TrendingUp size={20} /> Agency Overview (This Month)
+                    </h2>
+                    <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '24px' }}>
+                        <GlassCard style={{ flex: '1 1 200px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>Total Month Hours</div>
+                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>{adminStats.totalMonth.toFixed(1)}<span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>hrs</span></div>
+                        </GlassCard>
+                        <GlassCard style={{ flex: '1 1 200px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>This Week</div>
+                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>{adminStats.totalWeek.toFixed(1)}<span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>hrs</span></div>
+                        </GlassCard>
+                        <GlassCard style={{ flex: '1 1 200px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em' }}>Today</div>
+                            <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'white', lineHeight: 1 }}>{adminStats.totalToday.toFixed(1)}<span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>hrs</span></div>
+                        </GlassCard>
+                    </div>
+
+                    <GlassCard style={{ padding: '24px' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '20px', color: 'white' }}>Contribution Breakdown</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {adminStats.contributors.map((c, i) => {
+                                const percentage = adminStats.totalMonth > 0 ? (c.hours / adminStats.totalMonth) * 100 : 0;
+                                return (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,92,246,0.2)', color: 'var(--purple-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0, overflow: 'hidden' }}>
+                                            {c.avatar ? <img src={c.avatar} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : c.name.charAt(0)}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.85rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'white' }}>{c.name}</span>
+                                                <div style={{ display: 'flex', gap: '12px' }}>
+                                                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>{percentage.toFixed(1)}%</span>
+                                                    <span style={{ color: 'var(--purple-main)', fontWeight: 800 }}>{c.hours.toFixed(1)} hrs</span>
+                                                </div>
+                                            </div>
+                                            <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #8B5CF6, #3B82F6)', borderRadius: '4px' }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </GlassCard>
+                </div>
+            )}
 
             <div className="timeline-container">
                 {reports.length === 0 ? (
