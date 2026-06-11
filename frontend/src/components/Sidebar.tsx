@@ -41,6 +41,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Task Allocation', href: '/tasks', icon: CheckSquare },
         { name: 'EOD Reviews', href: '/eod/reviews', icon: FileText },
+        { name: 'Worklog', href: '/logs', icon: Clock },
         { name: 'Attendance', href: '/attendance', icon: CalendarDays },
         { name: 'Employee Management', href: '/employees', icon: UserPlus },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
