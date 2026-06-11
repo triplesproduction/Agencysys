@@ -315,14 +315,13 @@ function AdminDashboard({
                                     && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
                                 )
                                 .sort((a: any, b: any) => {
-                                    const aOver = a.dueDate && new Date(a.dueDate) < now;
-                                    const bOver = b.dueDate && new Date(b.dueDate) < now;
-                                    if (aOver && !bOver) return -1;
-                                    if (!aOver && bOver) return 1;
                                     const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
                                     const pDiff = (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
                                     if (pDiff !== 0) return pDiff;
-                                    return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+                                    
+                                    const timeA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+                                    const timeB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+                                    return timeA - timeB;
                                 });
                             return (
                                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -355,7 +354,7 @@ function AdminDashboard({
                     {/* Submitted Tasks needing action */}
                     <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
-                            <h3>Action Required: Submitted Tasks</h3>
+                            <h3>Tasks for Review</h3>
                             <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
                         </div>
                         <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
