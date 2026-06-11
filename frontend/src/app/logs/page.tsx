@@ -161,43 +161,42 @@ export default function LogsPage() {
                     )
                 }
                 actions={
-                    isAdmin ? (
-                        <div className="toolbar-actions">
-                            <div className="filter-pill">
-                                <Calendar size={16} color="rgba(255,255,255,0.6)" />
-                                <select
-                                    value={selectedMonthNum}
-                                    onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
-                                >
-                                    {['January','February','March','April','May','June',
-                                      'July','August','September','October','November','December'
-                                    ].map((m, i) => (
-                                        <option key={i + 1} value={i + 1}>{m}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="filter-pill">
-                                <Filter size={16} color="rgba(255,255,255,0.6)" />
-                                <select
-                                    value={selectedYear}
-                                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                >
-                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                                        <option key={y} value={y}>{y}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="header-badge">
-                            <CheckCircle2 size={16} />
-                            <span>Synced with EOD Submissions</span>
-                        </div>
-                    )
+                    <div className="header-badge">
+                        <CheckCircle2 size={16} />
+                        <span>Synced with EOD Submissions</span>
+                    </div>
                 }
             />
 
-
+            {/* Standalone filter bar — Admin only, placed below header so dropdown opens downward */}
+            {isAdmin && (
+                <div className="toolbar-actions" style={{ marginTop: '-1rem' }}>
+                    <div className="filter-pill">
+                        <Calendar size={16} color="rgba(255,255,255,0.6)" />
+                        <select
+                            value={selectedMonthNum}
+                            onChange={(e) => setSelectedMonthNum(Number(e.target.value))}
+                        >
+                            {['January','February','March','April','May','June',
+                              'July','August','September','October','November','December'
+                            ].map((m, i) => (
+                                <option key={i + 1} value={i + 1}>{m}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="filter-pill">
+                        <Filter size={16} color="rgba(255,255,255,0.6)" />
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        >
+                            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            )}
 
             {/* Employee Personal Cards */}
             {!isAdmin && (
