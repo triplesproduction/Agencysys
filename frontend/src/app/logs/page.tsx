@@ -2,7 +2,7 @@
 
 import { PageHeader } from '@/components/common/PageHeader';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import GlassCard from '@/components/GlassCard';
 import { api } from '@/lib/api';
 import { logger } from '@/lib/logger';
@@ -24,6 +24,18 @@ export default function LogsPage() {
     // Custom dropdown states
     const [isMonthOpen, setIsMonthOpen] = useState(false);
     const [isYearOpen, setIsYearOpen] = useState(false);
+    const filterContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (filterContainerRef.current && !filterContainerRef.current.contains(event.target as Node)) {
+                setIsMonthOpen(false);
+                setIsYearOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Derived: 'YYYY-MM' string used for API calls and labels
     const selectedMonth = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`;
@@ -166,7 +178,7 @@ export default function LogsPage() {
                 }
                 actions={
                     isAdmin ? (
-                        <div className="toolbar-actions">
+                        <div className="toolbar-actions" ref={filterContainerRef}>
                             <div 
                                 className="filter-pill" 
                                 style={{ position: 'relative', cursor: 'pointer', minWidth: '140px', display: 'flex', justifyContent: 'space-between' }}
