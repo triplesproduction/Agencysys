@@ -158,14 +158,13 @@ export default function LogsPage() {
                 }
                 actions={
                     isAdmin ? (
-                        <div className="logs-filter-bar">
-                            <Filter size={16} className="logs-filter-icon" />
-                            <label className="logs-filter-label">Month</label>
+                        <div className="filter-group" style={{ alignItems: 'center' }}>
+                            <Filter size={15} color="var(--text-secondary)" />
+                            <label style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Month</label>
                             <input
                                 type="month"
                                 value={selectedMonth}
                                 onChange={(e) => setSelectedMonth(e.target.value)}
-                                className="logs-month-input"
                             />
                         </div>
                     ) : (
