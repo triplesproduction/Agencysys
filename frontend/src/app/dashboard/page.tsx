@@ -564,24 +564,22 @@ function ManagerDashboard({
                             const now = new Date();
                             const myTasks = taskList
                                 .filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED'
-                                    && (t.priority === 'HIGH' || t.priority === 'CRITICAL' || t.priority === 'MEDIUM')
                                     && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
                                 )
                                 .sort((a: any, b: any) => {
-                                    const aOver = a.dueDate && new Date(a.dueDate) < now;
-                                    const bOver = b.dueDate && new Date(b.dueDate) < now;
-                                    if (aOver && !bOver) return -1;
-                                    if (!aOver && bOver) return 1;
                                     const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
                                     const pDiff = (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
                                     if (pDiff !== 0) return pDiff;
-                                    return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
+                                    
+                                    const timeA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+                                    const timeB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+                                    return timeA - timeB;
                                 });
                             return (
-                                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '360px' }}>
                                     {myTasks.length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No high/medium priority tasks assigned to you.</div>
-                                    ) : myTasks.slice(0, 8).map((task: any) => {
+                                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No tasks assigned to you.</div>
+                                    ) : myTasks.map((task: any) => {
                                         const isOverdue = task.dueDate && new Date(task.dueDate) < now;
                                         const pc: Record<string,string> = { HIGH: '#EF4444', CRITICAL: '#8B5CF6', MEDIUM: '#F59E0B' };
                                         return (
