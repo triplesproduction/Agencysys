@@ -126,6 +126,14 @@ export default function AttendancePage() {
         const today = new Date();
         today.setHours(0,0,0,0);
         
+        const joinedAt = selectedEmployeeObj?.joinedAt ? new Date(selectedEmployeeObj.joinedAt) : null;
+        if (joinedAt) {
+            joinedAt.setHours(0,0,0,0);
+            if (date < joinedAt) {
+                return 'NONE';
+            }
+        }
+
         if (date < today) {
             return 'UNPAID_LEAVE'; 
         }

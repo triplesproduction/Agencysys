@@ -58,13 +58,18 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
         "July", "August", "September", "October", "November", "December"
     ];
 
-    // Helper: Get Working Days (Total days - Sundays)
-    const getWorkingDaysCount = (year: number, month: number) => {
+    // Helper: Get Working Days (Total days - Sundays) from joining date
+    const getWorkingDaysCount = (year: number, month: number, joinedAt?: string) => {
         const totalDays = new Date(year, month + 1, 0).getDate();
         let workingDays = 0;
+        
+        const joinDate = joinedAt ? new Date(joinedAt) : new Date(0);
+        joinDate.setHours(0, 0, 0, 0);
+
         for (let day = 1; day <= totalDays; day++) {
             const date = new Date(year, month, day);
-            if (date.getDay() !== 0) { // 0 = Sunday
+            date.setHours(0, 0, 0, 0);
+            if (date >= joinDate && date.getDay() !== 0) { // 0 = Sunday
                 workingDays++;
             }
         }
@@ -75,9 +80,8 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
         if (isAttendanceLoading) return;
         setLoading(true);
         try {
-            const workingDays = getWorkingDaysCount(selectedYear, selectedMonth);
-
             const results: any[] = employees.map((emp: EmployeeDTO) => {
+                const workingDays = getWorkingDaysCount(selectedYear, selectedMonth, emp.joinedAt);
                 const saved = finalizedRecords.find((r: any) => r.employeeid === emp.id);
                 if (saved) {
                     return {
