@@ -95,6 +95,8 @@ export default function AttendancePage() {
 
     // Handled by React Query hooks
 
+    const selectedEmployeeObj = employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId);
+
     const calendarDays = useMemo(() => {
         const year = selectedMonth.getFullYear();
         const month = selectedMonth.getMonth();
@@ -166,7 +168,6 @@ export default function AttendancePage() {
         return counts;
     }, [calendarDays, data, getDayStatus]);
 
-    const selectedEmployeeObj = employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId);
     const availableLeaves = calculateLeaveBalance(selectedEmployeeObj, employeeLeaves || []);
 
     return (
