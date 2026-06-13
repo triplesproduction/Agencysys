@@ -29,6 +29,7 @@ type TaskEntry = {
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
     dueDate: string;
     checklist: string[];
+    draftChecklist: string;
 };
 
 export default function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
@@ -45,7 +46,6 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
     // Step 2: Tasks
     const [tasks, setTasks] = useState<TaskEntry[]>([]);
     const [expandedTask, setExpandedTask] = useState<number | null>(0);
-    const [newChecklistItem, setNewChecklistItem] = useState('');
 
     // Helpers
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +66,6 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
             setSelectedMemberIds(authEmployee ? [authEmployee.id] : []);
             setTasks([createEmptyTask()]);
             setExpandedTask(0);
-            setNewChecklistItem('');
             setErrorMsg('');
         }
     }, [isOpen, authEmployee]);
@@ -77,7 +76,8 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
         assigneeIds: [],
         priority: 'MEDIUM',
         dueDate: deadline || '',
-        checklist: []
+        checklist: [],
+        draftChecklist: ''
     });
 
     const duration = useMemo(() => {
@@ -115,9 +115,12 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
     const addChecklistItem = (idx: number, item: string) => {
         if (!item.trim()) return;
         const newTasks = [...tasks];
-        newTasks[idx] = { ...newTasks[idx], checklist: [...newTasks[idx].checklist, item.trim()] };
+        newTasks[idx] = { 
+            ...newTasks[idx], 
+            checklist: [...newTasks[idx].checklist, item.trim()],
+            draftChecklist: '' // clear input on add
+        };
         setTasks(newTasks);
-        setNewChecklistItem('');
     };
 
     const removeChecklistItem = (taskIdx: number, itemIdx: number) => {
@@ -399,17 +402,17 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                                 <Input
                                                                     placeholder="Add checklist item + Enter..."
-                                                                    value={newChecklistItem}
-                                                                    onChange={(e) => setNewChecklistItem(e.target.value)}
+                                                                    value={t.draftChecklist || ''}
+                                                                    onChange={(e) => updateTask(idx, { draftChecklist: e.target.value })}
                                                                     onKeyDown={(e) => {
                                                                         if (e.key === 'Enter') {
                                                                             e.preventDefault();
-                                                                            addChecklistItem(idx, newChecklistItem);
+                                                                            addChecklistItem(idx, t.draftChecklist || '');
                                                                         }
                                                                     }}
                                                                     style={{ background: 'rgba(0,0,0,0.2)', flex: 1 }}
                                                                 />
-                                                                <Button type="button" variant="glass" onClick={() => addChecklistItem(idx, newChecklistItem)}>Add</Button>
+                                                                <Button type="button" variant="glass" onClick={() => addChecklistItem(idx, t.draftChecklist || '')}>Add</Button>
                                                             </div>
                                                         </div>
                                                     </div>
