@@ -11,6 +11,7 @@ import { logger } from '@/lib/logger';
 import { EmployeeDTO, TaskDTO, WorkHourLogDTO } from '@/types/dto';
 import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock, Briefcase } from 'lucide-react';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
+import TaskDetailDrawer from '@/components/tasks/TaskDetailDrawer';
 
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import AnnouncementsWidget from '@/components/dashboard/AnnouncementsWidget';
@@ -86,6 +87,9 @@ function AdminDashboard({
     allEmployees?: EmployeeDTO[]
 }) {
     const router = useRouter();
+    const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
+    const openTaskDrawer = (id: string) => setDrawerTaskId(id);
+    const closeTaskDrawer = () => setDrawerTaskId(null);
 
     const taskList = tasks || [];
     const eodList = recentEods || [];
@@ -149,6 +153,7 @@ function AdminDashboard({
         : '0.0';
 
     return (
+        <>
         <div className="admin-dash-v2 admin-scrollable-layout fade-in">
 
             {/* Quick Stats */}
@@ -341,7 +346,13 @@ function AdminDashboard({
                                                         {task.dueDate && <span style={{ color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
                                                     </div>
                                                 </div>
-                                                <Link href={`/tasks/${task.id}`} className="ad2-circle-btn" style={{ flexShrink: 0 }}><ChevronRight size={12} /></Link>
+                                                <button
+                                                    onClick={() => openTaskDrawer(task.id)}
+                                                    className="ad2-circle-btn"
+                                                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
                                             </div>
                                         );
                                     })}
@@ -371,9 +382,10 @@ function AdminDashboard({
                                                 <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
                                                 <TaskAssigneeStack assignees={task.assignees} />
                                             </div>
-                                            <Link href={`/tasks/${task.id}`} style={{ textDecoration: 'none' }}>
-                                                <button style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60A5FA', padding: '5px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}>Review</button>
-                                            </Link>
+                                            <button
+                                                onClick={() => openTaskDrawer(task.id)}
+                                                style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60A5FA', padding: '5px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}
+                                            >Review</button>
                                         </div>
                                     );
                                 })
@@ -430,11 +442,18 @@ function AdminDashboard({
             </div>
 
         </div>
+
+        <TaskDetailDrawer
+            isOpen={!!drawerTaskId}
+            onClose={closeTaskDrawer}
+            taskId={drawerTaskId || ''}
+            onUpdate={() => {}}
+            currentUserRole={employee?.roleId || 'ADMIN'}
+        />
+        </>
     );
 }
 
-// ---------------------------------------------------------------------------
-// MANAGER DASHBOARD
 // ---------------------------------------------------------------------------
 function ManagerDashboard({
     employee,
@@ -453,6 +472,9 @@ function ManagerDashboard({
     monthlyHours?: number
 }) {
     const router = useRouter();
+    const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
+    const openTaskDrawer = (id: string) => setDrawerTaskId(id);
+    const closeTaskDrawer = () => setDrawerTaskId(null);
 
     const taskList = tasks || [];
     const kpiLogList = recentKpiLogs || [];
@@ -471,6 +493,7 @@ function ManagerDashboard({
         : '0.0';
 
     return (
+        <>
         <div className="admin-dash-v2 admin-scrollable-layout fade-in">
 
 
@@ -594,7 +617,13 @@ function ManagerDashboard({
                                                         {task.dueDate && <span style={{ color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
                                                     </div>
                                                 </div>
-                                                <Link href={`/tasks/${task.id}`} className="ad2-circle-btn" style={{ flexShrink: 0 }}><ChevronRight size={12} /></Link>
+                                                <button
+                                                    onClick={() => openTaskDrawer(task.id)}
+                                                    className="ad2-circle-btn"
+                                                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
                                             </div>
                                         );
                                     })}
@@ -613,6 +642,15 @@ function ManagerDashboard({
                 </div>
             </div>
         </div>
+
+        <TaskDetailDrawer
+            isOpen={!!drawerTaskId}
+            onClose={closeTaskDrawer}
+            taskId={drawerTaskId || ''}
+            onUpdate={() => {}}
+            currentUserRole={employee?.roleId || 'MANAGER'}
+        />
+        </>
     );
 }
 
@@ -622,6 +660,9 @@ function ManagerDashboard({
 // ---------------------------------------------------------------------------
 function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eodList = [] }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number, eodList?: any[] }) {
     const router = useRouter();
+    const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
+    const openTaskDrawer = (id: string) => setDrawerTaskId(id);
+    const closeTaskDrawer = () => setDrawerTaskId(null);
 
     const taskList = tasks || [];
     const pendingTasks = taskList.filter(t => t && t.status !== 'DONE' && t.status !== 'APPROVED');
@@ -670,6 +711,7 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
     const daysPresent = uniqueDays.size;
 
     return (
+        <>
         <div className="admin-dash-v2 fade-in">
 
 
@@ -756,7 +798,13 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                                                             {task.dueDate && <span style={{ fontSize: '0.65rem', color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
                                                         </div>
                                                     </div>
-                                                    <Link href={`/tasks/${task.id}`} className="ad2-circle-btn"><ChevronRight size={14} /></Link>
+                                                <button
+                                                    onClick={() => openTaskDrawer(task.id)}
+                                                    className="ad2-circle-btn"
+                                                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                                >
+                                                    <ChevronRight size={14} />
+                                                </button>
                                                 </div>
                                             );
                                         })
@@ -821,6 +869,15 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                 </div>
             </div>
         </div>
+
+        <TaskDetailDrawer
+            isOpen={!!drawerTaskId}
+            onClose={closeTaskDrawer}
+            taskId={drawerTaskId || ''}
+            onUpdate={() => {}}
+            currentUserRole={employee?.roleId || 'EMPLOYEE'}
+        />
+        </>
     );
 }
 
@@ -858,8 +915,13 @@ export default function DashboardPage() {
     const authEmployeeId = authEmployee?.id;
 
     useEffect(() => {
-        if (authLoading || !authEmployee) {
-            if (!authLoading) setLoading(false);
+        if (authLoading) {
+            // Auth is still resolving — keep the spinner but don't do anything else
+            return;
+        }
+        if (!authEmployee) {
+            // Auth resolved but no employee — stop the spinner
+            setLoading(false);
             return;
         }
 
@@ -1052,8 +1114,8 @@ export default function DashboardPage() {
 
     // SEEDING LOGIC: Populate 22 Dummy Tasks
 
-    // Block render while data is fetching to prevent empty cards and huge layout shifts
-    if (loading || (authLoading && !authEmployee)) {
+    // Block render while auth is resolving or data is fetching
+    if (authLoading || loading) {
         return <div className="page-loader"><div className="spinner"></div></div>;
     }
 

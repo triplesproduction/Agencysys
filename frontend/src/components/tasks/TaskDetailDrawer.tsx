@@ -58,22 +58,20 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
         if (!taskId) return;
         setLoading(true);
         try {
-            // Parallel load for efficiency
-            const [tasksList] = await Promise.all([
-                api.getTasks(undefined, undefined, 500)
-            ]);
+            const found = await api.getTaskById(taskId);
             
-            const found = (tasksList || []).find(t => t.id === taskId);
-            
-            // Hydrate project name if exists (simple way)
-            if (found?.projectId) {
-                const proj = await api.getProjectById(found.projectId);
-                (found as any).projectName = proj?.name;
+            if (found) {
+                // Hydrate project name if exists
+                if (found.projectId) {
+                    const proj = await api.getProjectById(found.projectId);
+                    (found as any).projectName = proj?.name;
+                }
+                // Hydrate multi-assignees from the employees list already loaded
+                // (employees are loaded via useEmployees hook above)
             }
 
             setTask(found || null);
         } catch (err) {
-
             logger.error('Error', 'Failed to fetch task details:', err);
         } finally {
             setLoading(false);
