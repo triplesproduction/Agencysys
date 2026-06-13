@@ -81,8 +81,12 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
 
     useEffect(() => {
         if (isOpen && taskId) {
+            setTask(null); // reset stale data immediately so loading skeleton shows
             fetchTask();
             setActiveTab('DETAILS');
+        }
+        if (!isOpen) {
+            setTask(null); // clear on close so next open is always fresh
         }
     }, [isOpen, taskId]);
 
@@ -99,6 +103,54 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
     }, [task?.id, task?.description]);
 
     if (!isOpen) return null;
+
+    // While loading, show the drawer shell with a skeleton — prevents crashes from null task fields
+    if (loading) {
+        return (
+            <div className="kanban-drawer-overlay active" onClick={onClose}>
+                <div className="kanban-drawer" onClick={(e) => e.stopPropagation()}>
+                    <header className="drawer-header">
+                        <div className="header-top">
+                            <div className="task-identifier"><CheckSquare size={16} color="white" /><span>Loading...</span></div>
+                            <div className="header-actions">
+                                <button type="button" className="icon-btn-ghost close-btn" onClick={onClose}><X size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="task-title-area">
+                            <div className="skeleton title-skeleton" style={{ height: '28px', borderRadius: '6px', background: 'rgba(255,255,255,0.07)', marginBottom: '8px' }}></div>
+                        </div>
+                    </header>
+                    <div className="drawer-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'rgba(255,255,255,0.3)' }}>
+                            <div className="spinner" style={{ width: '28px', height: '28px', borderWidth: '3px' }}></div>
+                            <span style={{ fontSize: '0.82rem' }}>Loading task...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // If task failed to load (not found or error)
+    if (!task) {
+        return (
+            <div className="kanban-drawer-overlay active" onClick={onClose}>
+                <div className="kanban-drawer" onClick={(e) => e.stopPropagation()}>
+                    <header className="drawer-header">
+                        <div className="header-top">
+                            <div className="task-identifier"><CheckSquare size={16} color="white" /><span>Not Found</span></div>
+                            <div className="header-actions">
+                                <button type="button" className="icon-btn-ghost close-btn" onClick={onClose}><X size={20} /></button>
+                            </div>
+                        </div>
+                    </header>
+                    <div className="drawer-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>
+                        Task not found.
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const handleUpdateField = async (field: keyof TaskDTO, value: any) => {
         if (!task || !taskId) return;
@@ -252,8 +304,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                                     <div className="meta-group" style={{ flex: '1 1 120px' }}>
                                         <label className="meta-label">PRIORITY</label>
                                         <select 
-                                            className={`priority-select-btn ${task?.priority.toLowerCase()}`}
-                                            value={task?.priority}
+                                            className={`priority-select-btn ${(task?.priority || 'medium').toLowerCase()}`}
+                                            value={task?.priority || 'MEDIUM'}
                                             onChange={(e) => handleUpdateField('priority', e.target.value)}
                                             style={{ width: '100%' }}
                                         >
