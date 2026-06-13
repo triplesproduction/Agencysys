@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { 
     X, User, Calendar, Tag, FileText, CheckSquare, 
@@ -21,6 +22,7 @@ import DatePicker from '../common/DatePicker';
 import { useAuth } from '@/context/AuthContext';
 import { useUpdateTask, useDeleteTask } from '@/hooks/queries/domains/projects/useProjects';
 import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
+import '@/app/tasks/KanbanDrawer.css';
 
 
 
@@ -106,7 +108,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
 
     // While loading, show the drawer shell with a skeleton — prevents crashes from null task fields
     if (loading) {
-        return (
+        return ReactDOM.createPortal(
             <div className="kanban-drawer-overlay active" onClick={onClose}>
                 <div className="kanban-drawer" onClick={(e) => e.stopPropagation()}>
                     <header className="drawer-header">
@@ -127,13 +129,14 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                         </div>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
     // If task failed to load (not found or error)
     if (!task) {
-        return (
+        return ReactDOM.createPortal(
             <div className="kanban-drawer-overlay active" onClick={onClose}>
                 <div className="kanban-drawer" onClick={(e) => e.stopPropagation()}>
                     <header className="drawer-header">
@@ -148,7 +151,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                         Task not found.
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     }
 
@@ -205,7 +209,7 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
     const normalizedRole = currentUserRole?.toUpperCase() || 'EMPLOYEE';
     const isManagerOrAdmin = normalizedRole.includes('ADMIN') || normalizedRole.includes('MANAGER');
 
-    return (
+    return ReactDOM.createPortal(
         <div className={`kanban-drawer-overlay ${isOpen ? 'active' : ''}`} onClick={onClose}>
             <div className="kanban-drawer" onClick={(e) => e.stopPropagation()}>
                 
@@ -651,7 +655,8 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
