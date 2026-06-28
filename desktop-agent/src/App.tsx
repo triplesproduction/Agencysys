@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { check } from "@tauri-apps/plugin-updater";
+import { getVersion } from "@tauri-apps/api/app";
 import "./App.css";
 
 interface EmployeeInfo {
@@ -34,6 +35,20 @@ function App() {
 
   // Update status state
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState("1.0.0");
+
+  // Fetch Tauri app version dynamically
+  useEffect(() => {
+    async function fetchVersion() {
+      try {
+        const ver = await getVersion();
+        setAppVersion(ver);
+      } catch (err) {
+        console.error("Failed to get app version:", err);
+      }
+    }
+    fetchVersion();
+  }, []);
 
   // Check for updates on startup
   useEffect(() => {
@@ -499,7 +514,7 @@ function App() {
         {error && <div className="error-banner">{error}</div>}
 
         <div className="footer-info">
-          <div>Version: 1.0.0</div>
+          <div>Version: {appVersion}</div>
           <div className="footer-sync-status">
             <span style={{ 
               width: "6px", 
