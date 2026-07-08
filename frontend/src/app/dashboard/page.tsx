@@ -663,25 +663,7 @@ function ManagerDashboard({
 // ---------------------------------------------------------------------------
 // EMPLOYEE DASHBOARD (Clean & High Density)
 // ---------------------------------------------------------------------------
-function EmployeeDashboard({ 
-    employee, 
-    tasks, 
-    kpis, 
-    recentLogs, 
-    monthlyHours, 
-    eodList = [],
-    allEmployees = [],
-    allKpiProfiles = []
-}: { 
-    employee: any, 
-    tasks: TaskDTO[], 
-    kpis: any, 
-    recentLogs: WorkHourLogDTO[], 
-    monthlyHours: number, 
-    eodList?: any[],
-    allEmployees?: any[],
-    allKpiProfiles?: any[]
-}) {
+function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eodList = [] }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number, eodList?: any[] }) {
     const router = useRouter();
     const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
     const openTaskDrawer = (id: string) => setDrawerTaskId(id);
@@ -842,7 +824,7 @@ function EmployeeDashboard({
                 {/* Column 3: Quick Actions, Top Performers & Monthly Pace */}
                 <div className="ad2-col">
                     <AnnouncementsWidget maxItems={10} />
-                    <TopPerformerWidget employees={allEmployees} kpiProfiles={allKpiProfiles} />
+                    <TopPerformerWidget />
                 </div>
 
                 {/* Column 4: Communication & Rules (Right Side) */}
@@ -1166,16 +1148,7 @@ export default function DashboardPage() {
                 />
             )}
              {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (
-                <EmployeeDashboard 
-                    employee={employee} 
-                    tasks={tasks} 
-                    kpis={kpis} 
-                    recentLogs={recentLogs} 
-                    monthlyHours={monthlyHours} 
-                    eodList={recentEods} 
-                    allEmployees={allEmployees}
-                    allKpiProfiles={allKpis}
-                />
+                <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} monthlyHours={monthlyHours} eodList={recentEods} />
             )}
 
             <AllocateTaskModal

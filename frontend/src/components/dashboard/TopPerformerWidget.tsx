@@ -1,60 +1,34 @@
 'use client';
 
 import React from 'react';
-import { Trophy, Crown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { Trophy, Crown, Award, Loader2 } from 'lucide-react';
 
-interface Employee {
+interface Performer {
     id: string;
-    firstName: string;
-    lastName: string;
-    profilePhoto?: string;
-    designation?: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    profile_photo: string;
+    designation: string;
+    work_hours: number;
 }
 
-interface KPIProfile {
-    employeeId: string;
-    currentScore: number;
-    employee?: Employee;
-}
-
-interface TopPerformerWidgetProps {
-    employees: Employee[];
-    kpiProfiles?: KPIProfile[];
-}
-
-export default function TopPerformerWidget({ employees = [], kpiProfiles = [] }: TopPerformerWidgetProps) {
-    // Determine the top performers list
-    const performers = React.useMemo(() => {
-        // If we have actual KPI profiles in the database, use them
-        if (kpiProfiles && kpiProfiles.length > 0) {
-            return kpiProfiles
-                .map(p => ({
-                    name: `${p.employee?.firstName || 'Team'} ${p.employee?.lastName || 'Member'}`,
-                    photo: p.employee?.profilePhoto,
-                    designation: p.employee?.designation || 'Creative Strategist',
-                    score: p.currentScore
-                }))
-                .slice(0, 5);
-        }
-
-        // Fallback: Generate mock scores for active employees so the widget is populated beautifully
-        const activeEmployees = employees.filter(e => e.firstName && e.lastName);
-        const mockScores = [98, 95, 94, 91, 89];
-        
-        return activeEmployees
-            .map((emp, index) => {
-                // Seeded mock scores based on index to keep it stable
-                const score = mockScores[index % mockScores.length];
-                return {
-                    name: `${emp.firstName} ${emp.lastName}`,
-                    photo: emp.profilePhoto,
-                    designation: emp.designation || 'Creative Strategist',
-                    score: score
-                };
-            })
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 5);
-    }, [employees, kpiProfiles]);
+export default function TopPerformerWidget() {
+    // Fetch top 2 performers sorted by work hours using RPC (bypasses employee RLS limits safely)
+    const { data: performers = [], isLoading, error } = useQuery<Performer[]>({
+        queryKey: ['topPerformersLimit2'],
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc('get_top_performers', { limit_num: 2 });
+            if (error) {
+                console.error('[TopPerformerWidget] RPC error:', error);
+                throw error;
+            }
+            return data || [];
+        },
+        staleTime: 600000 // 10 minutes cache
+    });
 
     return (
         <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -65,71 +39,78 @@ export default function TopPerformerWidget({ employees = [], kpiProfiles = [] }:
                 <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>This Month</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                {performers.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, justifyContent: 'center' }}>
+                {isLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px 10px', gap: '8px', color: 'rgba(255,255,255,0.4)' }}>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span style={{ fontSize: '0.85rem' }}>Evaluating performers...</span>
+                    </div>
+                ) : error || performers.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '30px 10px', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>
-                        No performers record found.
+                        No performers active this month.
                     </div>
                 ) : (
                     performers.map((perf, idx) => {
                         const isFirst = idx === 0;
                         const isSecond = idx === 1;
-                        const isThird = idx === 2;
+                        const fullName = `${perf.first_name} ${perf.last_name}`;
 
                         return (
                             <div 
-                                key={idx} 
+                                key={perf.id} 
                                 style={{ 
                                     display: 'flex', 
                                     alignItems: 'center', 
                                     justifyContent: 'space-between',
-                                    padding: '10px 12px',
+                                    padding: '12px 16px',
                                     background: isFirst 
                                         ? 'linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%)' 
                                         : 'rgba(255, 255, 255, 0.02)',
                                     border: isFirst 
                                         ? '1px solid rgba(245, 158, 11, 0.15)' 
                                         : '1px solid rgba(255, 255, 255, 0.04)',
-                                    borderRadius: '12px',
-                                    transition: 'transform 0.2s',
+                                    borderRadius: '14px',
+                                    transition: 'transform 0.2s'
                                 }}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                     {/* Rank Badge / Icon */}
                                     <div style={{ 
-                                        width: '24px', 
-                                        height: '24px', 
+                                        width: '28px', 
+                                        height: '28px', 
                                         borderRadius: '50%', 
                                         display: 'flex', 
                                         alignItems: 'center', 
                                         justifyContent: 'center',
-                                        fontSize: '0.75rem',
+                                        fontSize: '0.8rem',
                                         fontWeight: 800,
-                                        background: isFirst ? 'rgba(245, 158, 11, 0.2)' : isSecond ? 'rgba(209, 213, 219, 0.15)' : isThird ? 'rgba(180, 83, 9, 0.15)' : 'transparent',
-                                        color: isFirst ? '#F59E0B' : isSecond ? '#E5E7EB' : isThird ? '#D97706' : 'rgba(255,255,255,0.4)',
-                                        border: isFirst || isSecond || isThird ? '1px solid currentColor' : 'none'
+                                        background: isFirst ? 'rgba(245, 158, 11, 0.2)' : 'rgba(209, 213, 219, 0.15)',
+                                        color: isFirst ? '#F59E0B' : '#E5E7EB',
+                                        border: '1px solid currentColor'
                                     }}>
-                                        {isFirst ? <Crown size={12} /> : idx + 1}
+                                        {isFirst ? <Crown size={14} /> : <Award size={14} />}
                                     </div>
 
                                     {/* Profile Avatar */}
                                     <img 
-                                        src={perf.photo && perf.photo.length > 5 ? perf.photo : `https://ui-avatars.com/api/?name=${perf.name}&background=6366f1&color=fff`} 
+                                        src={perf.profile_photo && perf.profile_photo.length > 5 ? perf.profile_photo : `https://ui-avatars.com/api/?name=${fullName}&background=6366f1&color=fff`} 
                                         alt="" 
-                                        style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(255,255,255,0.1)' }}
                                     />
 
                                     {/* Details */}
                                     <div style={{ textAlign: 'left' }}>
-                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>{perf.name}</div>
-                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '2px' }}>{perf.designation}</div>
+                                        <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#FFF' }}>{fullName}</div>
+                                        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '3px' }}>{perf.designation}</div>
                                     </div>
                                 </div>
 
-                                {/* Score */}
+                                {/* Rank Status */}
                                 <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: isFirst ? '#F59E0B' : 'white' }}>{perf.score}</div>
-                                    <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>KPI Rating</div>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: isFirst ? '#F59E0B' : 'rgba(255,255,255,0.6)' }}>
+                                        {isFirst ? 'Gold' : 'Silver'}
+                                    </div>
+                                    <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Trophy</div>
                                 </div>
                             </div>
                         );
