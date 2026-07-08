@@ -124,8 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Only fetch the employee profile once per user ID.
                 // TOKEN_REFRESHED fires every ~60s — we must NOT re-fetch on it.
                 if (profileFetchedForRef.current === currentUser.id) {
-                    // Profile already loaded for this user. Just ensure loading is cleared.
-                    setLoading(false);
+                    // Profile already loaded (or loading) for this user.
+                    // Only clear loading state if the profile has actually finished fetching.
+                    if (employeeRef.current) {
+                        setLoading(false);
+                    }
                     return;
                 }
 
