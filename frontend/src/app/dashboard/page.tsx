@@ -23,6 +23,7 @@ import RulesWidget from '@/components/dashboard/RulesWidget';
 import { useAuth } from '@/context/AuthContext';
 import KpiAuditLedger from '@/components/kpi/KpiAuditLedger';
 import RecentMessagesWidget from '@/components/dashboard/RecentMessagesWidget';
+import TopPerformerWidget from '@/components/dashboard/TopPerformerWidget';
 import WorkClock from '@/components/dashboard/WorkClock';
 import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
@@ -662,7 +663,25 @@ function ManagerDashboard({
 // ---------------------------------------------------------------------------
 // EMPLOYEE DASHBOARD (Clean & High Density)
 // ---------------------------------------------------------------------------
-function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eodList = [] }: { employee: any, tasks: TaskDTO[], kpis: any, recentLogs: WorkHourLogDTO[], monthlyHours: number, eodList?: any[] }) {
+function EmployeeDashboard({ 
+    employee, 
+    tasks, 
+    kpis, 
+    recentLogs, 
+    monthlyHours, 
+    eodList = [],
+    allEmployees = [],
+    allKpiProfiles = []
+}: { 
+    employee: any, 
+    tasks: TaskDTO[], 
+    kpis: any, 
+    recentLogs: WorkHourLogDTO[], 
+    monthlyHours: number, 
+    eodList?: any[],
+    allEmployees?: any[],
+    allKpiProfiles?: any[]
+}) {
     const router = useRouter();
     const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
     const openTaskDrawer = (id: string) => setDrawerTaskId(id);
@@ -820,10 +839,10 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                     {employee && <KpiAuditLedger employeeId={employee.id} />}
                 </div>
 
-                {/* Column 3: Quick Actions, Messages & Monthly Pace */}
+                {/* Column 3: Quick Actions, Top Performers & Monthly Pace */}
                 <div className="ad2-col">
                     <AnnouncementsWidget maxItems={10} />
-                    <RecentMessagesWidget maxItems={10} style={{ flex: 1 }} />
+                    <TopPerformerWidget employees={allEmployees} kpiProfiles={allKpiProfiles} />
                 </div>
 
                 {/* Column 4: Communication & Rules (Right Side) */}
@@ -1146,8 +1165,17 @@ export default function DashboardPage() {
                     monthlyHours={monthlyHours}
                 />
             )}
-            {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (
-                <EmployeeDashboard employee={employee} tasks={tasks} kpis={kpis} recentLogs={recentLogs} monthlyHours={monthlyHours} eodList={recentEods} />
+             {userRole !== 'ADMIN' && userRole !== 'MANAGER' && (
+                <EmployeeDashboard 
+                    employee={employee} 
+                    tasks={tasks} 
+                    kpis={kpis} 
+                    recentLogs={recentLogs} 
+                    monthlyHours={monthlyHours} 
+                    eodList={recentEods} 
+                    allEmployees={allEmployees}
+                    allKpiProfiles={allKpis}
+                />
             )}
 
             <AllocateTaskModal
