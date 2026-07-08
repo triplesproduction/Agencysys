@@ -14,7 +14,11 @@ function LoginForm() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState(
+        searchParams?.get('error') === 'suspended'
+            ? 'Your account has been suspended. Login access is disabled.'
+            : ''
+    );
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

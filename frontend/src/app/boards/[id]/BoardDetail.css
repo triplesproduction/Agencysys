@@ -1,0 +1,39 @@
+.board-detail-container {
+    background: #121212; /* Default tldraw dark background match */
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--sidebar-width, 270px);
+    display: flex;
+    flex-direction: column;
+    z-index: 30; /* Below sidebar (50) and mobile menu button (40) */
+    transition: left 0.25s ease;
+}
+
+.board-detail-header {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0; /* ensure header never shrinks */
+}
+
+.board-canvas-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Override tldraw light mode variables if needed, or set tldraw to dark mode via component props */
+.tldraw-wrapper {
+    /* To ensure tldraw uses full height */
+    position: absolute;
+    inset: 0;
+}
+
+@media (max-width: 1024px) {
+    .board-detail-container {
+        left: 0;
+    }
+    .board-detail-header {
+        padding-left: 64px !important; /* Make room for the floating mobile menu button */
+    }
+}

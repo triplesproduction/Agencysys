@@ -40,9 +40,7 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
             try {
                 const readIds = JSON.parse(localStorage.getItem('read_announcements') || '[]');
                 const unread = active.filter((a: Announcement) => !readIds.includes(a.id));
-                if (unread.length > 0) {
-                    setUnreadPopups(unread);
-                }
+                setUnreadPopups(unread);
             } catch (e) {
                 console.error('Error parsing read_announcements from localStorage');
             }
@@ -143,7 +141,7 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
 
     return (
         <>
-            <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="ad2-card" style={{ display: 'flex', flexDirection: 'column', minHeight: '150px' }}>
                 {/* Section header */}
                 <div className="ad2-card-header" style={{ marginBottom: '8px', paddingBottom: '4px', border: 'none' }}>
                     <h3><Megaphone size={16} color="#3B82F6" /> Announcements</h3>
@@ -162,7 +160,7 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
                         <span style={{ fontSize: '0.8rem' }}>No active announcements</span>
                     </div>
                 ) : (
-                    <div className="custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+                    <div className="custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto', paddingRight: '4px' }}>
                         {items.map(ann => {
                             const c = typeColors[ann.type] || typeColors.ANNOUNCEMENT;
                             return (
@@ -176,9 +174,10 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
                                         </div>
                                         <button 
                                             onClick={() => setSelectedAnnouncement(ann)}
-                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', fontWeight: 600, transition: 'all 0.2s' }}
+                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer', width: '24px', height: '24px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                            title="View Announcement"
                                         >
-                                            <Eye size={12} /> View
+                                            <Eye size={12} />
                                         </button>
                                     </div>
                                     <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>

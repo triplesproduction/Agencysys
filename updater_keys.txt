@@ -1,0 +1,16 @@
+Tauri Updater Signing Keys - TripleS OS
+======================================
+Generated: 2026-06-26
+
+Public Key:
+dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2NDE3RDVBN0Q4QTcwMQpSV1FCcDlpbjFSZGtCMFFleDc5OTU5dXVLUGR6eXBFTEo2eXlsaExlcTdUWWc4T0o5cEtDNzBzUwo=
+
+Private Key (KEEP THIS SECRET):
+dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5THhxcVVkVEhPVGRUbzNGUzlyK2dXZlJ4TWJjZEY4WlJxNFhhQUM4WjZMSUFBQkFBQUFBQUFBQUFBQUlBQUFBQUg2ejUxN0RYVGIyNHJXVkhxN09JT0hreW1QRnUwbGJ4eDFNdy9OUEVUaHlwa1NKak1uY0JiMzVpQnJkc2FuTHFqQWpZdkhkaFp0eWpIdVZvaUF3UHpSRnEwWHVkbUVpM2NIVEYyeXVROC9kcDc2NFFKK3VtajlMVWhZTzl5enZKQUdQRHZPQ2QyRU09Cg==
+
+How to Sign Updates:
+--------------------
+When running builds, set the following environment variable:
+TAURI_SIGNING_PRIVATE_KEY="dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5THhxcVVkVEhPVGRUbzNGUzlyK2dXZlJ4TWJjZEY4WlJxNFhhQUM4WjZMSUFBQkFBQUFBQUFBQUFBQUlBQUFBQUg2ejUxN0RYVGIyNHJXVkhxN09JT0hreW1QRnUwbGJ4eDFNdy9OUEVUaHlwa1NKak1uY0JiMzVpQnJkc2FuTHFqQWpZdkhkaFp0eWpIdVZvaUF3UHpSRnEwWHVkbUVpM2NIVEYyeXVROC9kcDc2NFFKK3VtajlMVWhZTzl5enZKQUdQRHZPQ2QyRU09Cg=="
+
+The build outputs will automatically include the signature (.sig files) for your update packages.

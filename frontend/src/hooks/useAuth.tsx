@@ -2,7 +2,6 @@
 import { logger } from '@/lib/logger';
 
 import { useEffect, useState, createContext, useContext, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
 
@@ -11,10 +10,12 @@ interface EmployeeProfile {
     email: string;
     roleId: string;
     designation?: string;
+    department?: string;
     firstName: string;
     lastName: string;
     profilePhoto?: string;
     joinedAt?: string;
+    status?: string;
 }
 
 interface AuthContextType {
@@ -31,21 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
-    const employeeRef = useRef<EmployeeProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const loadingRef = useRef(true); // mirrors loading state for closures that can't read the latest state
-    const router = useRouter();
 
-    /** Keeps state and ref in sync on every loading change */
-    const setLoadingSync = (val: boolean) => {
-        loadingRef.current = val;
-        setLoading(val);
-    };
+    // Refs to track stable values across async operations
+    const mountedRef = useRef(true);
+    const employeeRef = useRef<EmployeeProfile | null>(null);
+    // Track the last userId we fetched a profile for — prevents redundant DB hits
+    // on TOKEN_REFRESHED events (which fire every ~60s)
+    const profileFetchedForRef = useRef<string | null>(null);
 
     const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
-        logger.log(`[Auth TRACE] Fetching profile for ${userId} (${email})...`);
+        logger.log(`[Auth] Fetching employee profile for ${userId}...`);
         try {
-            // Using select('*') is safer to avoid crashes on missing columns during transitions
             const { data, error } = await supabase
                 .from('employees')
                 .select('*')
@@ -53,210 +51,181 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle();
 
             if (error) {
-                logger.error('[Auth DEBUG] Profile fetch database error:', error.message);
-                // Fail Closed: If there's a DB error, we don't want to risk granting incorrect permissions.
+                logger.error('[Auth] Profile DB error:', error.message);
                 return null;
             }
-            
+
             if (!data) {
-                logger.warn('[Auth DEBUG] No profile record found in database for UID:', userId);
-                // Fail Closed: If the user doesn't have a profile in the employees table, they shouldn't be in the OS.
+                logger.warn('[Auth] No employee record found for UID:', userId);
                 return null;
             }
-            
-            // Normalize keys from all possible formats (camelCase or snake_case)
+
             const profile: EmployeeProfile = {
                 id: data.id,
                 email: data.email || email || '',
                 roleId: data.roleId || data.role_id || 'EMPLOYEE',
                 designation: data.designation,
+                department: data.department,
                 firstName: data.firstName || data.first_name || email?.split('@')[0] || 'User',
                 lastName: data.lastName || data.last_name || 'Member',
                 profilePhoto: data.profilePhoto || data.profile_photo,
-                joinedAt: data.joinedAt || data.joined_at
+                joinedAt: data.joinedAt || data.joined_at,
+                status: data.status || 'ACTIVE',
             };
 
-            logger.log('[Auth DEBUG] Profile successfully resolved. Role:', profile.roleId);
+            logger.log('[Auth] Profile resolved. Role:', profile.roleId);
             return profile;
         } catch (err) {
-            logger.error('[Auth DEBUG] Unexpected profile fetch exception:', err);
+            logger.error('[Auth] Unexpected profile fetch error:', err);
             return null;
         }
     };
 
-    // Auth resolution is now strictly driven by onAuthStateChange and checkUser callbacks
-
-
     useEffect(() => {
-        let mounted = true;
-        let isResolving = false;
-        
-        // Safety fallback: ensure loading never hangs forever.
-        // Uses loadingRef so the closure reads the *live* value, not the stale mount-time `true`.
-        const safetyTimeout = setTimeout(() => {
-            if (mounted && loadingRef.current) {
-                logger.warn('[AUTH] Safety timeout reached — forcing loading false.');
-                setLoadingSync(false);
-            }
-        }, 8000);
+        mountedRef.current = true;
 
-        logger.log('[AUTH DEBUG] AuthProvider mounted. Initializing session listener...');
-
-        const resolveAuth = async (currentUser: User | null, currentSession: Session | null, source: string) => {
-            if (!mounted) return;
-            if (isResolving) {
-                logger.log(`[AUTH DEBUG] Resolution already in progress, skipping (${source})`);
-                return;
+        // Safety net: if nothing resolves in 14s, unblock the UI
+        const safetyTimer = setTimeout(() => {
+            if (mountedRef.current) {
+                logger.warn('[Auth] Safety timeout — forcing loading = false');
+                setLoading(false);
             }
-            isResolving = true;
-            
-            try {
-                if (currentUser) {
-                    logger.log(`[AUTH DEBUG] Active session detected (${source}):`, currentUser.id);
-                    setUser(currentUser);
-                    setSession(currentSession);
-                    
-                    // Optimization: Only fetch profile if it's not already in state
-                    // This prevents re-fetching the same profile during SPA navigation
-                    if (!employeeRef.current) {
-                        const profileData = await fetchProfile(currentUser.id, currentUser.email || undefined);
-                        if (mounted) {
-                            employeeRef.current = profileData;
-                            setEmployee(profileData);
-                            setLoadingSync(false); // Always set loading false after attempt
-                        }
-                    } else {
-                        setLoadingSync(false);
-                    }
-                } else {
-                    logger.log(`[AUTH DEBUG] No active session (${source})`);
-                    setUser(null);
-                    setSession(null);
-                    employeeRef.current = null;
-                    setEmployee(null);
-                    setLoadingSync(false);
-                }
-            } finally {
-                isResolving = false;
-            }
-        };
+        }, 14000);
 
-        // 1. Single source of truth for session resolution
-        // We do an explicit getSession() to avoid race conditions with INITIAL_SESSION
-        // which can sometimes fire with null before localStorage is parsed.
-        const initializeSession = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                await resolveAuth(session?.user || null, session, 'INITIAL_GET_SESSION');
-            } catch (err) {
-                logger.error('[AUTH DEBUG] Error getting initial session:', err);
-                setLoadingSync(false);
-            }
-        };
-        
-        initializeSession();
-
-        // 2. Persistent listener for all auth events
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
-                if (!mounted) return;
-                
-                // IGNORE neutral events or events that shouldn't trigger local state changes yet
-                logger.log(`[AUTH DEBUG] Supabase Auth Event: ${event}`);
+                if (!mountedRef.current) return;
 
-                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-                    // Force resolve for initializing or active sessions
-                    await resolveAuth(currentSession?.user || null, currentSession, event);
-                } else if (event === 'INITIAL_SESSION') {
-                    // We handle INITIAL_SESSION via the explicit getSession() above to prevent
-                    // premature null resolutions. We only resolve if there is a session here.
-                    if (currentSession) {
-                        await resolveAuth(currentSession.user, currentSession, event);
+                logger.log(`[Auth] Event: ${event}`);
+
+                // ─── No session ─────────────────────────────────────────────
+                if (!currentSession) {
+                    if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+                        setUser(null);
+                        setSession(null);
+                        setEmployee(null);
+                        employeeRef.current = null;
+                        profileFetchedForRef.current = null;
+                        setLoading(false);
                     }
-                } else if (event === 'SIGNED_OUT') {
-                    logger.log('[AUTH DEBUG] Signed out event detected. Clearing local state...');
+                    // TOKEN_REFRESHED/SIGNED_IN without a session: not a blocking case.
+                    // Ensure loading is cleared so we don't stay stuck.
+                    setLoading(false);
+                    return;
+                }
+
+                const currentUser = currentSession.user;
+
+                // ─── Session exists ──────────────────────────────────────────
+                // Always update user/session state for accurate token data
+                setUser(currentUser);
+                setSession(currentSession);
+
+                // Only fetch the employee profile once per user ID.
+                // TOKEN_REFRESHED fires every ~60s — we must NOT re-fetch on it.
+                if (profileFetchedForRef.current === currentUser.id) {
+                    // Profile already loaded for this user. Just ensure loading is cleared.
+                    setLoading(false);
+                    return;
+                }
+
+                // First time we see this user — fetch their profile
+                profileFetchedForRef.current = currentUser.id; // Mark immediately to block concurrent fetches
+
+                const profile = await fetchProfile(currentUser.id, currentUser.email ?? undefined);
+
+                if (!mountedRef.current) return; // Component unmounted during async fetch
+
+                if (profile && profile.status !== 'ACTIVE') {
+                    logger.warn('[Auth] Employee status is inactive/suspended. Signing out.');
                     setUser(null);
                     setSession(null);
-                    employeeRef.current = null;
                     setEmployee(null);
-                    setLoadingSync(false);
-                    if (typeof window !== 'undefined') {
-                        // REMOVED: Aggressive window.location.href here. 
-                        // THE AuthGuard will handle the redirect if loading is false and user is null.
-                        // This prevents race conditions during page refreshes.
-                    }
+                    employeeRef.current = null;
+                    profileFetchedForRef.current = null;
+                    setLoading(false);
+                    supabase.auth.signOut().then(() => {
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/login?error=suspended';
+                        }
+                    });
+                    return;
                 }
+
+                employeeRef.current = profile;
+                setEmployee(profile);
+                setLoading(false);
             }
         );
 
         return () => {
-            mounted = false;
-            clearTimeout(safetyTimeout);
+            mountedRef.current = false;
+            clearTimeout(safetyTimer);
             subscription.unsubscribe();
         };
     }, []);
 
     const signOut = useCallback(async () => {
-        logger.log('[Auth] Nuclear Sign Out initiated...');
+        logger.log('[Auth] Sign out initiated...');
         try {
-            // 1. Clear local state immediately for instant UI feedback
-            setUser(null);
-            setSession(null);
-            employeeRef.current = null;
-            setEmployee(null);
-            setLoadingSync(false);
-
+            // Clear only Supabase auth keys to preserve local settings like read announcements
             if (typeof window !== 'undefined') {
-                // Clear all possible session artifacts
-                localStorage.removeItem('triples_auth_session'); // Target actual Supabase storage key
-                // Remove Supabase auth keys instead of nuclear option
-                const keysToRemove = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.includes('supabase.auth.token')) {
-                        keysToRemove.push(key);
+                Object.keys(localStorage).forEach((key) => {
+                    if (key.startsWith('sb-')) {
+                        localStorage.removeItem(key);
                     }
-                }
-                keysToRemove.forEach(k => localStorage.removeItem(k));
+                });
                 sessionStorage.clear();
-                
-                // Clear all cookies (to be absolutely sure)
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i];
-                    const eqPos = cookie.indexOf('=');
-                    const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
-                    document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-                }
+
+                // Clear all cookies manually
+                document.cookie.split(";").forEach((c) => {
+                    const cookieName = c.trim().split("=")[0];
+                    if (cookieName) {
+                        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+                        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
+                    }
+                });
             }
 
-            // 2. Signal to Supabase
+            // Let Supabase handle any server-side revocation
             await supabase.auth.signOut();
-            
-            logger.log('[Auth] Supabase sign out complete. Redirecting...');
+            logger.log('[Auth] Sign out complete.');
         } catch (error) {
-            logger.error('[Auth] Sign out error (swallowed for safety):', error);
+            logger.error('[Auth] Sign out error:', error);
         } finally {
-            // 3. Always force a hard redirect to clear potential SPA hangs
+            // Clear React state at the end to trigger redirect only after cleanup is done
+            setUser(null);
+            setSession(null);
+            setEmployee(null);
+            employeeRef.current = null;
+            profileFetchedForRef.current = null;
+            setLoading(false);
+
+            // Hard redirect to ensure server-side session cookie is cleared
             if (typeof window !== 'undefined') {
                 window.location.href = '/login';
             }
         }
     }, []);
 
-    // Inactivity Auto-Logout (5 Minutes)
+    // Inactivity Auto-Logout (5 Minutes) - Only on Website
     useEffect(() => {
-        if (!user || !session) {
-            logger.log('[Auth Inactivity] No active session. Timer suspended.');
-            return;
-        }
+        if (!user || !session) return;
+
+        // Skip auto-logout if running as an installed App (PWA, Mobile, Desktop)
+        const isApp = window.matchMedia('(display-mode: standalone)').matches || 
+                      (window.navigator as any).standalone || 
+                      document.referrer.includes('android-app://') ||
+                      (window as any).__TAURI__;
+        
+        if (isApp) return;
 
         let timeoutId: NodeJS.Timeout;
         let lastActivityTime = Date.now();
-        const INACTIVITY_LIMIT = 300000; // 5 minutes (300,000 ms)
+        const INACTIVITY_LIMIT = 300000; // 5 minutes
 
         const triggerLogout = () => {
-            logger.log(`[Auth Inactivity] User inactive for ${INACTIVITY_LIMIT/1000}s. Triggering logout protocol...`);
+            logger.log('[Auth] Inactivity timeout — logging out...');
             signOut();
         };
 
@@ -265,33 +234,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             timeoutId = setTimeout(triggerLogout, INACTIVITY_LIMIT);
         };
 
-        // Events that indicate activity - optimized set
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-        
         const handler = () => {
             const now = Date.now();
-            // Throttle to 1 second to prevent CPU churn
             if (now - lastActivityTime > 1000) {
                 lastActivityTime = now;
                 resetTimer();
             }
         };
 
-        logger.log(`[Auth Inactivity] Timer initialized. Limit: ${INACTIVITY_LIMIT/1000}s.`);
-        
-        events.forEach(event => {
-            window.addEventListener(event, handler, { passive: true });
-        });
-
-        // Initialize the first timer
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+        events.forEach(e => window.addEventListener(e, handler, { passive: true }));
         resetTimer();
 
         return () => {
             if (timeoutId) clearTimeout(timeoutId);
-            events.forEach(event => {
-                window.removeEventListener(event, handler);
-            });
-            logger.log('[Auth Inactivity] Timer dismantled.');
+            events.forEach(e => window.removeEventListener(e, handler));
         };
     }, [user, session, signOut]);
 

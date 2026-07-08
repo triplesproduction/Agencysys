@@ -281,7 +281,7 @@ export default function EODPage() {
                                         disabled={!!todayReport}
                                         className="glass-textarea"
                                         style={{ height: '3.2rem', paddingLeft: '2.8rem', fontSize: '0.9rem', cursor: todayReport ? 'not-allowed' : 'text', fontWeight: 500 }}
-                                        min="0" step="0.5" max="24"
+                                        min="0" step="any" max="24"
                                         placeholder="8.5"
                                         value={formData.workHours}
                                         onChange={e => setFormData({ ...formData, workHours: e.target.value })}

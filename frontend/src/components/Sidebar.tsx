@@ -25,7 +25,10 @@ import {
     BookOpen,
     ChevronLeft,
     ChevronRight,
-    Megaphone 
+    Megaphone,
+    StickyNote,
+    PenTool,
+    Monitor
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
@@ -40,6 +43,9 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Task Allocation', href: '/tasks', icon: CheckSquare },
+        { name: 'Notes', href: '/notes', icon: StickyNote },
+        { name: 'Whiteboards', href: '/boards', icon: PenTool },
+        { name: 'Employee Monitoring', href: '/monitoring', icon: Monitor },
         { name: 'EOD Reviews', href: '/eod/reviews', icon: FileText },
         { name: 'Worklog', href: '/logs', icon: Clock },
         { name: 'Attendance', href: '/attendance', icon: CalendarDays },
@@ -53,6 +59,9 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Team Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Team Tasks', href: '/tasks', icon: CheckSquare },
+        { name: 'Notes', href: '/notes', icon: StickyNote },
+        { name: 'Whiteboards', href: '/boards', icon: PenTool },
+        { name: 'Employee Monitoring', href: '/monitoring', icon: Monitor },
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
@@ -62,6 +71,8 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'My Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'My Tasks', href: '/tasks', icon: CheckSquare },
+        { name: 'Notes', href: '/notes', icon: StickyNote },
+        { name: 'Whiteboards', href: '/boards', icon: PenTool },
         { name: 'Submit EOD', href: '/eod', icon: FileText },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
         { name: 'Announcements', href: '/broadcast', icon: Megaphone },
@@ -135,7 +146,7 @@ export default function Sidebar() {
 
     useEffect(() => {
         if (typeof document !== 'undefined') {
-            document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '80px' : '280px');
+            document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '80px' : '270px');
         }
     }, [isCollapsed]);
 
@@ -201,7 +212,7 @@ export default function Sidebar() {
 
                             return (
                                     <li key={item.name}>
-                                        <Link href={item.href || '#'} prefetch={false} scroll={false} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)}>
+                                        <Link href={item.href || '#'} prefetch={true} scroll={false} className={`nav-link ${isActive ? 'active' : ''}`} onClick={() => setIsOpen(false)}>
                                             {Icon && <Icon className="nav-icon" size={20} />}
                                             {!isCollapsed && <span>{item.name}</span>}
                                             {/* Unread messages badge */}

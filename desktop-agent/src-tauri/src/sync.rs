@@ -11,6 +11,7 @@ pub const API_BASE_URL: &str = env!("TRIPLES_API_BASE_URL");
 struct QueuedEvent {
     id: String,
     event_type: String,
+    session_id: String,
     payload: serde_json::Value,
     timestamp: String,
     checksum: String,
@@ -23,7 +24,7 @@ fn get_setting(conn: &rusqlite::Connection, key: &str) -> Option<String> {
 fn fetch_pending_events(db_path: &Path) -> Result<Vec<QueuedEvent>, rusqlite::Error> {
     let conn = rusqlite::Connection::open(db_path)?;
     let mut stmt = conn.prepare(
-        "SELECT id, event_type, payload, timestamp, checksum, sequence_number FROM offline_events_queue 
+        "SELECT id, event_type, session_id, payload, timestamp, checksum FROM offline_events_queue 
          WHERE sync_status != 'synced' 
          ORDER BY sequence_number ASC 
          LIMIT 50"
@@ -35,14 +36,16 @@ fn fetch_pending_events(db_path: &Path) -> Result<Vec<QueuedEvent>, rusqlite::Er
     while let Some(row) = rows.next()? {
         let id: String = row.get(0)?;
         let event_type: String = row.get(1)?;
-        let payload_str: String = row.get(2)?;
-        let timestamp: String = row.get(3)?;
-        let checksum: String = row.get(4)?;
+        let session_id: String = row.get(2)?;
+        let payload_str: String = row.get(3)?;
+        let timestamp: String = row.get(4)?;
+        let checksum: String = row.get(5)?;
 
         if let Ok(payload) = serde_json::from_str(&payload_str) {
             events.push(QueuedEvent {
                 id,
                 event_type,
+                session_id,
                 payload,
                 timestamp,
                 checksum,
@@ -66,6 +69,19 @@ fn process_sync_success(conn: &rusqlite::Connection, res_json_res: Result<Value,
                 }
             }
             println!("Sync Worker: Successfully synced {} events.", count);
+        }
+
+        if let Some(failed_ids) = res_json["failedIds"].as_array() {
+            for val in failed_ids {
+                if let Some(id_str) = val["id"].as_str() {
+                    let error_msg = val["error"].as_str().unwrap_or("Unknown error");
+                    eprintln!("Sync Worker Error: Event {} failed to sync: {}", id_str, error_msg);
+                    let _ = conn.execute(
+                        "UPDATE offline_events_queue SET retry_count = retry_count + 1, sync_status = 'failed' WHERE id = ?1",
+                        params![id_str]
+                    );
+                }
+            }
         }
 
         if let Some(commands) = res_json["commands"].as_array() {
@@ -97,41 +113,42 @@ fn mark_batch_failed(conn: &rusqlite::Connection, event_ids: &[String], is_bad_r
 }
 
 /// Sync queued events in batches and strictly by Sequence Number order.
-pub async fn run_sync_worker(db_path: &Path) {
-    let (token, device_id, session_id, refresh_token) = {
+async fn run_sync_worker_batch(db_path: &Path) -> usize {
+    let (token, device_id, session_id, refresh_token, api_base) = {
         let conn = match rusqlite::Connection::open(db_path) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Sync Worker: Failed to open database: {}", e);
-                return;
+                return 0;
             }
         };
         let t = match get_setting(&conn, "access_token") { 
             Some(t) => t, 
-            None => { eprintln!("Sync Worker skipped: access_token not found in settings"); return } 
+            None => { eprintln!("Sync Worker skipped: access_token not found in settings"); return 0 } 
         };
         let d = match get_setting(&conn, "device_id") { 
             Some(d) => d, 
-            None => { eprintln!("Sync Worker skipped: device_id not found in settings"); return } 
+            None => { eprintln!("Sync Worker skipped: device_id not found in settings"); return 0 } 
         };
         let s = match get_setting(&conn, "session_id") { 
             Some(s) => s, 
-            None => { eprintln!("Sync Worker skipped: session_id not found in settings"); return } 
+            None => { eprintln!("Sync Worker skipped: session_id not found in settings"); return 0 } 
         };
         let r = get_setting(&conn, "refresh_token").unwrap_or_default();
-        (t, d, s, r)
+        let api_url = API_BASE_URL.to_string();
+        (t, d, s, r, api_url)
     };
 
     let events = match fetch_pending_events(db_path) {
         Ok(e) => e,
         Err(e) => {
             eprintln!("Sync Worker: Failed to fetch pending events: {}", e);
-            return;
+            return 0;
         }
     };
 
     if events.is_empty() {
-        return;
+        return 0;
     }
 
     let mut events_list = Vec::new();
@@ -140,6 +157,7 @@ pub async fn run_sync_worker(db_path: &Path) {
         events_list.push(json!({
             "id": ev.id,
             "eventType": ev.event_type,
+            "sessionId": ev.session_id,
             "payload": ev.payload,
             "timestamp": ev.timestamp,
             "checksum": ev.checksum
@@ -148,7 +166,7 @@ pub async fn run_sync_worker(db_path: &Path) {
     }
 
     let client = Client::new();
-    let url = format!("{}/api/desktop-agent/sync", API_BASE_URL);
+    let url = format!("{}/api/desktop-agent/sync", api_base);
 
     let batch_body = json!({
         "agentVersion": "1.0.0",
@@ -165,15 +183,22 @@ pub async fn run_sync_worker(db_path: &Path) {
         .send()
         .await;
 
+    let mut synced_count = 0;
+
     if let Ok(conn) = rusqlite::Connection::open(db_path) {
         match res {
             Ok(response) => {
                 if response.status().is_success() {
                     let res_json_res = response.json::<Value>().await;
+                    if let Ok(ref res_json) = res_json_res {
+                        if let Some(synced_ids) = res_json["syncedIds"].as_array() {
+                            synced_count = synced_ids.len();
+                        }
+                    }
                     process_sync_success(&conn, res_json_res);
                 } else if response.status() == reqwest::StatusCode::UNAUTHORIZED && !refresh_token.is_empty() {
                     // Token expired: Attempt to refresh token
-                    let refresh_url = format!("{}/api/auth/agent-refresh", API_BASE_URL);
+                    let refresh_url = format!("{}/api/auth/agent-refresh", api_base);
                     let refresh_res = client.post(&refresh_url)
                         .header("Content-Type", "application/json")
                         .json(&json!({ "refresh_token": refresh_token }))
@@ -202,6 +227,11 @@ pub async fn run_sync_worker(db_path: &Path) {
                                         Ok(retry_resp) => {
                                             if retry_resp.status().is_success() {
                                                 let retry_json_res = retry_resp.json::<Value>().await;
+                                                if let Ok(ref retry_json) = retry_json_res {
+                                                    if let Some(synced_ids) = retry_json["syncedIds"].as_array() {
+                                                        synced_count = synced_ids.len();
+                                                    }
+                                                }
                                                 process_sync_success(&conn, retry_json_res);
                                             } else {
                                                 eprintln!("Sync Worker: Retry sync failed with status {}", retry_resp.status());
@@ -216,7 +246,12 @@ pub async fn run_sync_worker(db_path: &Path) {
                                 }
                             }
                         } else {
-                            eprintln!("Sync Worker: Token refresh failed with status {}", r_resp.status());
+                            let status = r_resp.status();
+                            eprintln!("Sync Worker: Token refresh failed with status {}", status);
+                            if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::BAD_REQUEST {
+                                eprintln!("Sync Worker: Auth session invalidated. Clearing cached credentials...");
+                                let _ = conn.execute("DELETE FROM settings WHERE key IN ('employee_id', 'access_token', 'refresh_token', 'session_id', 'is_clocked_in')", params![]);
+                            }
                         }
                     } else if let Err(e) = refresh_res {
                         eprintln!("Sync Worker: Token refresh network error: {}", e);
@@ -234,6 +269,18 @@ pub async fn run_sync_worker(db_path: &Path) {
                 eprintln!("Sync Worker: Network error during initial sync: {}", e);
                 mark_batch_failed(&conn, &event_ids_in_batch, false);
             }
+        }
+    }
+
+    synced_count
+}
+
+/// Sync queued events in batches and strictly by Sequence Number order.
+pub async fn run_sync_worker(db_path: &Path) {
+    loop {
+        let synced = run_sync_worker_batch(db_path).await;
+        if synced == 0 {
+            break;
         }
     }
 }

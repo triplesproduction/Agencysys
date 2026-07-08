@@ -8,7 +8,7 @@ import { messagingKeys } from './messagingKeys';
  */
 export function useConversations(userId: string | undefined, roleId?: string) {
     return useQuery({
-        queryKey: userId ? messagingKeys.conversations(userId) : [],
+        queryKey: userId ? messagingKeys.conversations(userId) : ['messaging', 'conversations', 'fallback'],
         queryFn: async () => {
             if (!userId) return [];
             return await api.getConversations(userId, roleId || '');
@@ -24,7 +24,7 @@ export function useConversations(userId: string | undefined, roleId?: string) {
  */
 export function useMessages(conversationId: string | undefined) {
     return useQuery({
-        queryKey: conversationId ? messagingKeys.messages(conversationId) : [],
+        queryKey: conversationId ? messagingKeys.messages(conversationId) : ['messaging', 'messages', 'fallback'],
         queryFn: async () => {
             if (!conversationId) return [];
             return await api.getMessages(conversationId);

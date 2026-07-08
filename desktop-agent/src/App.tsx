@@ -29,6 +29,7 @@ function App() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   
   // Recovery popup state
   const [recoveryState, setRecoveryState] = useState<RecoveryState | null>(null);
@@ -139,6 +140,7 @@ function App() {
   // Check login and recovery on load
   useEffect(() => {
     async function initApp() {
+
       try {
         const emp = await invoke<EmployeeInfo | null>("get_current_employee");
         if (emp) {
@@ -168,6 +170,38 @@ function App() {
     }
     initApp();
   }, []);
+
+  // Verify auth session integrity periodically (e.g. if sync worker clears it due to expired/invalid tokens)
+  useEffect(() => {
+    let verifyInterval: number | null = null;
+    if (employee) {
+      verifyInterval = window.setInterval(async () => {
+        try {
+          const emp = await invoke<EmployeeInfo | null>("get_current_employee");
+          if (!emp) {
+            console.warn("Auth session invalidated backend-side. Logging out...");
+            setEmployee(null);
+            setClockedIn(false);
+            setIsOnBreak(false);
+            setElapsedSeconds(0);
+            setRecoveryState(null);
+          } else {
+            setEmployee(emp);
+            setClockedIn(emp.is_clocked_in);
+            setIsOnBreak(emp.is_on_break);
+            if (!emp.is_clocked_in) {
+              setElapsedSeconds(0);
+            }
+          }
+        } catch (err) {
+          console.error("Session verification failed:", err);
+        }
+      }, 10000); // Check every 10 seconds
+    }
+    return () => {
+      if (verifyInterval) window.clearInterval(verifyInterval);
+    };
+  }, [employee]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -54,7 +54,10 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
     const { mutateAsync: createProject } = useCreateProject();
     const { mutateAsync: addProjectMember } = useAddProjectMember();
     const { mutateAsync: createTask } = useCreateTask();
-    const { data: employees = [] } = useEmployees({ limit: 1000 });
+    const { data: employees = [] } = useEmployees(
+        { limit: 1000 },
+        { enabled: isOpen } // Don't fetch while modal is closed
+    );
 
     useEffect(() => {
         if (isOpen) {

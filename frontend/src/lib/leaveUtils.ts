@@ -6,15 +6,16 @@ import { EmployeeDTO, LeaveApplicationDTO } from '@/types/dto';
 export function getDayCount(startDate: string, endDate: string): number {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
-    // Reset times to midnight to avoid daylight saving issues
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
     
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    
-    return diffDays + 1; // +1 to make it inclusive
+    const diffDays = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+    let count = 0;
+    for (let i = 0; i < diffDays; i++) {
+        const d = new Date(start.getTime() + i * 86400000);
+        if (d.getDay() !== 0) count++;
+    }
+    return count;
 }
 
 /**

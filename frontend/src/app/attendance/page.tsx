@@ -24,6 +24,7 @@ import { useAttendanceReport, useAddHoliday, useDeleteHoliday } from '@/hooks/qu
 import { useEmployeeLeaves } from '@/hooks/queries/domains/leaves/useLeaves';
 import { api } from '@/lib/api'; // still needed for getEmployees
 import { calculateLeaveBalance } from '@/lib/leaveUtils';
+import DatePicker from '@/components/common/DatePicker';
 import './Attendance.css';
 
 type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'PAID_LEAVE' | 'UNPAID_LEAVE' | 'HOLIDAY' | 'WORKED_ON_HOLIDAY' | 'NONE';
@@ -80,14 +81,21 @@ export default function AttendancePage() {
         // during the brief window when employee is still null (auth loading)
         if (authLoading || !employee) return;
 
+        if (!canViewOthers) {
+            // SECURITY: Regular employees must not receive the full employee directory.
+            // Set their own ID directly from auth context — no API call needed.
+            setSelectedEmployeeId(employee.id || '');
+            setLoading(false);
+            return;
+        }
+
+        // Admins and Managers fetch the full list to use the employee selector.
         setLoading(true);
         api.getEmployees({ limit: 100 }).then(res => {
             const list = (res.data || []).filter(e => e.roleId !== 'ADMIN');
             setEmployees(list);
             if (list.length > 0 && !selectedEmployeeId) {
-                setSelectedEmployeeId(canViewOthers ? list[0].id : (employee?.id || ''));
-            } else if (!canViewOthers) {
-                setSelectedEmployeeId(employee?.id || '');
+                setSelectedEmployeeId(list[0].id);
             }
             setLoading(false);
         });
@@ -95,7 +103,11 @@ export default function AttendancePage() {
 
     // Handled by React Query hooks
 
-    const selectedEmployeeObj = employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId);
+    // For admins/managers, selectedEmployeeObj comes from the full list.
+    // For regular employees, the list is not fetched — use the auth employee directly.
+    const selectedEmployeeObj: EmployeeDTO | undefined =
+        employees.find((e: EmployeeDTO) => e.id === selectedEmployeeId) ||
+        (!canViewOthers && employee ? (employee as unknown as EmployeeDTO) : undefined);
 
     const calendarDays = useMemo(() => {
         const year = selectedMonth.getFullYear();
@@ -117,8 +129,7 @@ export default function AttendancePage() {
         const eod = data.eods.find((e: EODSubmissionDTO) => e.reportDate === dateStr);
         const holiday = data.holidays.find((h: HolidayDTO) => h.date === dateStr);
         const isSunday = date.getDay() === 0;
-
-        const leave = data.leaves.find((l: LeaveApplicationDTO) => l.status === 'APPROVED' && dateStr >= l.startDate && dateStr <= l.endDate);
+        const leave = !(isSunday || holiday) && data.leaves.find((l: LeaveApplicationDTO) => l.status === 'APPROVED' && dateStr >= l.startDate && dateStr <= l.endDate);
         if (leave) return leave.leaveType === 'UNPAID' ? 'UNPAID_LEAVE' : 'PAID_LEAVE';
 
         if (eod) return (holiday || isSunday) ? 'WORKED_ON_HOLIDAY' : 'PRESENT';
@@ -327,14 +338,11 @@ export default function AttendancePage() {
                                     onChange={e => setNewHoliday({...newHoliday, name: e.target.value})}
                                 />
                             </div>
-                            <div className="modal-input-group">
-                                <label className="input-label">Date</label>
-                                <input 
-                                    className="correction-textarea"
-                                    style={{ minHeight: 'unset', padding: '12px 16px', marginBottom: '16px' }}
-                                    type="date"
+                             <div className="modal-input-group" style={{ marginBottom: '16px' }}>
+                                <DatePicker 
+                                    label="Date"
                                     value={newHoliday.date}
-                                    onChange={e => setNewHoliday({...newHoliday, date: e.target.value})}
+                                    onChange={(date: string) => setNewHoliday({...newHoliday, date})}
                                 />
                             </div>
 

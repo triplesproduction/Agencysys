@@ -288,9 +288,8 @@ export default function MonitoringDashboard() {
             )}
 
             {loading ? (
-                <div style={{ textAlign: 'center', padding: '3rem' }}>
-                    <div className="skeleton-pulse" style={{ height: '40px', marginBottom: '20px' }}></div>
-                    <div className="skeleton-pulse" style={{ height: '200px' }}></div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: 'var(--purple-main) transparent var(--purple-main) transparent' }}></div>
                 </div>
             ) : (
                 <>
@@ -331,6 +330,8 @@ export default function MonitoringDashboard() {
                             const runtimeStatus = metrics.runtimeStatus;
                             const hasData = metrics.totalWorkedSeconds > 0 || metrics.appsUsedCount > 0;
                             const activePct = metrics.avgActivePercentage;
+                            // ponytail: 12h cap — upgrade to configurable shift length if needed
+                            const workedPct = Math.min((metrics.totalWorkedSeconds / 43200) * 100, 100);
                             
                             // Determine card status class for background coloring
                             let statusClass = 'status-offline';
@@ -382,11 +383,18 @@ export default function MonitoringDashboard() {
                                                 <span className="timeline-checkin">{metrics.checkInTimeStr} Checked-in</span>
                                                 <span className="timeline-hours">{metrics.hoursWorkedStr} Hours worked</span>
                                             </div>
-                                            <div className="timeline-bar-wrapper">
-                                                <div 
-                                                    className="timeline-bar-progress" 
-                                                    style={{ width: `${activePct}%` }}
-                                                />
+                                            <div className="timeline-bar-container">
+                                                <div className="timeline-bar-wrapper">
+                                                    <div 
+                                                        className="timeline-bar-progress" 
+                                                        style={{ width: `${workedPct}%` }}
+                                                    />
+                                                </div>
+                                                <div className="timeline-milestone-row">
+                                                    <span className="timeline-milestone-tick" style={{ left: '66.67%' }}>8h</span>
+                                                    <span className="timeline-milestone-tick" style={{ left: '83.33%' }}>10h</span>
+                                                    <span className="timeline-milestone-tick" style={{ left: '100%', transform: 'translateX(-100%)' }}>12h</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

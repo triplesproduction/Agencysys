@@ -13,8 +13,11 @@
     "windows": [
       {
         "title": "TripleS OS",
-        "width": 800,
-        "height": 500
+        "width": 420,
+        "height": 680,
+        "resizable": true,
+        "minWidth": 360,
+        "minHeight": 560
       }
     ],
     "security": {

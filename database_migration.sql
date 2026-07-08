@@ -113,3 +113,41 @@ CREATE POLICY "Allow authenticated to manage work_sessions" ON work_sessions FOR
 
 -- Notify PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';
+
+-- =====================================================================
+-- WHITEBOARD PRIVACY AND INVITATION SYSTEM
+-- Run these in Supabase SQL Editor
+-- =====================================================================
+
+-- 1. Add visibility to boards
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS "visibility" text DEFAULT 'team';
+
+-- 2. Create board_invites table
+CREATE TABLE IF NOT EXISTS board_invites (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "board_id" uuid REFERENCES boards(id) ON DELETE CASCADE,
+  "inviter_id" uuid REFERENCES employees(id) ON DELETE CASCADE,
+  "invitee_id" uuid REFERENCES employees(id) ON DELETE CASCADE,
+  "status" text DEFAULT 'pending', -- 'pending', 'accepted', 'declined'
+  "created_at" timestamptz DEFAULT now(),
+  UNIQUE("board_id", "invitee_id")
+);
+
+-- 3. Add Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_board_invites_board_id ON board_invites("board_id");
+CREATE INDEX IF NOT EXISTS idx_board_invites_invitee_id ON board_invites("invitee_id");
+
+-- 4. Enable RLS on board_invites
+ALTER TABLE board_invites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own invites" ON board_invites 
+FOR SELECT USING (auth.uid() = inviter_id OR auth.uid() = invitee_id);
+
+CREATE POLICY "Users can insert invites for themselves" ON board_invites 
+FOR INSERT WITH CHECK (auth.uid() = inviter_id);
+
+CREATE POLICY "Users can update their own invites" ON board_invites 
+FOR UPDATE USING (auth.uid() = inviter_id OR auth.uid() = invitee_id);
+
+-- Notify PostgREST to reload schema cache
+NOTIFY pgrst, 'reload schema';

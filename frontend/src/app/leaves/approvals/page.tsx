@@ -9,6 +9,7 @@ import Button from '@/components/Button';
 import Input from '@/components/Input';
 import { api } from '@/lib/api';
 import { logger } from '@/lib/logger';
+import { getDayCount } from '@/lib/leaveUtils';
 import '../Leaves.css';
 
 interface LeaveWithEmployee {
@@ -100,10 +101,7 @@ export default function LeaveApprovalsPage() {
         }
     };
 
-    const getDayCount = (start: string, end: string) => {
-        const diffMs = new Date(end).getTime() - new Date(start).getTime();
-        return Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
-    };
+
 
     const filtered = leaves.filter(l => {
         const empName = l.employee ? `${l.employee.firstName} ${l.employee.lastName}`.toLowerCase() : l.employeeId.toLowerCase();

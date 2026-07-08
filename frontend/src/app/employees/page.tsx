@@ -76,6 +76,7 @@ export default function EmployeesPage() {
                     department: deptFilter || undefined,
                     status: statusFilter || undefined,
                     excludeAdmin: true,
+                    includeSuspended: true,
                 });
                 if (cancelled) return;
                 const employeeData = res?.data || (Array.isArray(res) ? res : []);
@@ -114,13 +115,45 @@ export default function EmployeesPage() {
     const handleToggleStatus = async (emp: EmployeeDTO, e: React.MouseEvent) => {
         e.stopPropagation();
         setOpenMenuId(null);
-        const newStatus = emp.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+        const newStatus: "ACTIVE" | "SUSPENDED" = emp.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
         try {
-            setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, status: newStatus } : e));
+            setEmployees(prev => {
+                const updated = prev.map(e => e.id === emp.id ? { ...e, status: newStatus } : e);
+                return updated.sort((a, b) => {
+                    const statusOrder = (s: string) => {
+                        switch (s?.toUpperCase()) {
+                            case 'ACTIVE': return 0;
+                            case 'ON_LEAVE': return 1;
+                            case 'SUSPENDED': return 2;
+                            case 'TERMINATED': return 3;
+                            default: return 4;
+                        }
+                    };
+                    const diff = statusOrder(a.status) - statusOrder(b.status);
+                    if (diff !== 0) return diff;
+                    return (a.firstName || '').localeCompare(b.firstName || '');
+                });
+            });
             await api.updateEmployeeStatus(emp.id, newStatus);
             addNotification({ title: 'Status Updated', message: `${emp.firstName} is now ${newStatus.toLowerCase()}.`, type: 'SUCCESS', metadata: null });
         } catch (err: any) {
-            setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, status: emp.status } : e));
+            setEmployees(prev => {
+                const reverted = prev.map(e => e.id === emp.id ? { ...e, status: emp.status } : e);
+                return reverted.sort((a, b) => {
+                    const statusOrder = (s: string) => {
+                        switch (s?.toUpperCase()) {
+                            case 'ACTIVE': return 0;
+                            case 'ON_LEAVE': return 1;
+                            case 'SUSPENDED': return 2;
+                            case 'TERMINATED': return 3;
+                            default: return 4;
+                        }
+                    };
+                    const diff = statusOrder(a.status) - statusOrder(b.status);
+                    if (diff !== 0) return diff;
+                    return (a.firstName || '').localeCompare(b.firstName || '');
+                });
+            });
             addNotification({ title: 'Update Failed', message: err.message || 'Could not update status.', type: 'ERROR', metadata: null });
         }
     };

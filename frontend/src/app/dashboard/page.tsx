@@ -9,9 +9,13 @@ import DeadlineIndicator from '@/components/DeadlineIndicator';
 import { api } from '@/lib/api';
 import { logger } from '@/lib/logger';
 import { EmployeeDTO, TaskDTO, WorkHourLogDTO } from '@/types/dto';
-import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock, Briefcase } from 'lucide-react';
+import { Activity, ChevronRight, Plus, MessageCircle, Bell, Users, CheckSquare, AlertTriangle, Search, Zap, CalendarDays, BookOpen, Clock, Briefcase, Download } from 'lucide-react';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
 import TaskDetailDrawer from '@/components/tasks/TaskDetailDrawer';
+
+import { useQueryClient } from '@tanstack/react-query';
+import { dashboardKeys } from '@/hooks/queries/domains/dashboard/keys';
+import { useDashboardData } from '@/hooks/queries/domains/dashboard/useDashboardData';
 
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import AnnouncementsWidget from '@/components/dashboard/AnnouncementsWidget';
@@ -23,6 +27,10 @@ import WorkClock from '@/components/dashboard/WorkClock';
 import CreateAnnouncementModal from '@/components/dashboard/CreateAnnouncementModal';
 import CreateEmployeeModal from '@/components/employees/CreateEmployeeModal';
 import CreateProjectModal from '@/components/projects/CreateProjectModal';
+
+
+import Preloader from '@/components/common/Preloader';
+import Phase2CelebrationModal from '@/components/dashboard/Phase2CelebrationModal';
 
 import './Dashboard.css';
 
@@ -70,7 +78,8 @@ function AdminDashboard({
     allEmployees = [],
     onCreateEmployeeTrigger,
     onBroadcastTrigger,
-    onCreateProjectTrigger
+    onCreateProjectTrigger,
+    allWorkHours = []
 }: {
     employee: any,
     tasks?: TaskDTO[],
@@ -84,7 +93,8 @@ function AdminDashboard({
     recentEods?: any[],
     teamKpis?: any[],
     recentKpiLogs?: any[],
-    allEmployees?: EmployeeDTO[]
+    allEmployees?: EmployeeDTO[],
+    allWorkHours?: any[]
 }) {
     const router = useRouter();
     const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
@@ -108,6 +118,32 @@ function AdminDashboard({
             };
         })
         .sort((a, b) => b.current_score - a.current_score), [allEmployees, teamKpis]);
+
+    const hoursLeaderboard = useMemo(() => {
+        const hoursMap: Record<string, number> = {};
+        (allWorkHours || []).forEach((log: any) => {
+            const empId = log.employeeId || log.employee_id;
+            if (empId) {
+                const hours = parseFloat(log.hoursLogged || log.hours_logged || 0) || 0;
+                hoursMap[empId] = (hoursMap[empId] || 0) + hours;
+            }
+        });
+
+        return allEmployees
+            .filter(emp => {
+                const role = (emp.roleId || '').toUpperCase();
+                return role !== 'ADMIN' && role !== 'ADMINISTRATOR' && !role.includes('ADMIN');
+            })
+            .map(emp => {
+                const totalHours = hoursMap[emp.id] || 0;
+                return {
+                    id: emp.id,
+                    employee: emp,
+                    total_hours_worked: parseFloat(totalHours.toFixed(1))
+                };
+            })
+            .sort((a, b) => b.total_hours_worked - a.total_hours_worked);
+    }, [allEmployees, allWorkHours]);
 
     const kpiLogList = recentKpiLogs || [];
 
@@ -203,6 +239,142 @@ function AdminDashboard({
                         </div>
                     </div>
 
+                    <div className="ad2-card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Zap size={16} color="#A78BFA" /> Top Contributor
+                        </h3>
+                        {hoursLeaderboard.length > 0 ? (
+                            <div style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '12px', padding: '16px', textAlign: 'center', marginBottom: '20px' }}>
+                                <img src={hoursLeaderboard[0].employee?.profilePhoto || "https://i.pravatar.cc/150"} alt="Top" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid #A78BFA', marginBottom: '10px' }} />
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'white' }}>{hoursLeaderboard[0].employee?.firstName} {hoursLeaderboard[0].employee?.lastName}</div>
+                                <div style={{ fontSize: '0.8rem', color: '#A78BFA' }}>Hours: {hoursLeaderboard[0].total_hours_worked} hrs</div>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No performance data found for this month.</div>
+                        )}
+
+                        <div className="leaderboard-mini custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
+                            <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Leaderboard (Hours)</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {hoursLeaderboard.slice(0, 3).map((profile: any, idx: number) => (
+                                    <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem' }}>
+                                        <span style={{ width: '18px', color: idx === 0 ? '#F59E0B' : 'rgba(255,255,255,0.3)', fontWeight: 700 }}>#{idx + 1}</span>
+                                        <div style={{ flex: 1, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.employee?.firstName} {profile.employee?.lastName}</div>
+                                        <div style={{ color: '#A78BFA', fontWeight: 600 }}>{profile.total_hours_worked} hrs</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {kpiList.filter((p: any) => p && p.grade === 'Danger Zone').length > 0 && (
+                            <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px' }}>
+                                <div style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <AlertTriangle size={12} /> CRITICAL ATTENTION
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'white' }}>
+                                    {kpiList.filter((p: any) => p && p.grade === 'Danger Zone').length} members in Danger Zone
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Column 2: My Task Runway (Admin's own tasks) + Submitted Tasks */}
+                <div className="ad2-col ad2-col-2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Admin My Task Runway */}
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
+                            <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
+                        </div>
+                        {(() => {
+                            const now = new Date();
+                            const myTasks = taskList
+                                .filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED'
+                                    && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
+                                )
+                                .sort((a: any, b: any) => {
+                                    const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
+                                    const pDiff = (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
+                                    if (pDiff !== 0) return pDiff;
+                                    
+                                    const timeA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+                                    const timeB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+                                    return timeA - timeB;
+                                });
+                            return (
+                                <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '215px' }}>
+                                    {myTasks.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>No high/medium priority tasks assigned to you.</div>
+                                    ) : myTasks.map((task: any) => {
+                                        const isOverdue = task.dueDate && new Date(task.dueDate) < now;
+                                        const pc: Record<string,string> = { HIGH: '#EF4444', CRITICAL: '#8B5CF6', MEDIUM: '#F59E0B' };
+                                        return (
+                                            <div key={task.id} style={{ padding: '10px 14px', borderRadius: '10px', background: isOverdue ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isOverdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
+                                                        {isOverdue && <span style={{ fontSize: '0.57rem', fontWeight: 800, color: '#EF4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>OVERDUE</span>}
+                                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '6px', fontSize: '0.68rem', alignItems: 'center' }}>
+                                                        <span style={{ color: pc[task.priority] || '#A78BFA', fontWeight: 800 }}>{task.priority}</span>
+                                                        {task.dueDate && <span style={{ color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => openTaskDrawer(task.id)}
+                                                    className="ad2-circle-btn"
+                                                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                                >
+                                                    <ChevronRight size={12} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </div>
+
+                    {/* Submitted Tasks needing action */}
+                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
+                            <h3>Tasks for Review</h3>
+                            <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
+                        </div>
+                        <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '185px' }}>
+                            {taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                                    <CheckSquare size={32} style={{ opacity: 0.1, marginBottom: '8px' }} />
+                                    <p>All clear — no tasks pending review.</p>
+                                </div>
+                            ) : (
+                                taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).map((task: any) => {
+                                    if (!task) return null;
+                                    return (
+                                        <div key={task.id} style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                                            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ flexShrink: 0 }}>
+                                                    <TaskAssigneeStack assignees={task.assignees} />
+                                                </div>
+                                                <h4 style={{ margin: 0, fontSize: '0.82rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
+                                            </div>
+                                            <button
+                                                onClick={() => openTaskDrawer(task.id)}
+                                                style={{ background: 'rgba(124, 58, 237, 0.1)', border: '1px solid rgba(124, 58, 237, 0.25)', color: '#A78BFA', padding: '4px 10px', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 700 }}
+                                            >Review</button>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Column 4: Announcements, Chats & Leaderboard */}
+                <div className="ad2-col ad2-col-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <AnnouncementsWidget maxItems={2} />
+
                     <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
                             <h3>EOD Submission Status</h3>
@@ -226,7 +398,7 @@ function AdminDashboard({
                                             background: isSub ? 'rgba(52, 211, 153, 0.02)' : 'rgba(255, 255, 255, 0.01)',
                                             borderColor: isSub ? 'rgba(52, 211, 153, 0.08)' : 'rgba(255, 255, 255, 0.04)',
                                             padding: '8px 12px',
-                                            marginBottom: '6px'
+                                            marginBottom: '2px'
                                         }}>
                                             <div style={{ position: 'relative' }}>
                                                 <img src={status.profilePhoto || `https://ui-avatars.com/api/?name=${status.firstName}&background=6366f1&color=fff`} alt="E" style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }} />
@@ -268,174 +440,6 @@ function AdminDashboard({
                                 })
                             )}
                         </div>
-                    </div>
-
-                    {/* Performance Feed */}
-                    <div className="ad2-card custom-scrollbar" style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(5, 5, 5, 0.4)', minHeight: '180px' }}>
-                        <div className="ad2-card-header" style={{ marginBottom: '16px' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Activity size={16} color="#10B981" /> Performance Feed
-                            </h3>
-                            <span className="ad2-badge">{kpiLogList.length}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {kpiLogList.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No recent KPI activity.</div>
-                            ) : (
-                                kpiLogList.map((log: any) => {
-                                    if (!log) return null;
-                                    return (
-                                        <div key={log.id} style={{ padding: '10px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.03)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'white' }}>{log.employee?.firstName || 'User'} {log.employee?.lastName || ''}</span>
-                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: log.points_change >= 0 ? '#10B981' : '#EF4444' }}>
-                                                    {log.points_change >= 0 ? `+${log.points_change}` : log.points_change} PTS
-                                                </span>
-                                            </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '4px' }}>{log.reason}</div>
-                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} • {log.category}
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Column 2: My Task Runway (Admin's own tasks) + Submitted Tasks */}
-                <div className="ad2-col ad2-col-2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Admin My Task Runway */}
-                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Zap size={16} color="var(--purple-main)" /> My Task Runway</h3>
-                            <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
-                        </div>
-                        {(() => {
-                            const now = new Date();
-                            const myTasks = taskList
-                                .filter((t: any) => t && t.status !== 'DONE' && t.status !== 'APPROVED'
-                                    && (t.assigneeId === employee?.id || (t.assigneeIds && t.assigneeIds.includes(employee?.id)))
-                                )
-                                .sort((a: any, b: any) => {
-                                    const po: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
-                                    const pDiff = (po[a.priority] ?? 3) - (po[b.priority] ?? 3);
-                                    if (pDiff !== 0) return pDiff;
-                                    
-                                    const timeA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-                                    const timeB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-                                    return timeA - timeB;
-                                });
-                            return (
-                                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {myTasks.length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>No high/medium priority tasks assigned to you.</div>
-                                    ) : myTasks.slice(0, 5).map((task: any) => {
-                                        const isOverdue = task.dueDate && new Date(task.dueDate) < now;
-                                        const pc: Record<string,string> = { HIGH: '#EF4444', CRITICAL: '#8B5CF6', MEDIUM: '#F59E0B' };
-                                        return (
-                                            <div key={task.id} style={{ padding: '10px 14px', borderRadius: '10px', background: isOverdue ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isOverdue ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
-                                                        {isOverdue && <span style={{ fontSize: '0.57rem', fontWeight: 800, color: '#EF4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>OVERDUE</span>}
-                                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '6px', fontSize: '0.68rem', alignItems: 'center' }}>
-                                                        <span style={{ color: pc[task.priority] || '#A78BFA', fontWeight: 800 }}>{task.priority}</span>
-                                                        {task.dueDate && <span style={{ color: isOverdue ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>· {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => openTaskDrawer(task.id)}
-                                                    className="ad2-circle-btn"
-                                                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                                                >
-                                                    <ChevronRight size={12} />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })()}
-                    </div>
-
-                    {/* Submitted Tasks needing action */}
-                    <div className="ad2-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div className="ad2-card-header" style={{ marginBottom: '12px' }}>
-                            <h3>Tasks for Review</h3>
-                            <Link href="/tasks" style={{ fontSize: '0.8rem', color: '#A78BFA', textDecoration: 'none' }}>View All</Link>
-                        </div>
-                        <div className="custom-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '340px' }}>
-                            {taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
-                                    <CheckSquare size={32} style={{ opacity: 0.1, marginBottom: '8px' }} />
-                                    <p>All clear — no tasks pending review.</p>
-                                </div>
-                            ) : (
-                                taskList.filter((t: any) => t && (t.status === 'SUBMITTED' || t.status === 'IN_REVIEW')).map((task: any) => {
-                                    if (!task) return null;
-                                    return (
-                                        <div key={task.id} style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: '0 0 4px 0', fontSize: '0.88rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</h4>
-                                                <TaskAssigneeStack assignees={task.assignees} />
-                                            </div>
-                                            <button
-                                                onClick={() => openTaskDrawer(task.id)}
-                                                style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60A5FA', padding: '5px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}
-                                            >Review</button>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Column 4: Announcements, Chats & Leaderboard */}
-                <div className="ad2-col ad2-col-4" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <AnnouncementsWidget maxItems={2} />
-                    <RecentMessagesWidget maxItems={10} />
-
-                    <div className="ad2-card" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                        <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Zap size={16} color="#A78BFA" /> Top Performer
-                        </h3>
-                        {kpiList.length > 0 ? (
-                            <div style={{ background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '12px', padding: '16px', textAlign: 'center', marginBottom: '20px' }}>
-                                <img src={kpiList[0].employee?.profilePhoto || "https://i.pravatar.cc/150"} alt="Top" style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid #A78BFA', marginBottom: '10px' }} />
-                                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'white' }}>{kpiList[0].employee?.firstName} {kpiList[0].employee?.lastName}</div>
-                                <div style={{ fontSize: '0.8rem', color: '#A78BFA' }}>Score: {kpiList[0].current_score} / 100</div>
-                            </div>
-                        ) : (
-                            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No performance data found for this month.</div>
-                        )}
-
-                        <div className="leaderboard-mini custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
-                            <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Leaderboard</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {kpiList.slice(0, 3).map((profile: any, idx: number) => (
-                                    <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem' }}>
-                                        <span style={{ width: '18px', color: idx === 0 ? '#F59E0B' : 'rgba(255,255,255,0.3)', fontWeight: 700 }}>#{idx + 1}</span>
-                                        <div style={{ flex: 1, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.employee?.firstName} {profile.employee?.lastName}</div>
-                                        <div style={{ color: '#A78BFA', fontWeight: 600 }}>{profile.current_score}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {kpiList.filter((p: any) => p && p.grade === 'Danger Zone').length > 0 && (
-                            <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px' }}>
-                                <div style={{ color: '#EF4444', fontSize: '0.75rem', fontWeight: 800, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <AlertTriangle size={12} /> CRITICAL ATTENTION
-                                </div>
-                                <div style={{ fontSize: '0.8rem', color: 'white' }}>
-                                    {kpiList.filter((p: any) => p && p.grade === 'Danger Zone').length} members in Danger Zone
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -831,8 +835,8 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <button className="ad2-btn-add primary" disabled={hasSubmittedToday} style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px', opacity: hasSubmittedToday ? 0.5 : 1, cursor: hasSubmittedToday ? 'not-allowed' : 'pointer' }} onClick={() => !hasSubmittedToday && router.push('/eod')}>{hasSubmittedToday ? 'EOD Submitted' : 'Submit EOD'}</button>
                             <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/tasks')}>Tasks Board</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/leaves')}>Request Leave</button>
-                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/rulebook')}>Agency Rules</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/notes')}>Notes</button>
+                            <button className="ad2-btn-add" style={{ width: '100%', justifyContent: 'flex-start', padding: '12px 14px' }} onClick={() => router.push('/boards')}>Whiteboard</button>
                         </div>
                     </div>
 
@@ -886,23 +890,28 @@ function EmployeeDashboard({ employee, tasks, kpis, recentLogs, monthlyHours, eo
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
-    const { employee: authEmployee, loading: authLoading } = useAuth();
-    const [employee, setEmployee] = useState<EmployeeDTO | null>(null);
-    const [tasks, setTasks] = useState<TaskDTO[]>([]);
-    const [recentLogs, setRecentLogs] = useState<WorkHourLogDTO[]>([]);
-    const [kpis, setKpis] = useState<any | null>(null);
-    const [allKpis, setAllKpis] = useState<any[]>([]);
-    const [recentKpiLogs, setRecentKpiLogs] = useState<any[]>([]);
-    const [totalEmployees, setTotalEmployees] = useState<number>(0);
-    const [loading, setLoading] = useState(true);
-    const [userRole, setUserRole] = useState('EMPLOYEE');
-    const [monthlyHours, setMonthlyHours] = useState(0);
-    const [recentEods, setRecentEods] = useState<any[]>([]);
-    const [allEmployees, setAllEmployees] = useState<EmployeeDTO[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-
     const { addNotification } = useNotifications();
     const router = useRouter();
+
+    const {
+        userRole,
+        employee,
+        tasks,
+        allEmployees,
+        totalEmployees,
+        kpis,
+        allKpis,
+        allWorkHours,
+        recentKpiLogs,
+        recentEods,
+        recentLogs,
+        monthlyHours,
+        unreadCount,
+        isLoading,
+        _rawKpiScore,
+    } = useDashboardData();
+
+    const queryClient = useQueryClient();
 
     // Modal State
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -910,213 +919,50 @@ export default function DashboardPage() {
     const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
     const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
     const [kanbanRefresh, setKanbanRefresh] = useState(0);
+    const [highlightDownload, setHighlightDownload] = useState(false);
+    const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
 
-
-    const authEmployeeId = authEmployee?.id;
-
+    // Check if we should highlight the Windows app download
     useEffect(() => {
-        if (authLoading) {
-            // Auth is still resolving — keep the spinner but don't do anything else
-            return;
-        }
-        if (!authEmployee) {
-            // Auth resolved but no employee — stop the spinner
-            setLoading(false);
-            return;
-        }
-
-        let mounted = true;
-
-        const fetchDataAsync = async () => {
-            setLoading(true);
-
-            let activeRole = authEmployee.roleId || 'EMPLOYEE';
-            activeRole = activeRole.toUpperCase();
-            if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
-            else if (activeRole.includes('MANAGER')) activeRole = 'MANAGER';
-
-            const activeEmpId = authEmployee.id;
-            setUserRole(activeRole);
-            setEmployee(authEmployee as any);
-
-            try {
-                let rawTasks: TaskDTO[] = [];
-                let employeesList: EmployeeDTO[] = [];
-                let fetchedKpis: any = null;
-                let realMonthlyHours = 0;
-
-                if (activeRole === 'ADMIN') {
-                    // Admin needs: tasks, employees (limit 100), recent EODs, KPI profiles, and KPI audit logs.
-                    // Total employees count is retrieved directly from employeesPromise total count.
-                    const [tasksRes, employeesRes, eodsRes, kpiProfilesRes, kpiAuditLogsRes] = await Promise.allSettled([
-                        api.getTasks(undefined, undefined, 100),
-                        api.getEmployees({ limit: 100 }),
-                        api.getAllEODs({ limit: 12 }),
-                        api.getAllKpiProfiles(undefined, 100),
-                        api.getAllKpiAuditLogs(10)
-                    ]);
-
-                    if (tasksRes.status === 'fulfilled') rawTasks = tasksRes.value || [];
-                    if (employeesRes.status === 'fulfilled') {
-                        employeesList = employeesRes.value?.data || [];
-                        setTotalEmployees(employeesRes.value?.total || employeesList.length);
-                    }
-                    if (eodsRes.status === 'fulfilled') setRecentEods(eodsRes.value || []);
-                    if (kpiProfilesRes.status === 'fulfilled') setAllKpis(kpiProfilesRes.value || []);
-                    if (kpiAuditLogsRes.status === 'fulfilled') setRecentKpiLogs(kpiAuditLogsRes.value || []);
-
-                } else if (activeRole === 'MANAGER') {
-                    // Manager needs: tasks, employees (limit 100), monthly hours, recent EODs, KPI profiles, and KPI audit logs.
-                    const [tasksRes, employeesRes, monthlyHoursRes, eodsRes, kpiProfilesRes, kpiAuditLogsRes] = await Promise.allSettled([
-                        api.getTasks(undefined, undefined, 100),
-                        api.getEmployees({ limit: 100 }),
-                        api.getMonthlyWorkHours(activeEmpId),
-                        api.getAllEODs({ limit: 10 }),
-                        api.getAllKpiProfiles(undefined, 100),
-                        api.getAllKpiAuditLogs(8)
-                    ]);
-
-                    if (tasksRes.status === 'fulfilled') rawTasks = tasksRes.value || [];
-                    if (employeesRes.status === 'fulfilled') employeesList = employeesRes.value?.data || [];
-                    if (monthlyHoursRes.status === 'fulfilled') realMonthlyHours = monthlyHoursRes.value || 0;
-                    if (eodsRes.status === 'fulfilled') setRecentEods(eodsRes.value || []);
-                    if (kpiProfilesRes.status === 'fulfilled') setAllKpis(kpiProfilesRes.value || []);
-                    if (kpiAuditLogsRes.status === 'fulfilled') setRecentKpiLogs(kpiAuditLogsRes.value || []);
-
-                } else {
-                    // Employee needs: tasks, employees (limit 100), own KPI profile, monthly hours, recent work hours, and own EODs.
-                    const [tasksRes, employeesRes, kpiRes, monthlyHoursRes, recentLogsRes, eodsRes] = await Promise.allSettled([
-                        api.getTasks(activeEmpId, undefined, 15),
-                        api.getEmployees({ limit: 100 }),
-                        api.getKpiProfile(activeEmpId),
-                        api.getMonthlyWorkHours(activeEmpId),
-                        api.getRecentWorkHours(activeEmpId, 5),
-                        api.getMyEODs(activeEmpId)
-                    ]);
-
-                    if (tasksRes.status === 'fulfilled') rawTasks = tasksRes.value || [];
-                    if (employeesRes.status === 'fulfilled') employeesList = employeesRes.value?.data || [];
-                    if (kpiRes.status === 'fulfilled') fetchedKpis = kpiRes.value;
-                    if (monthlyHoursRes.status === 'fulfilled') realMonthlyHours = monthlyHoursRes.value || 0;
-                    if (recentLogsRes.status === 'fulfilled') setRecentLogs(recentLogsRes.value || []);
-                    if (eodsRes.status === 'fulfilled') setRecentEods(eodsRes.value || []);
-                }
-
-                if (!mounted) return;
-
-                // Hydrate Tasks with assignees
-                const hydrated = rawTasks.map(task => {
-                    const assigned = employeesList.filter(e =>
-                        (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
-                    );
-                    return {
-                        ...task,
-                        assignees: assigned.length > 0 ? assigned.map(e => ({
-                            id: e.id,
-                            firstName: e.firstName,
-                            lastName: e.lastName,
-                            profilePhoto: e.profilePhoto
-                        })) : (task.assignee ? [task.assignee] : [])
-                    };
-                });
-                setTasks(hydrated);
-                setAllEmployees(employeesList);
-
-                // Update local KPI state with real calculated hours
-                if (fetchedKpis) {
-                    const finalKpis = { ...fetchedKpis, total_hours_worked: realMonthlyHours };
-                    setKpis(finalKpis);
-                    setMonthlyHours(realMonthlyHours);
-
-                    // Proactive Performance Alert Popup (Login only)
-                    if (activeRole === 'EMPLOYEE' && (finalKpis.current_score ?? 0) < 50) {
-                        const sessionKey = `perf_alert_shown_${activeEmpId}`;
-                        if (!sessionStorage.getItem(sessionKey)) {
-                            addNotification({
-                                title: 'Performance Alert',
-                                message: `Your current KPI score is ${finalKpis.current_score}. Efficiency improvements are recommended.`,
-                                type: 'SYSTEM',
-                                metadata: { score: finalKpis.current_score }
-                            });
-                            sessionStorage.setItem(sessionKey, 'true');
-                        }
-                    }
-                } else {
-                    setKpis({ total_hours_worked: realMonthlyHours });
-                    setMonthlyHours(realMonthlyHours);
-                }
-
-            } catch (err) {
-                logger.error("Error", "CRITICAL DASHBOARD LOAD FAILURE:", err);
-                if (mounted) setTasks([]);
-            } finally {
-                if (mounted) setLoading(false);
+        if (typeof window !== 'undefined') {
+            const hasSeen = localStorage.getItem('download_highlight_seen_v1');
+            if (!hasSeen) {
+                setHighlightDownload(true);
             }
-        };
+        }
+    }, []);
 
-        // Fetch tasks only (lightweight) on live task notifications
-        const fetchTasksOnly = async () => {
-            if (!authEmployee) return;
-            let activeRole = authEmployee.roleId || 'EMPLOYEE';
-            activeRole = activeRole.toUpperCase();
-            if (activeRole.includes('ADMIN')) activeRole = 'ADMIN';
-            try {
-                const [rawTasks, employeesList] = await Promise.all([
-                    api.getTasks(activeRole === 'EMPLOYEE' ? authEmployee.id : undefined, undefined, activeRole === 'ADMIN' ? 7 : 15),
-                    api.getEmployees({ limit: 100 })
-                ]);
-                if (!mounted) return;
-                const employees = employeesList?.data || [];
-                const hydrated = (rawTasks || []).map((task: TaskDTO) => {
-                    const assigned = employees.filter((e: EmployeeDTO) =>
-                        (task.assigneeIds && task.assigneeIds.includes(e.id)) || task.assigneeId === e.id
-                    );
-                    return {
-                        ...task,
-                        assignees: assigned.length > 0 ? assigned.map((e: EmployeeDTO) => ({
-                            id: e.id, firstName: e.firstName, lastName: e.lastName, profilePhoto: e.profilePhoto
-                        })) : (task.assignee ? [task.assignee] : [])
-                    };
+    // Performance alert
+    useEffect(() => {
+        if (userRole === 'EMPLOYEE' && _rawKpiScore !== undefined && _rawKpiScore < 50) {
+            const sessionKey = `perf_alert_shown_${employee?.id}`;
+            if (!sessionStorage.getItem(sessionKey)) {
+                addNotification({
+                    title: 'Performance Alert',
+                    message: `Your current KPI score is ${_rawKpiScore}. Efficiency improvements are recommended.`,
+                    type: 'SYSTEM',
+                    metadata: { score: _rawKpiScore }
                 });
-                setTasks(hydrated);
-            } catch { /* silent */ }
-        };
+                sessionStorage.setItem(sessionKey, 'true');
+            }
+        }
+    }, [userRole, _rawKpiScore, employee?.id, addNotification]);
 
-        fetchDataAsync();
-
-        // Unread count — dashboard polls every 60s (sidebar handles the 30s cadence)
-        const fetchUnread = async () => {
-            try {
-                const count = await api.getUnreadCount(String(authEmployee.id));
-                setUnreadCount(count);
-            } catch { /* silent */ }
-        };
-        fetchUnread();
-        const unreadInterval = setInterval(fetchUnread, 60000);
-
-        // Listen for Real-Time Notification dispatches — only re-fetch tasks, not all data
+    // Listen for Real-Time Notification dispatches
+    useEffect(() => {
         const handleLiveUpdate = (e: any) => {
             const detail = e.detail;
             if (detail?.type === 'TASK_ASSIGNED' || detail?.type === 'TASK_UPDATED') {
-                fetchTasksOnly();
+                queryClient.invalidateQueries({ queryKey: dashboardKeys.tasks(userRole, employee?.id) });
             }
         };
 
         window.addEventListener('app:live-notification', handleLiveUpdate);
-        return () => {
-            mounted = false;
-            window.removeEventListener('app:live-notification', handleLiveUpdate);
-            clearInterval(unreadInterval);
-        };
-    // Depend on the stable ID string, not the object reference
-    }, [authEmployeeId, authLoading]);
+        return () => window.removeEventListener('app:live-notification', handleLiveUpdate);
+    }, [queryClient, userRole, employee?.id]);
 
-
-    // SEEDING LOGIC: Populate 22 Dummy Tasks
-
-    // Block render while auth is resolving or data is fetching
-    if (authLoading || loading) {
-        return <div className="page-loader"><div className="spinner"></div></div>;
+    if (isLoading) {
+        return <Preloader statusText="Preparing your command center..." />;
     }
 
     return (
@@ -1142,7 +988,8 @@ export default function DashboardPage() {
                     padding: '8px 20px',
                     borderRadius: '50px',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
+                    zIndex: 100
                 }}>
                     <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontWeight: 800, paddingRight: '12px', borderRight: '1px solid rgba(255,255,255,0.15)' }}>
                         {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).toUpperCase()}
@@ -1158,6 +1005,97 @@ export default function DashboardPage() {
                         </div>
                         <div className="ad2-icon-btn" style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative' }} onClick={() => router.push('/rulebook')}>
                             <BookOpen size={18} />
+                        </div>
+                        <div style={{ position: 'relative', zIndex: 101 }}>
+                            <div 
+                                className={`ad2-icon-btn ${highlightDownload ? 'download-highlight-btn' : ''}`} 
+                                style={{ background: 'rgba(255,255,255,0.06)', width: '36px', height: '36px', position: 'relative', border: highlightDownload ? '1px solid var(--purple-main)' : 'none', cursor: 'pointer' }} 
+                                title="Download Desktop App"
+                                onClick={() => {
+                                    localStorage.setItem('download_highlight_seen_v1', 'true');
+                                    setHighlightDownload(false);
+                                    setShowDownloadDropdown(!showDownloadDropdown);
+                                }}
+                            >
+                                <Download size={18} color={highlightDownload ? 'var(--purple-main)' : 'currentColor'} />
+                            </div>
+
+                            {showDownloadDropdown && (
+                                <>
+                                    <div 
+                                        onClick={() => setShowDownloadDropdown(false)} 
+                                        style={{ position: 'fixed', inset: 0, zIndex: 99998 }} 
+                                    />
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '44px',
+                                        right: '0',
+                                        background: '#141418',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '12px',
+                                        padding: '8px',
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '4px',
+                                        width: '180px',
+                                        zIndex: 99999
+                                    }}>
+                                        <button 
+                                            onClick={() => {
+                                                setShowDownloadDropdown(false);
+                                                window.location.href = '/api/monitoring/download?platform=windows';
+                                            }}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: 'white',
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                textAlign: 'left',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 500,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                transition: 'background 0.2s',
+                                                width: '100%'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <span style={{ fontSize: '1rem' }}>🪟</span> Windows (.exe)
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setShowDownloadDropdown(false);
+                                                window.location.href = '/api/monitoring/download?platform=mac';
+                                            }}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: 'white',
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                textAlign: 'left',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 500,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                transition: 'background 0.2s',
+                                                width: '100%'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <span style={{ fontSize: '1rem' }}>🍏</span> macOS (.dmg)
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -1194,6 +1132,7 @@ export default function DashboardPage() {
                     teamKpis={allKpis}
                     recentKpiLogs={recentKpiLogs}
                     allEmployees={allEmployees}
+                    allWorkHours={allWorkHours}
                 />
             )}
             {userRole === 'MANAGER' && (
@@ -1249,6 +1188,8 @@ export default function DashboardPage() {
                     });
                 }}
             />
+
+            <Phase2CelebrationModal />
         </main>
     );
 }

@@ -56,14 +56,18 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
 
     const { data: tasks = [] } = useTasks();
     const { mutateAsync: createTask } = useCreateTask();
-    const { data: employees = [] } = useEmployees({ limit: 1000 });
+    const { data: employees = [] } = useEmployees(
+        { limit: 1000 },
+        { enabled: isOpen } // Don't fetch while modal is closed
+    );
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
             // Reset Form
-            setTitle(''); setSelectedTaskId(''); setSelectedEmployeeIds([]);
+            setTitle(''); setSelectedTaskId(''); 
+            setSelectedEmployeeIds(authEmployee?.id ? [authEmployee.id] : []);
             setPriority('MEDIUM'); setDueDate(new Date().toISOString().split('T')[0]); setInstructions('');
             setAttachments(''); setUploadedFiles([]); setErrorMsg('');
             setManagerId(''); setIsManagerListOpen(false);

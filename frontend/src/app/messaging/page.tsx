@@ -5,7 +5,7 @@ import Button from '@/components/Button';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, MessageCircle, FileText, Users, AtSign, ChevronDown } from 'lucide-react';
+import { Search, Send, Image as ImageIcon, X, Check, CheckCheck, MessageSquare, MessageCircle, FileText, Users, AtSign, ChevronDown, Pin, Plus, Settings, Folder } from 'lucide-react';
 import { getResolvedRole } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 import { useQueryClient } from '@tanstack/react-query';
@@ -108,6 +108,43 @@ export default function MessagingPage() {
     const [dbProbeError, setDbProbeError] = useState<string | null>(null);
     const [onlineUsers, setOnlineUsers] = useState<Record<string, any>>({});
     const [lastSeenMap, setLastSeenMap] = useState<Record<string, string>>({});
+    const [showDetailsArea, setShowDetailsArea] = useState(false);
+    const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+    
+    // Group states
+    const [drawerMembers, setDrawerMembers] = useState<any[]>([]);
+    const [isEditingGroupName, setIsEditingGroupName] = useState(false);
+    const [editGroupName, setEditGroupName] = useState('');
+    const [isAddingMember, setIsAddingMember] = useState(false);
+    const [addMemberQuery, setAddMemberQuery] = useState('');
+    const [drawerLoading, setDrawerLoading] = useState(false);
+
+    // Create Group Modal states
+    const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+    const [createGroupStep, setCreateGroupStep] = useState(1);
+    const [newGroupName, setNewGroupName] = useState('');
+    const [newGroupDepts, setNewGroupDepts] = useState<string[]>([]);
+    const [newGroupMembers, setNewGroupMembers] = useState<string[]>([]);
+    const [createGroupLoading, setCreateGroupLoading] = useState(false);
+
+    const [showNewDmModal, setShowNewDmModal] = useState(false);
+    
+    const uniqueDepartments = Array.from(new Set(allContacts.map(e => e.department).filter(Boolean)));
+    
+    useEffect(() => {
+        const saved = localStorage.getItem('msg-pinned');
+        if (saved) {
+            try { setPinnedIds(JSON.parse(saved)); } catch (e) {}
+        }
+    }, []);
+
+    const togglePin = (convId: string) => {
+        setPinnedIds(prev => {
+            const next = prev.includes(convId) ? prev.filter(id => id !== convId) : [...prev, convId];
+            localStorage.setItem('msg-pinned', JSON.stringify(next));
+            return next;
+        });
+    };
     
     // React Query hooks for conversations and messages
     const { data: conversationsData } = useConversations(myId || undefined, myRole);
@@ -115,6 +152,8 @@ export default function MessagingPage() {
 
     const { data: messagesData, isLoading: isMessagesQueryLoading } = useMessages(activeConvId || undefined);
     const messages = messagesData || [];
+    
+    const activeConversation = conversations.find(c => c.conversationId === activeConvId);
 
     // Eliminate full messages block spinner unless we have zero cache data
     const messagesLoading = activeConvId ? (isMessagesQueryLoading && !messagesData) : false;
@@ -163,26 +202,56 @@ export default function MessagingPage() {
         });
     }, [myId, queryClient]);
 
-    // DEBUG MODE TRACES
-    const [renderError, setRenderError] = useState<string | null>(null);
+
+    // ── Fetch Group Members ───────────────────────────────────────────────────
     useEffect(() => {
-        logger.log('[Chat-Trace] activeConvId =', activeConvId);
-        logger.log('[Chat-Trace] messages loaded =', messages.length);
-        
-        // Inspect DOM
-        setTimeout(() => {
-            const mainEl = document.querySelector('.msg-main');
-            if (mainEl) {
-                const style = window.getComputedStyle(mainEl);
-                logger.log('[Chat-Trace] .msg-main exists:', !!mainEl);
-                logger.log('[Chat-Trace] .msg-main display:', style.display);
-                logger.log('[Chat-Trace] .msg-main visibility:', style.visibility);
-                logger.log('[Chat-Trace] .msg-main width/height:', style.width, style.height);
-            } else {
-                logger.log('[Chat-Trace] .msg-main missing from DOM');
+        if (!showDetailsArea || !activeConvId) return;
+        const conv = conversations.find(c => c.conversationId === activeConvId);
+        if (conv?.type === 'DIRECT') return;
+
+        let isMounted = true;
+        setDrawerLoading(true);
+
+        const fetchMembers = async () => {
+            try {
+                const { data: parts, error: partsErr } = await supabase
+                    .from('conversation_participants')
+                    .select('user_id, role')
+                    .eq('conversation_id', activeConvId);
+                
+                if (partsErr) throw partsErr;
+                
+                if (!parts) {
+                    if (isMounted) { setDrawerMembers([]); setDrawerLoading(false); }
+                    return;
+                }
+                
+                const uids = parts.map(p => p.user_id);
+                const membersWithRoles = uids.map(uid => {
+                    let user = allContacts.find(c => String(c.id) === String(uid));
+                    if (!user && String(uid) === String(myId)) {
+                        user = authEmployee;
+                    }
+                    if (!user) return null;
+                    return {
+                        ...user,
+                        convRole: parts.find(p => String(p.user_id) === String(uid))?.role || 'MEMBER'
+                    };
+                }).filter(Boolean);
+                
+                if (isMounted) {
+                    setDrawerMembers(membersWithRoles);
+                }
+            } catch (err) {
+                logger.error('Error', 'Failed to load group members');
+            } finally {
+                if (isMounted) setDrawerLoading(false);
             }
-        }, 500);
-    }, [activeConvId, messages.length]);
+        };
+        fetchMembers();
+        
+        return () => { isMounted = false; };
+    }, [showDetailsArea, activeConvId, conversations, allContacts, authEmployee, myId]);
 
     // ── Refs ───────────────────────────────────────────────────────────────────
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -231,9 +300,16 @@ export default function MessagingPage() {
                     logger.warn('Error', '[Chat] conversations table not ready:', probe.message);
                     setDbProbeError(probe.message);
                     setDbReady(false);
-                    const empRes = await api.getEmployees({ limit: 100 });
+                    const empRes = await api.getEmployees({ limit: 100, status: 'ACTIVE' });
                     const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
-                    setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
+                    const filteredContacts = empArr.filter((e: any) => {
+                        if (String(e.id) === myId) return false;
+                        if (isAdmin) return true;
+                        const isSameDept = e.department === (authEmployee as any).department;
+                        const isTargetAdmin = ['ADMIN', 'MANAGER'].includes(String(e.roleId).toUpperCase());
+                        return isSameDept || isTargetAdmin;
+                    });
+                    setAllContacts(filteredContacts);
                     return;
                 }
 
@@ -242,11 +318,19 @@ export default function MessagingPage() {
 
                 // ✅ Fix 2: All data fetches in parallel for speed
                 const [empRes, tasks] = await Promise.all([
-                    api.getEmployees({ limit: 100 }),
+                    api.getEmployees({ limit: 100, status: 'ACTIVE' }),
                     api.getTasks(undefined, undefined, 50),
                 ]);
                 const empArr = Array.isArray(empRes) ? empRes : (empRes as any)?.data || [];
-                setAllContacts(empArr.filter((e: any) => String(e.id) !== myId));
+                const filteredContacts = empArr.filter((e: any) => {
+                    if (String(e.id) === myId) return false;
+                    if (isAdmin) return true;
+                    // Non-admins can only see their own department OR admins/managers
+                    const isSameDept = e.department === (authEmployee as any).department;
+                    const isTargetAdmin = ['ADMIN', 'MANAGER'].includes(String(e.roleId).toUpperCase());
+                    return isSameDept || isTargetAdmin;
+                });
+                setAllContacts(filteredContacts);
                 setMyTasks(tasks || []);
 
                 // ✅ Fix 5: Load conversations first; realtime subscription starts after
@@ -287,6 +371,11 @@ export default function MessagingPage() {
     }, [myId]);
 
     // ── GLOBAL realtime listener: notifications for messages in other convs ─────
+    // SECURITY: This listener receives INSERT events from the 'messages' table.
+    // Full server-side filtering requires Supabase Realtime RLS to be enabled in the
+    // Supabase dashboard (Database → Replication → RLS for realtime). Without it,
+    // all connected clients receive every INSERT payload. Client-side filtering below
+    // is an additional defence-in-depth layer but not a substitute for Realtime RLS.
     useEffect(() => {
         if (!myId) return;
         const globalChannel = supabase
@@ -296,8 +385,10 @@ export default function MessagingPage() {
                 { event: 'INSERT', schema: 'public', table: 'messages' },
                 async (payload: any) => {
                     const newMsg = payload.new;
-                    logger.log('[Chat] Global realtime INSERT:', newMsg);
+                    // Client-side filter: ignore messages sent by the current user
                     if (String(newMsg.sender_id) === myId) return;
+                    // Client-side filter: ignore events for conversations this user is not in
+                    // (Supabase Realtime RLS is the server-side equivalent — must be enabled in dashboard)
                     // If user is already viewing this conversation, skip (handled locally)
                     if (newMsg.conversation_id === activeConvIdRef.current) return;
                     
@@ -460,6 +551,7 @@ export default function MessagingPage() {
             const imgFile = imagePreview.file;
             const isPdf = imgFile.type === 'application/pdf';
             const mediaType = isPdf ? 'pdf' : 'image';
+            const finalContent = messageInput.trim() || imgFile.name;
             
             const optimisticId = `optimistic-${Date.now()}`;
             const optimisticMsg: Message = {
@@ -468,7 +560,7 @@ export default function MessagingPage() {
                 senderId: myId,
                 type: mediaType,
                 mediaUrl: imagePreview.url, // Local Object URL (blob:)
-                content: messageInput.trim() || undefined,
+                content: finalContent,
                 status: 'sent',
                 createdAt: new Date().toISOString(),
                 taskRef: extractTaggedTaskId(messageInput) ? { taskId: extractTaggedTaskId(messageInput) } : undefined,
@@ -496,7 +588,7 @@ export default function MessagingPage() {
                     senderId: myId,
                     type: mediaType,
                     mediaUrl: url,
-                    content: textInput.trim() || undefined,
+                    content: finalContent,
                     taskRef: taggedTaskId ? { taskId: taggedTaskId } : undefined,
                 });
                 
@@ -588,18 +680,155 @@ export default function MessagingPage() {
         }
     };
 
+    // ── Unified list ───────────────────────────────────────────────────
+    const filteredConvs = (() => {
+        let list = conversations.filter(c => {
+            if (c.status !== 'ACTIVE') return false;
+            // Remove Company Announcements and Operations Group
+            if (c.type === 'COMPANY') return false;
+            if (c.name === 'Operations Group' || c.department === 'Operations') return false;
+            
+            if (c.type === 'DIRECT') {
+                if (!c.otherUser || !c.otherUser.firstName) return false;
+            } else {
+                if (!c.name?.trim()) return false;
+            }
+            return true;
+        });
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            list = list.filter(c => {
+                if (c.type === 'DIRECT') {
+                    const name = `${c.otherUser?.firstName} ${c.otherUser?.lastName}`.toLowerCase();
+                    return name.includes(q) || c.lastMessage?.content?.toLowerCase().includes(q);
+                }
+                const name = c.name?.toLowerCase() || '';
+                const dept = c.department?.toLowerCase() || '';
+                return name.includes(q) || dept.includes(q) || c.lastMessage?.content?.toLowerCase().includes(q);
+            });
+        }
+        
+        return list.sort((a, b) => {
+            
+            const aPinned = pinnedIds.includes(a.conversationId);
+            const bPinned = pinnedIds.includes(b.conversationId);
+            if (aPinned && !bPinned) return -1;
+            if (bPinned && !aPinned) return 1;
+            
+            const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+            const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
+    })();
+
+    const renderConversationItem = (conv: any) => {
+        const isSelected = activeConvId === conv.conversationId;
+        const isPinned = pinnedIds.includes(conv.conversationId);
+        
+        let title = '';
+        let subtitle = '';
+        let avatar = null;
+        let showOnline = false;
+        
+        if (conv.type === 'COMPANY') {
+            title = 'Company Announcements';
+            subtitle = conv.lastMessage?.content || 'No messages yet';
+            avatar = <div className="msg-avatar msg-avatar-company">📢</div>;
+        } else if (conv.type === 'DEPARTMENT') {
+            title = conv.name || `${conv.department} Group`;
+            subtitle = conv.lastMessage?.content || 'No messages yet';
+            avatar = <div className="msg-avatar msg-avatar-dept">🏢</div>;
+        } else if (conv.type === 'PROJECT') {
+            title = conv.name || 'Project Group';
+            subtitle = conv.lastMessage?.content || 'No messages yet';
+            avatar = <div className="msg-avatar msg-avatar-project">📁</div>;
+        } else {
+            const contact = conv.otherUser;
+            title = contact ? `${contact.firstName} ${contact.lastName}` : 'Unknown';
+            subtitle = conv.lastMessage?.content || 'No messages yet';
+            showOnline = !!onlineUsers[String(contact?.id)];
+            avatar = (
+                <div className="msg-avatar">
+                    {String(contact?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                        <img src="/white-logo.png" alt="Admin" style={{ padding: '4px', objectFit: 'contain', background: 'black' }} />
+                    ) : contact?.profilePhoto ? (
+                        <img src={contact.profilePhoto} alt={contact.firstName} />
+                    ) : (
+                        contact?.firstName?.charAt(0) || '?'
+                    )}
+                </div>
+            );
+        }
+
+        const hasUnread = conv.unreadCount > 0;
+
+        return (
+            <div 
+                key={conv.conversationId}
+                className={`msg-conv-item ${isSelected ? 'active' : ''} ${hasUnread ? 'has-unread' : ''}`}
+                onClick={() => {
+                    setActiveConvId(conv.conversationId);
+                    if (conv.type === 'DIRECT') setActiveOtherUser(conv.otherUser);
+                    else setActiveOtherUser(null);
+                    setShowDetailsArea(false);
+                }}
+            >
+                <div style={{ position: 'relative' }}>
+                    {avatar}
+                    {isPinned && <div className="msg-pinned-badge" style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--bg-main)', borderRadius: '50%', padding: '2px', color: 'var(--primary-color)' }}><Pin size={10} fill="currentColor" /></div>}
+                    {showOnline && <div className="msg-online-dot" style={{ position: 'absolute', bottom: 0, right: 0, width: '10px', height: '10px', background: 'var(--success-color)', borderRadius: '50%', border: '2px solid var(--bg-main)' }} />}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                    <div className="msg-conv-name-row">
+                        <span className="msg-conv-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: hasUnread ? 800 : 700, color: hasUnread ? '#ffffff' : 'var(--text-primary)' }}>{title}</span>
+                    </div>
+                    <div className="msg-conv-snippet" style={{ color: hasUnread ? '#ffffff' : 'var(--text-secondary)', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: hasUnread ? 600 : 400, opacity: hasUnread ? 1 : 0.85 }}>
+                        {subtitle}
+                    </div>
+                </div>
+                <div className="msg-conv-meta">
+                    {conv.lastMessage && (
+                        <span className="msg-conv-time" style={{ fontSize: '0.75rem', color: hasUnread ? 'var(--purple-accent)' : 'var(--text-secondary)', fontWeight: hasUnread ? 600 : 400 }}>{formatTime(conv.lastMessage.createdAt)}</span>
+                    )}
+                    {hasUnread && (
+                        <div className="msg-unread-badge">
+                            {conv.unreadCount}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     // ── Image file picker ──────────────────────────────────────────────────────
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(file.type)) {
-            logger.warn('System', '[Chat] File type rejected:', file.type);
+
+        // ── MIME type allowlist ────────────────────────────────────────────────
+        const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+            logger.warn('System', '[Chat] File type rejected (MIME):', file.type);
             return;
         }
+
+        // ── File extension allowlist ───────────────────────────────────────────
+        // Cross-check the extension against the MIME type — MIME is client-declared
+        // and spoofable, while the filename extension provides an independent signal.
+        const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
+        const fileName = file.name.toLowerCase();
+        const hasAllowedExtension = ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
+        if (!hasAllowedExtension) {
+            logger.warn('System', '[Chat] File type rejected (extension):', file.name);
+            return;
+        }
+
+        // ── File size limit (5 MB) ─────────────────────────────────────────────
         if (file.size > 5 * 1024 * 1024) {
             logger.warn('System', '[Chat] File too large:', file.size);
             return;
         }
+
         const url = URL.createObjectURL(file);
         setImagePreview({ file, url });
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -646,46 +875,55 @@ export default function MessagingPage() {
             return bTime - aTime;
         });
 
-    // ── Render message content (task tags are clickable) ───────────────────────
-    const renderContent = (msg: Message) => {
-        if (msg.type === 'image' && msg.mediaUrl) {
-            return (
-                <div className="msg-img-wrapper">
-                    <SecureChatImage 
-                        path={msg.mediaUrl} 
-                        className="msg-img"
-                        onClick={(url) => setExpandedImage(url)}
-                    />
-                    {msg.content && <p className="msg-caption">{msg.content}</p>}
-                </div>
-            );
-        }
-        if (msg.type === 'pdf' && msg.mediaUrl) {
-            return (
-                <div className="msg-pdf-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileText size={24} color="#ef4444" />
-                        <span style={{ fontSize: '0.9rem', fontWeight: 500, wordBreak: 'break-all' }}>PDF Document</span>
-                    </div>
-                    <Button variant="secondary" size="sm" onClick={async () => {
-                        const url = await api.getSignedChatMediaUrl(msg.mediaUrl!);
-                        window.open(url, '_blank');
-                    }} style={{ alignSelf: 'flex-start' }}>
-                        View Document
-                    </Button>
-                    {msg.content && <p className="msg-caption" style={{ marginTop: '8px' }}>{msg.content}</p>}
-                </div>
-            );
-        }
-        // Parse @[Task:id|title] tags into clickable chips
+    // Helper to render message text, parsing both Task tags and URL links into clickable anchors
+    const renderMessageTextWithLinks = (text: string) => {
+        if (!text) return '';
         const taskTagRegex = /@\[Task:([^|]+)\|([^\]]+)\]/g;
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+
         const parts: React.ReactNode[] = [];
         let lastIndex = 0;
         let match;
-        const content = msg.content || '';
-        while ((match = taskTagRegex.exec(content)) !== null) {
+
+        // Parse URLs inside a plain text block
+        const parsePlainUrls = (plainText: string, baseKey: string) => {
+            const subParts: React.ReactNode[] = [];
+            let subLastIndex = 0;
+            let urlMatch;
+            
+            while ((urlMatch = urlRegex.exec(plainText)) !== null) {
+                if (urlMatch.index > subLastIndex) {
+                    subParts.push(<span key={`${baseKey}-txt-${subLastIndex}`}>{plainText.slice(subLastIndex, urlMatch.index)}</span>);
+                }
+                const url = urlMatch[0];
+                subParts.push(
+                    <a
+                        key={`${baseKey}-url-${urlMatch.index}`}
+                        href={url.startsWith('http') ? url : `https://${url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer', wordBreak: 'break-all' }}
+                    >
+                        {url}
+                    </a>
+                );
+                subLastIndex = urlMatch.index + url.length;
+            }
+            if (subLastIndex < plainText.length) {
+                subParts.push(<span key={`${baseKey}-txt-end`}>{plainText.slice(subLastIndex)}</span>);
+            }
+            return subParts.length > 0 ? subParts : plainText;
+        };
+
+        while ((match = taskTagRegex.exec(text)) !== null) {
             if (match.index > lastIndex) {
-                parts.push(<span key={`txt-${lastIndex}`}>{content.slice(lastIndex, match.index)}</span>);
+                const plainTextChunk = text.slice(lastIndex, match.index);
+                const parsed = parsePlainUrls(plainTextChunk, `chunk-${lastIndex}`);
+                if (Array.isArray(parsed)) {
+                    parts.push(...parsed);
+                } else {
+                    parts.push(<span key={`txt-${lastIndex}`}>{parsed}</span>);
+                }
             }
             const taskId = match[1];
             const taskTitle = match[2];
@@ -702,11 +940,53 @@ export default function MessagingPage() {
             );
             lastIndex = match.index + match[0].length;
         }
-        if (lastIndex < content.length) {
-            parts.push(<span key={`end-${lastIndex}`}>{content.slice(lastIndex)}</span>);
+
+        if (lastIndex < text.length) {
+            const plainTextChunk = text.slice(lastIndex);
+            const parsed = parsePlainUrls(plainTextChunk, `end-${lastIndex}`);
+            if (Array.isArray(parsed)) {
+                parts.push(...parsed);
+            } else {
+                parts.push(<span key={`end-${lastIndex}`}>{parsed}</span>);
+            }
         }
-        if (parts.length === 0) return <span>{content}</span>;
+
+        if (parts.length === 0) return <span>{text}</span>;
         return <>{parts}</>;
+    };
+
+    // ── Render message content (task tags are clickable) ───────────────────────
+    const renderContent = (msg: Message) => {
+        if (msg.type === 'image' && msg.mediaUrl) {
+            return (
+                <div className="msg-img-wrapper">
+                    <SecureChatImage 
+                        path={msg.mediaUrl} 
+                        className="msg-img"
+                        onClick={(url) => setExpandedImage(url)}
+                    />
+                    {msg.content && <p className="msg-caption">{renderMessageTextWithLinks(msg.content)}</p>}
+                </div>
+            );
+        }
+        if (msg.type === 'pdf' && msg.mediaUrl) {
+            return (
+                <div className="msg-pdf-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={24} color="#ef4444" />
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500, wordBreak: 'break-all' }}>PDF Document</span>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={async () => {
+                        const url = await api.getSignedChatMediaUrl(msg.mediaUrl!);
+                        window.open(url, '_blank');
+                    }} style={{ alignSelf: 'flex-start' }}>
+                        View Document
+                    </Button>
+                    {msg.content && <p className="msg-caption" style={{ marginTop: '8px' }}>{renderMessageTextWithLinks(msg.content)}</p>}
+                </div>
+            );
+        }
+        return renderMessageTextWithLinks(msg.content || '');
     };
 
     // ── Status tick ────────────────────────────────────────────────────────────
@@ -769,6 +1049,19 @@ export default function MessagingPage() {
             <div className="msg-layout">
                 {/* ── LEFT PANEL ── */}
                 <aside className="msg-sidebar">
+                    <div className="msg-sidebar-header">
+                        <h2 className="msg-sidebar-title">Chats</h2>
+                        <div className="msg-sidebar-actions">
+                            <button className="msg-action-icon" onClick={() => setShowNewDmModal(true)} title="New Chat">
+                                <MessageSquare size={16} />
+                            </button>
+                            {isAdmin && (
+                                <button className="msg-action-icon" onClick={() => { setShowCreateGroupModal(true); setCreateGroupStep(1); }} title="Create Group">
+                                    <Users size={16} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
                     <div className="msg-sidebar-search">
                         <Search size={16} className="msg-search-icon" />
                         <input
@@ -786,72 +1079,15 @@ export default function MessagingPage() {
                             </div>
                         )}
 
-                        {!loading && unifiedList.length === 0 && (
-                            <div className="msg-empty-note">No team members found.</div>
+                        {!loading && filteredConvs.length === 0 && (
+                            <div className="msg-empty-note">No active conversations found.</div>
                         )}
 
-                        {!loading && unifiedList.map(({ contact, conversationId, lastMessage, unreadCount }) => {
-                            const isActive = !!activeConvId && conversationId === activeConvId;
-                            const isAdminUser = String(contact.roleId || '').toUpperCase() === 'ADMIN';
-                            const isOnline = !!onlineUsers[String(contact.id)];
-
-                            return (
-                                <div
-                                    key={contact.id}
-                                    className={`msg-conv-item ${isActive ? 'active' : ''} ${isAdminUser ? 'admin-pinned' : ''}`}
-                                    onClick={async () => {
-                                        if (conversationId) {
-                                            setActiveConvId(conversationId);
-                                            setActiveOtherUser(contact);
-                                        } else {
-                                            await openConversation(contact);
-                                        }
-                                    }}
-                                >
-                                    <div className="msg-avatar-container">
-                                        <div className="msg-avatar">
-                                            {isAdminUser ? (
-                                                <img src="/white-logo.png" alt="Admin" style={{ padding: '6px', objectFit: 'contain', background: 'black' }} />
-                                            ) : contact.profilePhoto ? (
-                                                <img src={contact.profilePhoto} alt={contact.firstName} />
-                                            ) : (
-                                                contact.firstName?.charAt(0).toUpperCase() || '?'
-                                            )}
-                                        </div>
-                                        {isOnline && <div className="msg-online-dot" />}
-                                    </div>
-
-                                    <div className="msg-conv-info">
-                                        <div className="msg-conv-name-row">
-                                            <span className="msg-conv-name">
-                                                {contact.firstName} {contact.lastName}
-                                            </span>
-                                            {isAdminUser && (
-                                                <span className="msg-admin-badge">ADMIN</span>
-                                            )}
-                                        </div>
-                                        <div className="msg-conv-role">{contact.designation || contact.roleId || 'Staff'}</div>
-                                        <div className="msg-conv-snippet">
-                                            {lastMessage
-                                                ? lastMessage.type === 'image'
-                                                    ? '📷 Image'
-                                                    : lastMessage.content
-                                                : <span className="msg-no-conv-hint">Tap to start chat</span>}
-                                        </div>
-                                    </div>
-                                    <div className="msg-conv-meta">
-                                        {lastMessage && (
-                                            <span className="msg-conv-time">
-                                                {formatTime(lastMessage.createdAt)}
-                                            </span>
-                                        )}
-                                        {unreadCount > 0 && (
-                                            <span className="msg-unread-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        {!loading && (
+                            <>
+                                {filteredConvs.map(conv => renderConversationItem(conv))}
+                            </>
+                        )}
                     </div>
                 </aside>
 
@@ -869,36 +1105,290 @@ export default function MessagingPage() {
                         <>
                             {/* Chat Header */}
                             <div className="msg-chat-header">
-                                <div className="msg-header-avatar">
-                                    {String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
-                                        <img src="/white-logo.png" alt="Admin" style={{ padding: '6px', objectFit: 'contain', background: 'black' }} />
-                                    ) : activeOtherUser?.profilePhoto ? (
-                                        <img src={activeOtherUser.profilePhoto} alt={activeOtherUser?.firstName} />
-                                    ) : (
-                                        activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
-                                    )}
-                                    <div className={onlineUsers[String(activeOtherUser?.id)] ? "msg-header-online-dot" : "msg-header-offline-dot"} />
+                                <div className="msg-chat-header-profile" onClick={() => setShowDetailsArea(prev => !prev)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1 }}>
+                                    <div className="msg-header-avatar">
+                                        {activeConversation?.type === 'DIRECT' ? (
+                                            String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                                <img src="/white-logo.png" alt="Admin" style={{ padding: '6px', objectFit: 'contain', background: 'black' }} />
+                                            ) : activeOtherUser?.profilePhoto ? (
+                                                <img src={activeOtherUser.profilePhoto} alt={activeOtherUser?.firstName} />
+                                            ) : (
+                                                activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
+                                            )
+                                        ) : (
+                                            <div className="msg-group-avatar" style={{ width: '100%', height: '100%', border: 'none', borderRadius: 0 }}>
+                                                {activeConversation?.type === 'COMPANY' ? '📢' : activeConversation?.type === 'DEPARTMENT' ? '🏢' : '📁'}
+                                            </div>
+                                        )}
+                                        {activeConversation?.type === 'DIRECT' && (
+                                            <div className={onlineUsers[String(activeOtherUser?.id)] ? "msg-header-online-dot" : "msg-header-offline-dot"} />
+                                        )}
+                                    </div>
+                                    <div className="msg-chat-header-info">
+                                        <div className="msg-chat-header-name">
+                                            {activeConversation?.type === 'DIRECT' 
+                                                ? `${activeOtherUser?.firstName} ${activeOtherUser?.lastName}` 
+                                                : (activeConversation?.name || (activeConversation?.type === 'COMPANY' ? 'Company Announcements' : `${activeConversation?.department} Group`))}
+                                        </div>
+                                        {activeConversation?.type === 'DIRECT' && (
+                                            <>
+                                                <div className="msg-chat-header-role">
+                                                    {activeOtherUser?.designation || activeOtherUser?.roleId || 'Team Member'}
+                                                </div>
+                                                <div className="msg-chat-header-sub">
+                                                    {onlineUsers[String(activeOtherUser?.id)] ? 'Online' : 'Offline'}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="msg-chat-header-info">
-                                    <div className="msg-chat-header-name">
-                                        {activeOtherUser?.firstName} {activeOtherUser?.lastName}
-                                    </div>
-                                    <div className="msg-chat-header-role">
-                                        {activeOtherUser?.designation || activeOtherUser?.roleId || 'Team Member'}
-                                    </div>
-                                    <div className="msg-chat-header-sub">
-                                        {onlineUsers[String(activeOtherUser?.id)] ? 'Online' : 'Offline'}
-                                    </div>
-                                </div>
+                                
+
+
+                                <button 
+                                    className="msg-settings-btn"
+                                    title={pinnedIds.includes(activeConvId!) ? "Unpin chat" : "Pin chat"}
+                                    onClick={() => togglePin(activeConvId!)}
+                                >
+                                    <Pin size={18} fill={pinnedIds.includes(activeConvId!) ? "currentColor" : "none"} />
+                                </button>
+
                                 <button
                                     className="msg-close-btn"
-                                    onClick={() => { setActiveConvId(null); setActiveOtherUser(null); }}
+                                    onClick={() => { setActiveConvId(null); setActiveOtherUser(null); setShowDetailsArea(false); }}
                                 >
                                     <X size={18} />
                                 </button>
                             </div>
 
-                            {/* Messages Area */}
+                            {showDetailsArea ? (
+                                <div className="msg-details-area-inline" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 24px', background: 'var(--bg-main)' }}>
+                                    <div style={{ maxWidth: '500px', width: '100%', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                                        <div style={{ textAlign: 'center' }}>
+                                            <div className="msg-group-avatar" style={{ width: 120, height: 120, margin: '0 auto 16px', fontSize: '3rem', borderRadius: activeConversation?.type === 'DIRECT' ? '50%' : '20px' }}>
+                                                {activeConversation?.type === 'DIRECT' ? (
+                                                    String(activeOtherUser?.roleId || '').toUpperCase() === 'ADMIN' ? (
+                                                        <img src="/white-logo.png" alt="Admin" style={{ width: '100%', height: '100%', padding: '16px', objectFit: 'contain', background: 'black', borderRadius: '50%' }} />
+                                                    ) : activeOtherUser?.profilePhoto ? (
+                                                        <img src={activeOtherUser.profilePhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                                    ) : (
+                                                        activeOtherUser?.firstName?.charAt(0).toUpperCase() || '?'
+                                                    )
+                                                ) : (
+                                                    activeConversation?.type === 'COMPANY' ? '📢' : activeConversation?.type === 'DEPARTMENT' ? '🏢' : '📁'
+                                                )}
+                                            </div>
+                                            <h2 style={{ margin: '0 0 8px', fontSize: '1.5rem', color: 'var(--text-primary)' }}>
+                                                {activeConversation?.type === 'DIRECT' 
+                                                    ? `${activeOtherUser?.firstName} ${activeOtherUser?.lastName}` 
+                                                    : (activeConversation?.name || (activeConversation?.type === 'COMPANY' ? 'Company Announcements' : `${activeConversation?.department} Group`))}
+                                            </h2>
+                                            <div style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                                                {activeConversation?.type === 'DIRECT' 
+                                                    ? (activeOtherUser?.designation || activeOtherUser?.roleId || 'Team Member') 
+                                                    : null}
+                                            </div>
+                                        </div>
+
+                                        {activeConversation?.type === 'DIRECT' && (
+                                            <div style={{ background: 'var(--bg-dark)', borderRadius: '12px', padding: '20px' }}>
+                                                <h3 style={{ margin: '0 0 16px', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact Details</h3>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span style={{ color: 'var(--text-secondary)' }}>Email</span>
+                                                        <span style={{ color: 'var(--text-primary)' }}>{activeOtherUser?.email || 'N/A'}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span style={{ color: 'var(--text-secondary)' }}>Department</span>
+                                                        <span style={{ color: 'var(--text-primary)' }}>{activeOtherUser?.department || 'General'}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span style={{ color: 'var(--text-secondary)' }}>Status</span>
+                                                        <span style={{ color: onlineUsers[String(activeOtherUser?.id)] ? 'var(--success-color)' : 'var(--text-secondary)' }}>
+                                                            {onlineUsers[String(activeOtherUser?.id)] ? 'Online' : 'Offline'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {activeConversation?.type !== 'DIRECT' && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+                                                {/* Edit Group Name */}
+                                                <div style={{ background: 'var(--bg-dark)', borderRadius: '12px', padding: '20px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isEditingGroupName ? '16px' : '0' }}>
+                                                        <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Group Settings</h3>
+                                                        {!isEditingGroupName && (
+                                                            <button 
+                                                                onClick={() => { setEditGroupName(activeConversation?.name || ''); setIsEditingGroupName(true); }}
+                                                                style={{ background: 'none', border: 'none', color: '#A78BFA', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}
+                                                            >
+                                                                Edit Name
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {isEditingGroupName && (
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <input 
+                                                                type="text" 
+                                                                value={editGroupName}
+                                                                onChange={e => setEditGroupName(e.target.value)}
+                                                                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '6px', color: '#fff', outline: 'none' }}
+                                                            />
+                                                            <button 
+                                                                onClick={async () => {
+                                                                    if (!editGroupName.trim()) return;
+                                                                    try {
+                                                                        await api.updateGroupConversation(activeConvId!, { name: editGroupName });
+                                                                        setIsEditingGroupName(false);
+                                                                        queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId!) });
+                                                                    } catch (err) {
+                                                                        logger.error('Error', 'Failed to update group name');
+                                                                    }
+                                                                }}
+                                                                style={{ background: '#A78BFA', color: '#111', border: 'none', padding: '0 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => setIsEditingGroupName(false)}
+                                                                style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', padding: '0 16px', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Group Members */}
+                                                <div style={{ background: 'var(--bg-dark)', borderRadius: '12px', padding: '20px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                                        <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                            Members ({drawerMembers.length})
+                                                        </h3>
+                                                        {(() => {
+                                                            const amIGroupAdmin = String(myRole || '').toUpperCase() === 'ADMIN' || (activeConversation as any)?.created_by === myId || drawerMembers.some((m: any) => String(m.id) === String(myId) && m.convRole === 'ADMIN');
+                                                            if (amIGroupAdmin && !isAddingMember) {
+                                                                return (
+                                                                    <button 
+                                                                        onClick={() => setIsAddingMember(true)}
+                                                                        style={{ background: 'none', border: 'none', color: '#A78BFA', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500 }}
+                                                                    >
+                                                                        Add Member
+                                                                    </button>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
+                                                    </div>
+
+                                                    {/* Add Member UI */}
+                                                    {isAddingMember && (
+                                                        <div style={{ marginBottom: '16px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                                                <input 
+                                                                    type="text" 
+                                                                    placeholder="Search employees to add..."
+                                                                    value={addMemberQuery}
+                                                                    onChange={e => setAddMemberQuery(e.target.value)}
+                                                                    style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px', borderRadius: '6px', color: '#fff', outline: 'none' }}
+                                                                />
+                                                                <button 
+                                                                    onClick={() => { setIsAddingMember(false); setAddMemberQuery(''); }}
+                                                                    style={{ background: 'transparent', color: '#fff', border: 'none', padding: '0 12px', cursor: 'pointer' }}
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                            <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                                {allContacts
+                                                                    .filter(c => !drawerMembers.some(dm => dm.id === c.id))
+                                                                    .filter(c => !addMemberQuery || `${c.firstName} ${c.lastName}`.toLowerCase().includes(addMemberQuery.toLowerCase()))
+                                                                    .slice(0, 10)
+                                                                    .map(emp => (
+                                                                        <div key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)' }}>
+                                                                            <span style={{ fontSize: '0.85rem', color: '#fff' }}>{emp.firstName} {emp.lastName}</span>
+                                                                            <button 
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await api.addGroupMembers(activeConvId!, [emp.id]);
+                                                                                        setDrawerMembers(prev => [...prev, { ...emp, convRole: 'MEMBER' }]);
+                                                                                        setAddMemberQuery('');
+                                                                                    } catch (err) {
+                                                                                        logger.error('Error', 'Failed to add member');
+                                                                                    }
+                                                                                }}
+                                                                                style={{ background: '#A78BFA', color: '#111', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                                                                            >
+                                                                                Add
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                {allContacts.filter(c => !drawerMembers.some(dm => dm.id === c.id)).length === 0 && (
+                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '4px' }}>All employees are in this group!</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {drawerLoading ? (
+                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>Loading members...</div>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                            {drawerMembers.map((member: any) => (
+                                                                <div key={member.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                        <div className="msg-header-avatar" style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}>
+                                                                            {member.profilePhoto ? (
+                                                                                <img src={member.profilePhoto} alt={member.firstName} />
+                                                                            ) : (
+                                                                                member.firstName?.charAt(0) || '?'
+                                                                            )}
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                            <span style={{ color: '#fff', fontWeight: 500, fontSize: '0.95rem' }}>
+                                                                                {member.firstName} {member.lastName}
+                                                                                {String(member.id) === String(myId) && ' (You)'}
+                                                                            </span>
+                                                                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                                                                {member.convRole === 'ADMIN' ? 'Group Admin' : (member.designation || member.roleId)}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    {/* Remove option if you're admin and it's not yourself */}
+                                                                    {(() => {
+                                                                        const amIGroupAdmin = String(myRole || '').toUpperCase() === 'ADMIN' || (activeConversation as any)?.created_by === myId || drawerMembers.some((m: any) => String(m.id) === String(myId) && m.convRole === 'ADMIN');
+                                                                        return amIGroupAdmin && String(member.id) !== String(myId);
+                                                                    })() && (
+                                                                        <button 
+                                                                            onClick={async () => {
+                                                                                if (!confirm(`Remove ${member.firstName} from group?`)) return;
+                                                                                try {
+                                                                                    await api.removeGroupMember(activeConvId!, member.id);
+                                                                                    setDrawerMembers(prev => prev.filter(m => m.id !== member.id));
+                                                                                } catch (err) {
+                                                                                    logger.error('Error', 'Failed to remove member');
+                                                                                }
+                                                                            }}
+                                                                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}
+                                                                        >
+                                                                            Remove
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Messages Area */}
                             <div className="msg-messages-area">
                                 {messagesLoading ? (
                                     <div className="msg-messages-loading">
@@ -1122,6 +1612,8 @@ export default function MessagingPage() {
                                     </div>
                                 </div>
                             </form>
+                                </>
+                            )}
                         </>
                     )}
                 </main>
@@ -1134,6 +1626,257 @@ export default function MessagingPage() {
                         <X size={20} />
                     </button>
                     <img src={expandedImage} alt="Full size" className="msg-lightbox-img" />
+                </div>
+            )}
+
+            {/* New Chat Modal */}
+            {showNewDmModal && (
+                <div className="msg-modal-overlay" onClick={() => setShowNewDmModal(false)}>
+                    <div className="msg-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                        <div className="msg-modal-header">
+                            <h3 style={{ margin: 0 }}>New Chat</h3>
+                            <button className="msg-modal-close" onClick={() => setShowNewDmModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="msg-modal-body" style={{ padding: 0 }}>
+                            <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div className="msg-sidebar-search" style={{ margin: 0 }}>
+                                    <Search size={16} className="msg-search-icon" />
+                                    <input 
+                                        className="msg-search-input" 
+                                        placeholder="Search by name or department..." 
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                {unifiedList.map(({ contact }) => (
+                                    <div 
+                                        key={contact.id}
+                                        className="msg-member-select-item"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.02)' }}
+                                        onClick={async () => {
+                                            if (!myId) return;
+                                            try {
+                                                const convId = await api.getOrCreateConversation(myId, String(contact.id));
+                                                setActiveConvId(convId);
+                                                setActiveOtherUser(contact);
+                                                setShowNewDmModal(false);
+                                                setSearchQuery('');
+                                                queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId) });
+                                            } catch (err) {
+                                                logger.error('Error starting chat', err);
+                                            }
+                                        }}
+                                    >
+                                        <div className="msg-header-avatar" style={{ width: '40px', height: '40px' }}>
+                                            {contact.profilePhoto ? (
+                                                <img src={contact.profilePhoto} alt={contact.firstName} />
+                                            ) : (
+                                                contact.firstName?.charAt(0) || '?'
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 600 }}>{contact.firstName} {contact.lastName}</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{contact.department || 'General'}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {unifiedList.length === 0 && (
+                                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>No contacts found</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Group Modal */}
+            {showCreateGroupModal && (
+                <div className="msg-modal-overlay" onClick={() => setShowCreateGroupModal(false)}>
+                    <div className="msg-modal" style={{ maxWidth: '500px', width: '100%', padding: 0, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 48px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <h2 style={{ fontSize: '1.4rem', margin: 0, fontWeight: 600, letterSpacing: '-0.02em', color: '#fff' }}>
+                                {createGroupStep === 1 ? 'Create Group' : 'Add Members'}
+                            </h2>
+                            <button onClick={() => setShowCreateGroupModal(false)} className="msg-modal-close" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', cursor: 'pointer', borderRadius: '50%', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        
+                        <div style={{ padding: '32px', flex: 1, overflowY: 'auto' }}>
+                            {/* Step 1: Details */}
+                            {createGroupStep === 1 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Group Logo</label>
+                                        <div style={{ width: '88px', height: '88px', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 8px 16px rgba(0,0,0,0.2)' }}>
+                                            <Folder size={36} color="#A78BFA" />
+                                            <div style={{ position: 'absolute', bottom: -4, right: -4, background: '#18181b', borderRadius: '50%', padding: '5px', border: '2px solid rgba(139, 92, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <ImageIcon size={12} color="#A78BFA" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Group Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={newGroupName}
+                                            onChange={e => setNewGroupName(e.target.value)}
+                                            placeholder="e.g. Website Revamp"
+                                            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '14px 16px', borderRadius: '10px', color: '#fff', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', width: '100%' }}
+                                            onFocus={(e) => e.target.style.borderColor = 'rgba(139, 92, 246, 0.5)'}
+                                            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Department</label>
+                                        <div style={{ position: 'relative' }}>
+                                            <select 
+                                                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '14px 16px', borderRadius: '10px', color: '#fff', fontSize: '0.95rem', outline: 'none', appearance: 'none', width: '100%', cursor: 'pointer', transition: 'border-color 0.2s' }}
+                                                onFocus={(e) => e.target.style.borderColor = 'rgba(139, 92, 246, 0.5)'}
+                                                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+                                                onChange={(e) => {
+                                                    const dept = e.target.value;
+                                                    if (dept && !newGroupDepts.includes(dept)) {
+                                                        setNewGroupDepts(prev => [...prev, dept]);
+                                                        const matchingMembers = allContacts.filter(emp => emp.department === dept).map(emp => String(emp.id));
+                                                        setNewGroupMembers(prev => Array.from(new Set([...prev, ...matchingMembers])));
+                                                    }
+                                                    e.target.value = "";
+                                                }}
+                                            >
+                                                <option value="" style={{ color: 'rgba(255,255,255,0.4)' }}>-- Select Department --</option>
+                                                {uniqueDepartments.map((dept: any) => (
+                                                    <option key={dept} value={dept} style={{ background: '#18181b', color: '#fff' }}>{dept}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown size={16} color="var(--text-secondary)" style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                                        </div>
+                                        
+                                        {newGroupDepts.length > 0 && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                                                {newGroupDepts.map(dept => (
+                                                    <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.2)', color: '#A78BFA', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 500 }}>
+                                                        {dept}
+                                                        <X size={14} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setNewGroupDepts(prev => prev.filter(d => d !== dept))} />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 2: Members */}
+                            {createGroupStep === 2 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Selected: {newGroupMembers.length}</label>
+                                    </div>
+                                    <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '8px' }}>
+                                        {allContacts.map(emp => {
+                                            const isSelected = newGroupMembers.includes(String(emp.id));
+                                            return (
+                                                <div 
+                                                    key={emp.id} 
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', padding: '10px 12px', borderRadius: '10px', background: isSelected ? 'rgba(139, 92, 246, 0.08)' : 'transparent', border: '1px solid transparent', borderColor: isSelected ? 'rgba(139, 92, 246, 0.2)' : 'transparent', transition: 'all 0.2s' }}
+                                                    onClick={() => {
+                                                        if (isSelected) setNewGroupMembers(prev => prev.filter(id => id !== String(emp.id)));
+                                                        else setNewGroupMembers(prev => [...prev, String(emp.id)]);
+                                                    }}
+                                                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                                                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                                                >
+                                                    <div style={{ width: 20, height: 20, borderRadius: 6, border: `1px solid ${isSelected ? '#A78BFA' : 'rgba(255,255,255,0.2)'}`, background: isSelected ? '#A78BFA' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                                                        {isSelected && <Check size={14} color="#111" strokeWidth={3} />}
+                                                    </div>
+                                                    <div className="msg-header-avatar" style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}>
+                                                        {emp.profilePhoto ? (
+                                                            <img src={emp.profilePhoto} alt={emp.firstName} />
+                                                        ) : (
+                                                            emp.firstName?.charAt(0) || '?'
+                                                        )}
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ color: isSelected ? '#fff' : 'var(--text-primary)', fontWeight: isSelected ? 600 : 500, fontSize: '0.95rem' }}>
+                                                            {emp.firstName} {emp.lastName}
+                                                        </span>
+                                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                                            {emp.designation || emp.roleId}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 32px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)' }}>
+                            <button onClick={() => {
+                                if (createGroupStep === 2) {
+                                    setCreateGroupStep(1);
+                                } else {
+                                    setShowCreateGroupModal(false);
+                                }
+                            }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 500, padding: '10px 16px', borderRadius: '8px', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                                {createGroupStep === 2 ? 'Back' : 'Cancel'}
+                            </button>
+                            
+                            {createGroupStep === 1 ? (
+                                <Button 
+                                    onClick={() => setCreateGroupStep(2)}
+                                    disabled={!newGroupName.trim() || newGroupDepts.length === 0}
+                                    style={{ padding: '10px 24px', borderRadius: '8px', fontWeight: 600 }}
+                                >
+                                    Next Step
+                                </Button>
+                            ) : (
+                                <Button 
+                                    onClick={async () => {
+                                        if (!newGroupName.trim() || newGroupMembers.length === 0) return;
+                                        if (!isAdmin) return; // Only Admin/Manager can create groups
+                                        setCreateGroupLoading(true);
+                                        try {
+                                            // Always include the creator themselves
+                                            const allMembers = Array.from(new Set([...newGroupMembers, myId!]));
+                                            const convId = await api.createGroupConversation({
+                                                name: newGroupName,
+                                                type: 'DEPARTMENT',
+                                                memberIds: allMembers,
+                                                department: newGroupDepts.length === 1 ? newGroupDepts[0] : (newGroupDepts.length > 1 ? newGroupDepts.join(', ') : 'General'),
+                                                myId: myId!
+                                            });
+                                            setShowCreateGroupModal(false);
+                                            setNewGroupName('');
+                                            setNewGroupDepts([]);
+                                            setNewGroupMembers([]);
+                                            setCreateGroupStep(1);
+                                            await queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(myId!) });
+                                            // Navigate to the new group conversation
+                                            setActiveConvId(convId);
+                                        } catch (err: any) {
+                                            logger.error('Error', 'Failed to create group:', err?.message);
+                                            alert(`Failed to create group: ${err?.message || 'Unknown error'}`);
+                                        } finally {
+                                            setCreateGroupLoading(false);
+                                        }
+                                    }}
+                                    disabled={createGroupLoading || newGroupMembers.length === 0}
+                                    style={{ padding: '10px 24px', borderRadius: '8px', fontWeight: 600 }}
+                                >
+                                    {createGroupLoading ? 'Creating...' : 'Create Group'}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

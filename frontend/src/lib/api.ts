@@ -13,7 +13,9 @@ import {
     ProjectDTO,
     ProjectMemberDTO,
     HolidayDTO,
-    AttendanceOverrideDTO
+    AttendanceOverrideDTO,
+    NoteDTO,
+    BoardDTO
 } from '../types/dto';
 import { supabase } from './supabase';
 // Simple upload rate limiter state
@@ -57,7 +59,7 @@ export const api = {
             active: active || 0
         };
     },
-    getEmployees: async (options?: { page?: number, limit?: number, search?: string, roleId?: string, status?: string, department?: string, sortBy?: string, excludeAdmin?: boolean }) => {
+    getEmployees: async (options?: { page?: number, limit?: number, search?: string, roleId?: string, status?: string, department?: string, sortBy?: string, excludeAdmin?: boolean, includeSuspended?: boolean }) => {
         let query = supabase.from('employees').select('*', { count: 'exact' });
         
         if (options?.search) {
@@ -71,7 +73,11 @@ export const api = {
             query = query.neq('roleId', 'ADMIN');
         }
         
-        if (options?.status) query = query.eq('status', options.status);
+        if (options?.status) {
+            query = query.eq('status', options.status);
+        } else if (!options?.includeSuspended) {
+            query = query.neq('status', 'SUSPENDED');
+        }
         if (options?.department) query = query.eq('department', options.department);
         
         if (options?.sortBy) {
@@ -93,6 +99,23 @@ export const api = {
 
         // Normalize with architect defaults
         const normalizedData = (data || []).map(normalizeEmployee);
+
+        if (!options?.sortBy) {
+            normalizedData.sort((a, b) => {
+                const statusOrder = (s: string) => {
+                    switch (s?.toUpperCase()) {
+                        case 'ACTIVE': return 0;
+                        case 'ON_LEAVE': return 1;
+                        case 'SUSPENDED': return 2;
+                        case 'TERMINATED': return 3;
+                        default: return 4;
+                    }
+                };
+                const diff = statusOrder(a.status) - statusOrder(b.status);
+                if (diff !== 0) return diff;
+                return (a.firstName || '').localeCompare(b.firstName || '');
+            });
+        }
 
         return {
             data: normalizedData as EmployeeDTO[],
@@ -156,18 +179,11 @@ export const api = {
         // Database uses camelCase (profilePhoto), so no mapping to snake_case is needed
         const mappedData = { ...data };
 
-        const updatePromise = supabase
+        const { data: rows, error } = await supabase
             .from('employees')
             .update(mappedData)
             .eq('id', id)
             .select();
-
-        // 10-second safety timeout
-        const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Update timed out. Verify your database columns use camelCase.')), 10000)
-        );
-
-        const { data: rows, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
         if (error) {
             logger.error('[API] updateEmployee Supabase error:', error);
@@ -204,9 +220,9 @@ export const api = {
     // --- Salary & Payroll ---
     addSalaryHike: async (employeeId: string, amount: number, effectiveDate: string, reason: string) => {
         // Fetch current baseSalary
-        const { data: emp, error: fetchError } = await supabase.from('employees').select('baseSalary, base_salary').eq('id', employeeId).single();
+        const { data: emp, error: fetchError } = await supabase.from('employees').select('baseSalary').eq('id', employeeId).single();
         if (fetchError) throw fetchError;
-        const currentSalary = emp.baseSalary || (emp as any).base_salary || 0;
+        const currentSalary = emp.baseSalary || 0;
         const newSalary = currentSalary + amount;
 
         // 1. Add to salaryHistory table
@@ -442,8 +458,9 @@ export const api = {
     getMyEODs: async (userId: string) => {
         if (!userId) throw new Error('Not authenticated');
         
-        // Use the actual columns found in the DB (tasksCompleted/InProgress are arrays)
-        const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', userId).order('reportDate', { ascending: false }).order('createdAt', { ascending: false });
+        // Limit to 60 most recent EODs — oldest records are not needed on the dashboard
+        const { data, error } = await supabase.from('eod_reports').select('*').eq('employeeId', userId).order('reportDate', { ascending: false }).order('createdAt', { ascending: false }).limit(60);
+        
         
         handleSupabaseEvent(data, error, 'Fetch My EODs');
         
@@ -459,7 +476,7 @@ export const api = {
     getAllEODs: async (options?: { limit?: number; startDate?: string; endDate?: string; employeeId?: string }) => {
         let query = supabase
             .from('eod_reports')
-            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto, department, roleId)');
+            .select('*, employee:employees!employeeId(id, firstName, lastName, profilePhoto, department, roleId, status)');
 
         if (options?.startDate) query = query.gte('reportDate', options.startDate);
         if (options?.endDate) query = query.lte('reportDate', options.endDate);
@@ -473,14 +490,16 @@ export const api = {
 
         handleSupabaseEvent(data, error, 'Fetch All EODs');
         
-        // Normalize with architect defaults
-        return (data || []).map((report: any) => ({
-            ...report,
-            sentiment: report.sentiment || 'OKAY',
-            tasksCompleted: report.tasksCompleted || [],
-            tasksInProgress: report.tasksInProgress || [],
-            workHours: report.workHours || (report as any).work_hours || 0
-        }));
+        // Normalize with architect defaults and filter out suspended/terminated employees
+        return (data || [])
+            .map((report: any) => ({
+                ...report,
+                sentiment: report.sentiment || 'OKAY',
+                tasksCompleted: report.tasksCompleted || [],
+                tasksInProgress: report.tasksInProgress || [],
+                workHours: report.workHours || (report as any).work_hours || 0
+            }))
+            .filter((report: any) => report.employee && report.employee.status === 'ACTIVE');
     },
     getWorkHoursInRange: async (startDate: string, endDate: string, employeeId?: string) => {
         let query = supabase.from('work_hours').select('*').gte('date', startDate).lte('date', endDate);
@@ -605,13 +624,15 @@ export const api = {
         const { data, error } = await supabase.from('leaves').select('*, employee:employees!employeeId(*)').order('createdAt', { ascending: false });
         handleSupabaseEvent(data, error, 'Fetch Leaves');
         
-        // Normalize with architect defaults
-        return (data || []).map((leave: any) => ({
-            ...leave,
-            status: leave.status || 'PENDING',
-            leaveType: leave.leaveType || 'CASUAL',
-            reason: leave.reason || 'No reason provided'
-        })) as LeaveApplicationDTO[];
+        // Normalize with architect defaults and filter out suspended/terminated employees
+        return (data || [])
+            .map((leave: any) => ({
+                ...leave,
+                status: leave.status || 'PENDING',
+                leaveType: leave.leaveType || 'CASUAL',
+                reason: leave.reason || 'No reason provided'
+            }))
+            .filter((leave: any) => leave.employee && leave.employee.status === 'ACTIVE') as LeaveApplicationDTO[];
     },
     approveLeave: async (id: string, status: 'APPROVED' | 'REJECTED', approverId: string) => {
         const updateData = { status, approverId };
@@ -698,6 +719,9 @@ export const api = {
             ...data,
             employeeId: data.employee_id,
             monthYear: data.month_year,
+            // Defensive grade mapping: the column may be returned as 'grade' or absent.
+            // The DB column name is 'grade'; guard against casing edge cases.
+            grade: data.grade ?? data.Grade ?? 'N/A',
             currentScore: parseFloat(String(data.current_score || 0)),
             current_score: parseFloat(String(data.current_score || 0)),
             extra_points: parseFloat(String(data.extra_points || 0)),
@@ -706,9 +730,9 @@ export const api = {
             average_quality_rating_sum: parseFloat(String(data.average_quality_rating_sum || 0))
         } as KpiProfileDTO;
     },
-    getKpiAuditLogs: async (employeeId: string) => {
+    getKpiAuditLogs: async (employeeId: string, limit: number = 25) => {
         // Using snake_case columns: employee_id, created_at
-        const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employee_id', employeeId).order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('kpi_audit_logs').select('*').eq('employee_id', employeeId).order('created_at', { ascending: false }).limit(limit);
         handleSupabaseEvent(data, error, 'Fetch KPI Audit Logs');
         
         return (data || []).map((log: any) => ({
@@ -821,23 +845,26 @@ export const api = {
         const queryMonth = monthYear || new Date().toISOString().substring(0, 7);
         const { data, error } = await supabase
             .from('kpi_profiles')
-            .select('*, employee:employees!employee_id(*)')
+            // Only select the columns actually used in the UI — avoids pulling salary/bank data via employees.*
+            .select('employee_id, current_score, month_year, total_hours_worked, bonus_points, extra_points, average_quality_rating_sum, employee:employees!employee_id(id, firstName, lastName, profilePhoto, roleId, status)')
             .eq('month_year', queryMonth)
             .order('current_score', { ascending: false })
             .limit(limit);
 
         handleSupabaseEvent(data, error, 'Fetch All KPI Profiles');
-        return (data || []).map((p: any) => ({
-            ...p,
-            employeeId: p.employee_id,
-            monthYear: p.month_year,
-            currentScore: parseFloat(String(p.current_score || 0)),
-            current_score: parseFloat(String(p.current_score || 0)),
-            extra_points: parseFloat(String(p.extra_points || 0)),
-            total_hours_worked: parseFloat(String(p.total_hours_worked || 0)),
-            bonus_points: parseFloat(String(p.bonus_points || 0)),
-            average_quality_rating_sum: parseFloat(String(p.average_quality_rating_sum || 0))
-        }));
+        return (data || [])
+            .map((p: any) => ({
+                ...p,
+                employeeId: p.employee_id,
+                monthYear: p.month_year,
+                currentScore: parseFloat(String(p.current_score || 0)),
+                current_score: parseFloat(String(p.current_score || 0)),
+                extra_points: parseFloat(String(p.extra_points || 0)),
+                total_hours_worked: parseFloat(String(p.total_hours_worked || 0)),
+                bonus_points: parseFloat(String(p.bonus_points || 0)),
+                average_quality_rating_sum: parseFloat(String(p.average_quality_rating_sum || 0))
+            }))
+            .filter((p: any) => p.employee && p.employee.status === 'ACTIVE');
     },
     getAllKpiAuditLogs: async (limit: number = 10) => {
         const { data, error } = await supabase
@@ -847,18 +874,20 @@ export const api = {
             .limit(limit);
         handleSupabaseEvent(data, error, 'Fetch All KPI Audit Logs');
         
-        return (data || []).map((log: any) => ({
-            ...log,
-            employeeId: log.employee_id,
-            createdAt: log.created_at,
-            pointsChange: parseFloat(String(log.points_change || 0)),
-            points_change: parseFloat(String(log.points_change || 0)),
-            eventSource: log.event_source,
-            visibleScoreBefore: parseFloat(String(log.visible_score_before || 0)),
-            visible_score_before: parseFloat(String(log.visible_score_before || 0)),
-            visibleScoreAfter: parseFloat(String(log.visible_score_after || 0)),
-            visible_score_after: parseFloat(String(log.visible_score_after || 0))
-        }));
+        return (data || [])
+            .map((log: any) => ({
+                ...log,
+                employeeId: log.employee_id,
+                createdAt: log.created_at,
+                pointsChange: parseFloat(String(log.points_change || 0)),
+                points_change: parseFloat(String(log.points_change || 0)),
+                eventSource: log.event_source,
+                visibleScoreBefore: parseFloat(String(log.visible_score_before || 0)),
+                visible_score_before: parseFloat(String(log.visible_score_before || 0)),
+                visibleScoreAfter: parseFloat(String(log.visible_score_after || 0)),
+                visible_score_after: parseFloat(String(log.visible_score_after || 0))
+            }))
+            .filter((log: any) => log.employee && log.employee.status === 'ACTIVE');
     },
 
 
@@ -965,7 +994,11 @@ export const api = {
         // 4. Double-Extension & Dangerous Extension Block
         const parts = file.name.split('.');
         if (parts.length > 2) {
-            throw new Error("Files with multiple extensions are blocked for security.");
+            const secondToLast = parts[parts.length - 2].toLowerCase();
+            const commonExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'txt', 'doc', 'docx', 'zip', 'tar', 'gz'];
+            if (commonExtensions.includes(secondToLast)) {
+                throw new Error("Files with multiple extensions are blocked for security.");
+            }
         }
         const ext = parts.pop()?.toLowerCase() || '';
         const dangerousExtensions = ['exe', 'sh', 'bat', 'js', 'php', 'apk', 'dmg', 'iso', 'zip', 'tar', 'gz', 'cmd', 'vbs', 'scr'];
@@ -1026,8 +1059,8 @@ export const api = {
         const { error } = await supabase.storage.from('private-docs').upload(fileName, file);
         if (error) {
             logger.error('Upload', 'Failed private document upload:', { error: error.message, fileName, size: file.size });
+            throw new Error(error.message);
         }
-        handleSupabaseEvent(null, error, 'File Upload');
         return { url: fileName };
     },
     deleteFile: async (fileName: string) => {
@@ -1056,7 +1089,17 @@ export const api = {
                 .in('conversation_id', myConvIds);
 
             if (shared && shared.length > 0) {
-                return shared[0].conversation_id;
+                const sharedIds = shared.map((s: any) => s.conversation_id);
+                const { data: directConvs } = await supabase
+                    .from('conversations')
+                    .select('id')
+                    .in('id', sharedIds)
+                    .eq('type', 'DIRECT')
+                    .limit(1);
+
+                if (directConvs && directConvs.length > 0) {
+                    return directConvs[0].id;
+                }
             }
         }
 
@@ -1064,7 +1107,7 @@ export const api = {
         const convId = crypto.randomUUID();
         const { error: convError } = await supabase
             .from('conversations')
-            .insert({ id: convId });
+            .insert({ id: convId, type: 'DIRECT' });
             
         if (convError) throw new Error(convError.message);
 
@@ -1086,10 +1129,8 @@ export const api = {
     /** Get all conversations for a user, with last message and unread count */
     getConversations: async (myId: string, role?: string) => {
         logger.log('[Chat] getConversations called, myId:', myId);
-        fetch('/api/debug-log', { method: 'POST', body: JSON.stringify({ type: 'getConversations' }) }).catch(() => {});
 
-        let convIds: string[] = [];
-
+        // 1. Fetch conversations the user is a participant of
         const { data: parts, error } = await supabase
             .from('conversation_participants')
             .select('conversation_id')
@@ -1100,40 +1141,51 @@ export const api = {
             return [];
         }
         if (!parts || parts.length === 0) return [];
-        convIds = parts.map((p: any) => p.conversation_id);
-        if (convIds.length === 0) return [];
+        const convIds = parts.map((p: any) => p.conversation_id);
 
-        // 1. Get all other participants (their userId only)
-        const { data: otherParts, error: otherErr } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id, user_id')
-            .in('conversation_id', convIds)
-            .neq('user_id', myId);
+        // 2. Fetch conversation details (type, name, project_id, status, department)
+        const { data: convDetails, error: convErr } = await supabase
+            .from('conversations')
+            .select('id, type, name, department, project_id, status')
+            .in('id', convIds);
 
-        if (otherErr) logger.error('[Chat] otherParts error:', otherErr.message);
-
-        // Collect unique other userIds and fetch employee data
-        const otherUserIds = Array.from(new Set((otherParts || []).map((p: any) => p.user_id)));
-        let employeeMap: Record<string, any> = {};
-        if (otherUserIds.length > 0) {
-            const { data: emps } = await supabase
-                .from('employees')
-                .select('id, firstName, lastName, profilePhoto, designation, roleId')
-                .in('id', otherUserIds);
-            (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
+        if (convErr || !convDetails) {
+            logger.error('[Chat] convDetails error:', convErr?.message);
+            return [];
         }
 
-        // 2. Fetch the LATEST message for each conversation
-        // We do this by fetching the latest message per convId
-        // In Supabase, we can use a query that gets the last message for each conv
+        // 3. For DIRECT conversations, get the other participant's details
+        const directConvIds = convDetails.filter((c: any) => c.type === 'DIRECT').map((c: any) => c.id);
+        let otherParts: any[] = [];
+        let employeeMap: Record<string, any> = {};
+
+        if (directConvIds.length > 0) {
+            const { data: directParts } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id, user_id')
+                .in('conversation_id', directConvIds)
+                .neq('user_id', myId);
+            otherParts = directParts || [];
+
+            const otherUserIds = Array.from(new Set(otherParts.map((p: any) => p.user_id)));
+            if (otherUserIds.length > 0) {
+                const { data: emps } = await supabase
+                    .from('employees')
+                    .select('id, firstName, lastName, profilePhoto, designation, roleId, status')
+                    .in('id', otherUserIds);
+                (emps || []).forEach((e: any) => { employeeMap[e.id] = e; });
+            }
+        }
+
+        // 4. Fetch only the LATEST message for each conversation using a per-conv-id approach
+        // Fetch last N messages and take first occurrence per conversation_id in JS (avoids N+1)
         const { data: latestMsgs } = await supabase
             .from('messages')
-            .select('*')
+            .select('id, conversation_id, content, type, sender_id, created_at')
             .in('conversation_id', convIds)
             .order('created_at', { ascending: false })
-            .limit(200);
+            .limit(convIds.length * 3); // 3x conv count is enough to get last msg per conv
 
-        // Map latest message per conversation
         const lastMessageMap: Record<string, any> = {};
         (latestMsgs || []).forEach((m: any) => {
             if (!lastMessageMap[m.conversation_id]) {
@@ -1141,7 +1193,7 @@ export const api = {
             }
         });
 
-        // 3. Get unread counts for all conversations
+        // 5. Get unread counts — only unseen messages not sent by me
         const { data: unreadMsgs } = await supabase
             .from('messages')
             .select('conversation_id')
@@ -1154,36 +1206,51 @@ export const api = {
             unreadCounts[m.conversation_id] = (unreadCounts[m.conversation_id] || 0) + 1;
         });
 
-        // 4. Assemble results for ALL convIds
-        const results = convIds.map((convId: string) => {
-            const other = (otherParts || []).find((p: any) => p.conversation_id === convId);
-            const otherEmployee = other ? employeeMap[other.user_id] : null;
+        // 6. Assemble results
+        const results = convDetails.map((conv: any) => {
+            const isDirect = conv.type === 'DIRECT';
+            let otherEmployee = null;
+            if (isDirect) {
+                const other = otherParts.find((p: any) => p.conversation_id === conv.id);
+                otherEmployee = other ? employeeMap[other.user_id] : null;
+            }
 
             return {
-                conversationId: convId,
+                conversationId: conv.id,
+                type: conv.type,
+                name: conv.name,
+                department: conv.department,
+                projectId: conv.project_id,
+                status: conv.status,
                 otherUser: otherEmployee ? {
                     id: otherEmployee.id,
                     firstName: otherEmployee.firstName,
                     lastName: otherEmployee.lastName,
                     profilePhoto: otherEmployee.profilePhoto,
                     designation: otherEmployee.designation,
-                    roleId: otherEmployee.roleId
+                    roleId: otherEmployee.roleId,
+                    status: otherEmployee.status
                 } : null,
-                lastMessage: lastMessageMap[convId] ? {
-                    id: lastMessageMap[convId].id,
-                    content: lastMessageMap[convId].content,
-                    type: lastMessageMap[convId].type,
-                    createdAt: lastMessageMap[convId].created_at,
-                    senderId: lastMessageMap[convId].sender_id
+                lastMessage: lastMessageMap[conv.id] ? {
+                    id: lastMessageMap[conv.id].id,
+                    content: lastMessageMap[conv.id].content,
+                    type: lastMessageMap[conv.id].type,
+                    createdAt: lastMessageMap[conv.id].created_at,
+                    senderId: lastMessageMap[conv.id].sender_id
                 } : null,
-                unreadCount: unreadCounts[convId] || 0,
+                unreadCount: unreadCounts[conv.id] || 0,
             };
+        }).filter((c: any) => {
+            if (c.type === 'DIRECT' && c.otherUser?.status === 'SUSPENDED') {
+                return false;
+            }
+            return true;
         });
 
-        // Sort by latest message timestamp
+        // Sort by admin-pinned (for DMs) first, then by latest message timestamp
         return results.sort((a, b) => {
-            const aIsAdmin = String((a.otherUser as any)?.roleId || '').toUpperCase() === 'ADMIN';
-            const bIsAdmin = String((b.otherUser as any)?.roleId || '').toUpperCase() === 'ADMIN';
+            const aIsAdmin = a.type === 'DIRECT' && String(a.otherUser?.roleId || '').toUpperCase() === 'ADMIN';
+            const bIsAdmin = b.type === 'DIRECT' && String(b.otherUser?.roleId || '').toUpperCase() === 'ADMIN';
             if (aIsAdmin && !bIsAdmin) return -1;
             if (!aIsAdmin && bIsAdmin) return 1;
             const aTime = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
@@ -1191,6 +1258,136 @@ export const api = {
             return bTime - aTime;
         });
     },
+
+    /** Fetch employees that are messageable for DM by a user */
+    getMessageableContacts: async (myId: string): Promise<any[]> => {
+        logger.log('[Chat] getMessageableContacts for:', myId);
+        const { data, error } = await supabase.rpc('get_messageable_contacts', { my_id: myId });
+        if (error) {
+            logger.error('[Chat] getMessageableContacts error:', error.message);
+            return [];
+        }
+        return data || [];
+    },
+
+    /** Create a new group conversation (PROJECT, DEPARTMENT, or COMPANY) */
+    createGroupConversation: async (payload: {
+        name: string;
+        type: 'PROJECT' | 'DEPARTMENT' | 'COMPANY';
+        memberIds: string[];
+        projectId?: string;
+        department?: string;
+        myId: string;
+    }): Promise<string> => {
+        const convId = crypto.randomUUID();
+        const { error: convError } = await supabase
+            .from('conversations')
+            .insert({
+                id: convId,
+                type: payload.type,
+                name: payload.name,
+                project_id: payload.projectId || null,
+                department: payload.department || null,
+                created_by: payload.myId
+            });
+
+        if (convError) throw new Error(convError.message);
+
+        // Add all members
+        const participants = payload.memberIds.map(uid => ({
+            conversation_id: convId,
+            user_id: uid,
+            role: uid === payload.myId ? 'ADMIN' : 'MEMBER'
+        }));
+
+        const { error: partError } = await supabase
+            .from('conversation_participants')
+            .insert(participants);
+
+        if (partError) {
+            // Rollback
+            await supabase.from('conversations').delete().eq('id', convId);
+            throw new Error(partError.message);
+        }
+
+        return convId;
+    },
+
+    /** Update group details */
+    updateGroupConversation: async (convId: string, payload: { name?: string; logo_url?: string | null }): Promise<void> => {
+        const { error } = await supabase
+            .from('conversations')
+            .update(payload)
+            .eq('id', convId);
+        if (error) throw new Error(error.message);
+    },
+
+    /** Delete group */
+    deleteGroupConversation: async (convId: string): Promise<void> => {
+        const { error } = await supabase
+            .from('conversations')
+            .delete()
+            .eq('id', convId);
+        if (error) throw new Error(error.message);
+    },
+
+    /** Add members to a group */
+    addGroupMembers: async (convId: string, memberIds: string[]): Promise<void> => {
+        const participants = memberIds.map(uid => ({
+            conversation_id: convId,
+            user_id: uid,
+            role: 'MEMBER'
+        }));
+        const { error } = await supabase
+            .from('conversation_participants')
+            .insert(participants);
+        if (error) throw new Error(error.message);
+    },
+
+    /** Remove a member from a group */
+    removeGroupMember: async (convId: string, userId: string): Promise<void> => {
+        const { error } = await supabase
+            .from('conversation_participants')
+            .delete()
+            .eq('conversation_id', convId)
+            .eq('user_id', userId);
+        if (error) throw new Error(error.message);
+    },
+
+    /** Archive or unarchive a conversation */
+    archiveConversation: async (convId: string, status: 'ACTIVE' | 'ARCHIVED'): Promise<void> => {
+        const { error } = await supabase
+            .from('conversations')
+            .update({ status })
+            .eq('id', convId);
+
+        if (error) throw new Error(error.message);
+    },
+
+    /** Update members of a project group */
+    updateGroupMembers: async (convId: string, memberIds: string[], myId: string): Promise<void> => {
+        // Delete all current participants
+        const { error: delError } = await supabase
+            .from('conversation_participants')
+            .delete()
+            .eq('conversation_id', convId);
+
+        if (delError) throw new Error(delError.message);
+
+        // Re-insert new participants
+        const participants = memberIds.map(uid => ({
+            conversation_id: convId,
+            user_id: uid,
+            role: uid === myId ? 'ADMIN' : 'MEMBER'
+        }));
+
+        const { error: insError } = await supabase
+            .from('conversation_participants')
+            .insert(participants);
+
+        if (insError) throw new Error(insError.message);
+    },
+
 
     /** Get messages for a conversation (newest last, with sender name) */
     getMessages: async (conversationId: string, limit = 50): Promise<any[]> => {
@@ -1230,6 +1427,8 @@ export const api = {
                 status: m.status,
                 senderName: empMap[m.sender_id] ? `${empMap[m.sender_id].firstName} ${empMap[m.sender_id].lastName}` : 'System',
                 senderPhoto: empMap[m.sender_id]?.profilePhoto,
+                mediaUrl: m.media_url,
+                taskRef: m.task_ref,
                 taskId: m.task_id
             }));
         }
@@ -1241,6 +1440,8 @@ export const api = {
             createdAt: m.created_at,
             senderId: m.sender_id,
             status: m.status,
+            mediaUrl: m.media_url,
+            taskRef: m.task_ref,
             taskId: m.task_id
         }));
     },
@@ -1271,7 +1472,9 @@ export const api = {
         return {
             ...data,
             createdAt: data.created_at,
-            senderId: data.sender_id
+            senderId: data.sender_id,
+            mediaUrl: data.media_url,
+            taskRef: data.task_ref
         };
     },
 
@@ -1315,7 +1518,7 @@ export const api = {
 
         // Sanitize extension to prevent path traversal
         const ext = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'bin';
-        const fileName = `chat/${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+        const fileName = `chat/${conversationId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
         logger.log('[Chat] uploadChatMedia: uploading', fileName, 'size:', file.size);
         const { error } = await supabase.storage.from('chat-media').upload(fileName, file, { upsert: false });
         if (error) {
@@ -1487,5 +1690,231 @@ export const api = {
             logger.warn('[WorkClock] clockOut failed gracefully:', err);
             return { id: null, local: true };
         }
+    },
+
+    // ==================== Notes ====================
+
+    getNotes: async (employeeId?: string, projectId?: string) => {
+        let query = supabase.from('notes').select(`
+            *,
+            employee:employees!"employeeId"(id, firstName, lastName, profilePhoto),
+            project:projects!"projectId"(id, name)
+        `);
+
+        if (employeeId) {
+            if (projectId) {
+                // Get user's own notes for this project + team notes for this project
+                query = query.eq('projectId', projectId).or(`employeeId.eq.${employeeId},visibility.eq.team`);
+            } else {
+                // Get user's own notes (all) + team notes from projects they belong to
+                query = query.eq('employeeId', employeeId);
+            }
+        }
+
+        const { data, error } = await query.order('pinned', { ascending: false }).order('updatedAt', { ascending: false });
+        handleSupabaseEvent(data, error, 'Fetch Notes');
+        return (data || []) as NoteDTO[];
+    },
+
+    getNoteById: async (id: string) => {
+        const { data, error } = await supabase
+            .from('notes')
+            .select(`
+                *,
+                employee:employees!"employeeId"(id, firstName, lastName, profilePhoto),
+                project:projects!"projectId"(id, name)
+            `)
+            .eq('id', id)
+            .single();
+
+        handleSupabaseEvent(data, error, 'Fetch Note Detail');
+        return data as NoteDTO;
+    },
+
+    createNote: async (payload: Partial<NoteDTO>) => {
+        const dbPayload: any = {
+            title: payload.title || 'Untitled Note',
+            content: payload.content || null,
+            employeeId: payload.employeeId,
+            projectId: payload.projectId || null,
+            visibility: payload.visibility || 'private',
+            pinned: payload.pinned || false,
+            color: payload.color || null,
+        };
+
+        const { data, error } = await supabase.from('notes').insert(dbPayload).select().single();
+        handleSupabaseEvent(data, error, 'Create Note');
+        return data as NoteDTO;
+    },
+
+    updateNote: async (id: string, payload: Partial<NoteDTO>) => {
+        const whitelist = ['title', 'content', 'projectId', 'visibility', 'pinned', 'color'];
+        const dbPayload: any = {};
+        Object.keys(payload).forEach(key => {
+            if (whitelist.includes(key) && (payload as any)[key] !== undefined) {
+                dbPayload[key] = (payload as any)[key];
+            }
+        });
+
+        const { data, error } = await supabase.from('notes').update(dbPayload).eq('id', id).select().single();
+        handleSupabaseEvent(data, error, 'Update Note');
+        return data as NoteDTO;
+    },
+
+    deleteNote: async (id: string) => {
+        const { error } = await supabase.from('notes').delete().eq('id', id);
+        handleSupabaseEvent(null, error, 'Delete Note');
+        return { success: true };
+    },
+
+    getProjectNotes: async (projectId: string) => {
+        const { data, error } = await supabase
+            .from('notes')
+            .select(`
+                *,
+                employee:employees!"employeeId"(id, firstName, lastName, profilePhoto),
+                project:projects!"projectId"(id, name)
+            `)
+            .eq('projectId', projectId)
+            .eq('visibility', 'team')
+            .order('pinned', { ascending: false })
+            .order('updatedAt', { ascending: false });
+
+        handleSupabaseEvent(data, error, 'Fetch Project Notes');
+        return (data || []) as NoteDTO[];
+    },
+
+    // ---------------------------------------------------------------------------
+    // Boards
+    // ---------------------------------------------------------------------------
+
+    getBoards: async (myId?: string, isAdmin?: boolean) => {
+        let query = supabase
+            .from('boards')
+            .select(`
+                *,
+                employee:employees!"employeeId"(id, firstName, lastName, profilePhoto),
+                project:projects!"projectId"(id, name)
+            `)
+            .order('updatedAt', { ascending: false });
+
+        if (myId && !isAdmin) {
+            const { data: invites } = await supabase
+                .from('board_invites')
+                .select('board_id')
+                .eq('invitee_id', myId)
+                .eq('status', 'accepted');
+            
+            const invitedBoardIds = invites?.map((i: any) => i.board_id) || [];
+            let orString = `visibility.eq.team,employeeId.eq.${myId}`;
+            if (invitedBoardIds.length > 0) {
+                orString += `,id.in.(${invitedBoardIds.join(',')})`;
+            }
+            query = query.or(orString);
+        }
+
+        const { data, error } = await query;
+        handleSupabaseEvent(data, error, 'Fetch Boards');
+        return (data || []) as BoardDTO[];
+    },
+
+    getBoardById: async (id: string) => {
+        const { data, error } = await supabase
+            .from('boards')
+            .select(`
+                *,
+                employee:employees!"employeeId"(id, firstName, lastName, profilePhoto),
+                project:projects!"projectId"(id, name)
+            `)
+            .eq('id', id)
+            .single();
+
+        handleSupabaseEvent(data, error, 'Fetch Board By ID');
+        return data as BoardDTO;
+    },
+
+    createBoard: async (payload: Partial<BoardDTO>) => {
+        const { data, error } = await supabase.from('boards').insert(payload).select().single();
+        handleSupabaseEvent(data, error, 'Create Board');
+        return data as BoardDTO;
+    },
+
+    updateBoardDocument: async (id: string, document: any) => {
+        const { data, error } = await supabase.from('boards').update({ document, updatedAt: new Date().toISOString() }).eq('id', id).select().single();
+        handleSupabaseEvent(data, error, 'Update Board Document');
+        return data as BoardDTO;
+    },
+
+    updateBoardVisibility: async (id: string, visibility: 'team' | 'private') => {
+        const { data, error } = await supabase.from('boards').update({ visibility, updatedAt: new Date().toISOString() }).eq('id', id).select().single();
+        handleSupabaseEvent(data, error, 'Update Board Visibility');
+        return data as BoardDTO;
+    },
+
+    deleteBoard: async (id: string) => {
+        const { error } = await supabase.from('boards').delete().eq('id', id);
+        handleSupabaseEvent(null, error, 'Delete Board');
+        return { success: true };
+    },
+
+    // ---------------------------------------------------------------------------
+    // Board Invites
+    // ---------------------------------------------------------------------------
+
+    getBoardInvites: async (boardId: string) => {
+        const { data, error } = await supabase
+            .from('board_invites')
+            .select(`
+                *,
+                inviter:employees!inviter_id(id, firstName, lastName, profilePhoto),
+                invitee:employees!invitee_id(id, firstName, lastName, profilePhoto)
+            `)
+            .eq('board_id', boardId);
+            
+        handleSupabaseEvent(data, error, 'Fetch Board Invites');
+        return data || [];
+    },
+
+    getMyPendingBoardInvites: async (userId: string) => {
+        const { data, error } = await supabase
+            .from('board_invites')
+            .select(`
+                *,
+                board:boards(id, name),
+                inviter:employees!inviter_id(id, firstName, lastName, profilePhoto)
+            `)
+            .eq('invitee_id', userId)
+            .eq('status', 'pending');
+            
+        handleSupabaseEvent(data, error, 'Fetch Pending Board Invites');
+        return data || [];
+    },
+
+    inviteToBoard: async (boardId: string, inviterId: string, inviteeId: string) => {
+        const { data, error } = await supabase
+            .from('board_invites')
+            .insert({
+                board_id: boardId,
+                inviter_id: inviterId,
+                invitee_id: inviteeId,
+                status: 'pending'
+            })
+            .select()
+            .single();
+            
+        handleSupabaseEvent(data, error, 'Invite to Board');
+        return data;
+    },
+
+    updateBoardInviteStatus: async (inviteId: string, status: 'accepted' | 'declined') => {
+        const { data, error } = await supabase
+            .from('board_invites')
+            .update({ status })
+            .eq('id', inviteId)
+            .select()
+            .single();
+            
+        handleSupabaseEvent(data, error, 'Update Board Invite');
+        return data;
     },
 };

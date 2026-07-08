@@ -24,7 +24,15 @@ interface Message {
 export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { maxItems?: number, style?: React.CSSProperties }) {
     const { employee: authEmployee, loading: authLoading } = useAuth();
     const queryClient = useQueryClient();
-    const { data: convsData, isLoading } = useConversations(authEmployee?.id, authEmployee?.roleId);
+    
+    const [isReady, setIsReady] = React.useState(false);
+    
+    useEffect(() => {
+        const t = setTimeout(() => setIsReady(true), 1000);
+        return () => clearTimeout(t);
+    }, []);
+
+    const { data: convsData, isLoading } = useConversations(isReady ? authEmployee?.id : undefined, authEmployee?.roleId);
 
     const threads = React.useMemo(() => {
         if (!convsData) return [];
@@ -54,36 +62,74 @@ export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { ma
 
     useEffect(() => {
         if (!myId) return;
-        const channel = supabase.channel('dashboard-recent-messages')
+
+        // Derive the conversation IDs this user is part of from the already-cached data.
+        // This avoids subscribing to every message INSERT in the whole system.
+        const currentConvs = queryClient.getQueryData<any[]>(messagingKeys.conversations(String(myId))) || [];
+        const myConvIds = new Set(currentConvs.map((c: any) => String(c.conversationId)).filter(Boolean));
+
+        const channel = supabase.channel(`dashboard-messages-${myId}`)
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'messages' },
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    // Server-side filter: only receive messages where sender_id = myId or receiver_id = myId
+                    // Supabase postgres_changes supports one eq filter per subscription;
+                    // we filter by conversation membership in JS as a secondary guard.
+                    filter: `sender_id=eq.${myId}`,
+                },
                 (payload) => {
                     const newMsg = payload.new;
-                    if (String(newMsg.sender_id) === String(myId) || String(newMsg.receiver_id) === String(myId) || newMsg.conversation_id) {
-                        queryClient.setQueryData(messagingKeys.conversations(String(myId)), (oldData: any) => {
-                            if (!oldData) return oldData;
-                            const idx = oldData.findIndex((c: any) => String(c.conversationId) === String(newMsg.conversation_id));
-                            if (idx === -1) {
-                                queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(String(myId)) });
-                                return oldData;
-                            }
-                            const updated = [...oldData];
-                            updated[idx] = {
-                                ...updated[idx],
-                                lastMessage: {
-                                    id: newMsg.id,
-                                    content: newMsg.content,
-                                    sender_id: newMsg.sender_id,
-                                    created_at: newMsg.created_at,
-                                },
-                                unreadCount: String(newMsg.sender_id) === String(myId) ? updated[idx].unreadCount : updated[idx].unreadCount + 1
-                            };
-                            return updated;
-                        });
-                    }
+                    if (!newMsg.conversation_id) return;
+                    queryClient.setQueryData(messagingKeys.conversations(String(myId)), (oldData: any) => {
+                        if (!oldData) return oldData;
+                        const idx = oldData.findIndex((c: any) => String(c.conversationId) === String(newMsg.conversation_id));
+                        if (idx === -1) {
+                            queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(String(myId)) });
+                            return oldData;
+                        }
+                        const updated = [...oldData];
+                        updated[idx] = {
+                            ...updated[idx],
+                            lastMessage: { id: newMsg.id, content: newMsg.content, sender_id: newMsg.sender_id, created_at: newMsg.created_at },
+                            unreadCount: String(newMsg.sender_id) === String(myId) ? updated[idx].unreadCount : updated[idx].unreadCount + 1
+                        };
+                        return updated;
+                    });
                 }
-            ).subscribe();
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    // Second sub: messages received by me
+                    filter: `receiver_id=eq.${myId}`,
+                },
+                (payload) => {
+                    const newMsg = payload.new;
+                    if (!newMsg.conversation_id) return;
+                    queryClient.setQueryData(messagingKeys.conversations(String(myId)), (oldData: any) => {
+                        if (!oldData) return oldData;
+                        const idx = oldData.findIndex((c: any) => String(c.conversationId) === String(newMsg.conversation_id));
+                        if (idx === -1) {
+                            queryClient.invalidateQueries({ queryKey: messagingKeys.conversations(String(myId)) });
+                            return oldData;
+                        }
+                        const updated = [...oldData];
+                        updated[idx] = {
+                            ...updated[idx],
+                            lastMessage: { id: newMsg.id, content: newMsg.content, sender_id: newMsg.sender_id, created_at: newMsg.created_at },
+                            unreadCount: updated[idx].unreadCount + 1 // always increment — sender is someone else
+                        };
+                        return updated;
+                    });
+                }
+            )
+            .subscribe();
 
         return () => { supabase.removeChannel(channel); };
     }, [myId, queryClient]);
@@ -97,7 +143,7 @@ export default function RecentMessagesWidget({ maxItems = 10, style = {} }: { ma
                 </Link>
             </div>
 
-            {isLoading ? (
+            {authLoading || isLoading || !isReady ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.8rem', padding: '12px 0' }}>
                     <Loader2 size={14} className="spin-icon" /> Updating...
                 </div>

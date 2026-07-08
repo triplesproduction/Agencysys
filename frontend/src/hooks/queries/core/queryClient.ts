@@ -48,8 +48,8 @@ export const queryClient = new QueryClient({
             staleTime: 5 * 60 * 1000, // 5 minutes
             gcTime: 30 * 60 * 1000,   // 30 minutes
             retry: (failureCount, error: any) => {
-                // Don't retry auth errors or missing data errors
-                if (error?.status === 401 || error?.status === 403 || error?.status === 404) return false;
+                // Don't retry auth errors or missing data/bad request errors
+                if (error?.status === 400 || error?.status === 401 || error?.status === 403 || error?.status === 404) return false;
                 return failureCount < 2;
             },
             refetchOnWindowFocus: false, // Prevents aggressive refetching

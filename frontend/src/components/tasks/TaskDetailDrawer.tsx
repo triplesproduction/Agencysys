@@ -50,7 +50,10 @@ export default function TaskDetailDrawer({ taskId, isOpen, onClose, onUpdate, cu
     
     const { addNotification } = useNotifications();
     
-    const { data: employees = [] } = useEmployees({ limit: 1000 });
+    const { data: employees = [] } = useEmployees(
+        { limit: 1000 },
+        { enabled: isOpen } // Don't fetch while drawer is closed
+    );
 
     const { mutateAsync: updateTask } = useUpdateTask();
     const { mutateAsync: deleteTask } = useDeleteTask();

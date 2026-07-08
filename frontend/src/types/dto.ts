@@ -267,3 +267,43 @@ export interface AttendanceReportDTO {
     holidays: HolidayDTO[];
     overrides: AttendanceOverrideDTO[];
 }
+
+export interface NoteDTO {
+    id: string;
+    title: string;
+    content: any;               // Tiptap JSON document
+    employeeId: string;
+    projectId?: string | null;
+    visibility: 'private' | 'team';
+    pinned: boolean;
+    color?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    // Joined relations (optional)
+    employee?: { id: string; firstName: string; lastName: string; profilePhoto?: string };
+    project?: { id: string; name: string };
+}
+
+export interface BoardDTO {
+    id: string;
+    name: string;
+    document: any; // JSONB tldraw state
+    projectId?: string | null;
+    employeeId: string;
+    visibility?: 'team' | 'private';
+    createdAt: string;
+    updatedAt: string;
+    employee?: { id: string; firstName: string; lastName: string; profilePhoto?: string };
+    project?: { id: string; name: string };
+}
+
+export interface BoardInviteDTO {
+    id: string;
+    boardId: string;
+    inviterId: string;
+    inviteeId: string;
+    status: 'pending' | 'accepted' | 'declined';
+    createdAt: string;
+    inviter?: { id: string; firstName: string; lastName: string; profilePhoto?: string };
+    invitee?: { id: string; firstName: string; lastName: string; profilePhoto?: string };
+}

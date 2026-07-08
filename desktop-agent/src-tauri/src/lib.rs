@@ -3,6 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::PathBuf;
 use serde_json::json;
 use std::process::Command;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use chrono::Utc;
 use tokio::time::{sleep, Duration};
 use sha2::{Sha256, Digest};
@@ -61,7 +64,9 @@ fn get_battery_status() -> String {
 
     #[cfg(target_os = "windows")]
     {
-        let output = Command::new("powershell")
+        let mut cmd = Command::new("powershell");
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        let output = cmd
             .args(&["-Command", "(Get-CimInstance Win32_Battery).EstimatedChargeRemaining"])
             .output();
         if let Ok(out) = output {
@@ -105,8 +110,10 @@ async fn login(
 ) -> Result<EmployeeInfo, String> {
     let client = reqwest::Client::new();
     
+    let api_base = sync::API_BASE_URL.to_string();
+    
     // Route login through the Next.js backend API — never call Supabase directly from the binary
-    let auth_url = format!("{}/api/auth/agent-login", sync::API_BASE_URL);
+    let auth_url = format!("{}/api/auth/agent-login", api_base);
     let auth_res = client
         .post(&auth_url)
         .header("Content-Type", "application/json")
@@ -161,13 +168,13 @@ async fn login(
     let name = format!("{} {}", first_name, last_name).trim().to_string();
     let designation = profile["designation"].as_str().unwrap_or("Staff").to_string();
     
-    let mut screenshot_interval = 5;
+    let mut screenshot_interval = 6;
     let mut screenshot_quality = 80;
     let mut policy_id = None;
 
     if let Some(policy) = profile["monitoring_policies"].as_object() {
         policy_id = policy.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
-        screenshot_interval = policy.get("screenshotInterval").and_then(|v| v.as_i64()).unwrap_or(5) as i32;
+        screenshot_interval = policy.get("screenshotInterval").and_then(|v| v.as_i64()).unwrap_or(6) as i32;
         screenshot_quality = policy.get("screenshotQuality").and_then(|v| v.as_i64()).unwrap_or(80) as i32;
     }
 
@@ -218,9 +225,9 @@ fn get_current_employee(state: tauri::State<'_, AppState>) -> Result<Option<Empl
     let policy_id = db::get_setting(&conn, "policy_id").map_err(|e| e.to_string())?;
     let screenshot_interval = db::get_setting(&conn, "screenshot_interval")
         .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "5".to_string())
+        .unwrap_or_else(|| "6".to_string())
         .parse::<i32>()
-        .unwrap_or(5);
+        .unwrap_or(6);
     let screenshot_quality = db::get_setting(&conn, "screenshot_quality")
         .map_err(|e| e.to_string())?
         .unwrap_or_else(|| "80".to_string())
@@ -272,8 +279,23 @@ fn check_session_recovery(state: tauri::State<'_, AppState>) -> Result<RecoveryS
 fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: String, device_id: String, screenshot_interval: i32, screenshot_quality: i32) {
     MONITOR_ACTIVE.store(true, Ordering::SeqCst);
 
+    #[cfg(target_os = "macos")]
+    {
+        #[link(name = "CoreGraphics", kind = "framework")]
+        extern "C" {
+            fn CGPreflightScreenCaptureAccess() -> bool;
+            fn CGRequestScreenCaptureAccess() -> bool;
+        }
+        unsafe {
+            if !CGPreflightScreenCaptureAccess() {
+                println!("Requesting macOS Screen Recording permissions...");
+                let _ = CGRequestScreenCaptureAccess();
+            }
+        }
+    }
+
     tokio::spawn(async move {
-        let mut loop_count = 0;
+        let mut last_screenshot_time = Utc::now();
         let mut last_activity_time = Utc::now();
         let mut current_focused_app = monitor::get_active_app().await;
 
@@ -396,8 +418,11 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
             }
 
             // 3. Screenshots (Every configured interval)
-            loop_count += 1;
-            if screenshot_interval > 0 && loop_count % screenshot_interval == 0 {
+            let screenshot_interval_secs = (screenshot_interval as i64) * 60;
+            let secs_since_last_screenshot = now_time.signed_duration_since(last_screenshot_time).num_seconds();
+
+            if screenshot_interval > 0 && secs_since_last_screenshot >= screenshot_interval_secs {
+                last_screenshot_time = now_time;
                 let sq = screenshot_quality as u8;
                 let sc_result = tokio::task::spawn_blocking(move || {
                     monitor::capture_compressed_screenshot(sq)
@@ -413,19 +438,39 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
                                 "imageBase64": sc.base64_image
                             });
                             let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "SCREENSHOT", sc_payload);
+                            println!("Screenshot queued at {} ({}s since last)", now_time.to_rfc3339(), secs_since_last_screenshot);
                         }
                     }
-                    Ok(None) => {}
-                    Err(e) => {
-                        eprintln!("Screenshot task failed to join: {}", e);
-                    }
+                    Ok(None) => { eprintln!("Screenshot capture returned None (permissions issue or no screen)"); }
+                    Err(e) => { eprintln!("Screenshot task failed to join: {}", e); }
                 }
             }
 
             // Sync Worker run
             sync::run_sync_worker(&db_path).await;
 
+            let sleep_start = Utc::now();
             sleep(Duration::from_secs(60)).await;
+
+            let elapsed = Utc::now().signed_duration_since(sleep_start).num_seconds();
+            if elapsed > 120 {
+                println!("System sleep/suspension detected (elapsed: {}s). Auto clocking out...", elapsed);
+                MONITOR_ACTIVE.store(false, Ordering::SeqCst);
+
+                if let Ok(c) = rusqlite::Connection::open(&db_path) {
+                    let clock_out_payload = json!({
+                        "endTime": sleep_start.to_rfc3339()
+                    });
+                    let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "CLOCK_OUT", clock_out_payload);
+                    let _ = db::set_setting(&c, "is_clocked_in", "false");
+                    let _ = db::clear_setting(&c, "session_id");
+                    let _ = db::clear_setting(&c, "is_on_break");
+                    let _ = db::clear_setting(&c, "session_start_time");
+                }
+
+                sync::run_sync_worker(&db_path).await;
+                break;
+            }
         }
     });
 }
@@ -478,9 +523,9 @@ async fn clock_in(state: tauri::State<'_, AppState>) -> Result<String, String> {
 
     let screenshot_interval = db::get_setting(&conn, "screenshot_interval")
         .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "5".to_string())
+        .unwrap_or_else(|| "6".to_string())
         .parse::<i32>()
-        .unwrap_or(5);
+        .unwrap_or(6);
 
     let screenshot_quality = db::get_setting(&conn, "screenshot_quality")
         .map_err(|e| e.to_string())?
@@ -513,9 +558,9 @@ async fn resume_session(state: tauri::State<'_, AppState>) -> Result<(), String>
 
     let screenshot_interval = db::get_setting(&conn, "screenshot_interval")
         .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "5".to_string())
+        .unwrap_or_else(|| "6".to_string())
         .parse::<i32>()
-        .unwrap_or(5);
+        .unwrap_or(6);
 
     let screenshot_quality = db::get_setting(&conn, "screenshot_quality")
         .map_err(|e| e.to_string())?
@@ -682,6 +727,26 @@ async fn resume_from_break(state: tauri::State<'_, AppState>) -> Result<(), Stri
 }
 
 #[tauri::command]
+fn get_api_base_url(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let conn = db::DbState { db_path: state.db_path.clone() }
+        .get_connection()
+        .map_err(|e| e.to_string())?;
+    let url = db::get_setting(&conn, "api_base_url")
+        .map_err(|e| e.to_string())?
+        .unwrap_or_else(|| sync::API_BASE_URL.to_string());
+    Ok(url)
+}
+
+#[tauri::command]
+fn set_api_base_url(url: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let conn = db::DbState { db_path: state.db_path.clone() }
+        .get_connection()
+        .map_err(|e| e.to_string())?;
+    db::set_setting(&conn, "api_base_url", &url).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn relaunch_app(app: tauri::AppHandle) {
     app.restart();
 }
@@ -718,7 +783,9 @@ pub fn run() {
             take_break,
             resume_from_break,
             relaunch_app,
-            open_screen_recording_prefs
+            open_screen_recording_prefs,
+            get_api_base_url,
+            set_api_base_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

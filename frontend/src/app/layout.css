@@ -10,7 +10,7 @@
     height: 100vh;
     overflow-y: auto;
     padding: 20px;
-    padding-left: calc(var(--sidebar-width, 280px) + 20px);
+    padding-left: calc(var(--sidebar-width, 270px) + 20px);
     transition: padding-left 0.25s ease;
     display: flex;
     flex-direction: column;

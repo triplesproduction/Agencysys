@@ -12,7 +12,7 @@ import { useMyLeaves, useApplyForLeave } from '@/hooks/queries/domains/leaves/us
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import './Leaves.css';
 import { useAuth } from '@/context/AuthContext';
-import { calculateLeaveBalance } from '@/lib/leaveUtils';
+import { calculateLeaveBalance, getDayCount } from '@/lib/leaveUtils';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: typeof Clock }> = {
     PENDING: { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)', icon: Clock },
@@ -77,10 +77,7 @@ export default function LeavesPage() {
         }
     };
 
-    const getDayCount = (start: string, end: string) => {
-        const diffMs = new Date(end).getTime() - new Date(start).getTime();
-        return Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
-    };
+
 
     const pendingCount = leaves.filter(l => l.status === 'PENDING').length;
     const approvedCount = leaves.filter(l => l.status === 'APPROVED').length;

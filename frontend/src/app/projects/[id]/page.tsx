@@ -5,12 +5,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { 
     Plus, ChevronLeft, Calendar, Clock, 
     CheckCircle2, Users, Target, Activity,
-    Flame, Briefcase, Zap, MoreVertical, LayoutGrid, CheckCircle, BarChart3, ShieldCheck, Trash2, Search, PlusCircle
+    Flame, Briefcase, Zap, MoreVertical, LayoutGrid, CheckCircle, BarChart3, ShieldCheck, Trash2, Search, PlusCircle, Edit3
 } from 'lucide-react';
 import Button from '@/components/Button';
 import GlassCard from '@/components/GlassCard';
 import AllocateTaskModal from '@/components/tasks/AllocateTaskModal';
 import TaskDetailDrawer from '@/components/tasks/TaskDetailDrawer';
+import EditProjectModal from '@/components/projects/EditProjectModal';
 import { useNotifications } from '@/components/notifications/NotificationProvider';
 import { api } from '@/lib/api';
 import { ProjectDTO, TaskDTO, EmployeeDTO } from '@/types/dto';
@@ -60,6 +61,7 @@ export default function ProjectDetailPage() {
     const [activeTab, setActiveTab] = useState<TabType>('BOARD');
     
     const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [newTaskStatus, setNewTaskStatus] = useState<string | null>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -226,6 +228,11 @@ export default function ProjectDetailPage() {
                         <Button variant="primary" size="sm" onClick={() => setIsAllocateModalOpen(true)}>
                             <Plus size={16} /> New Task
                         </Button>
+                    )}
+                    {isAdmin && (
+                        <button className="icon-btn-ghost" onClick={() => setIsEditModalOpen(true)} title="Edit Project">
+                            <Edit3 size={16} />
+                        </button>
                     )}
                     {isAdmin && (
                         <button className="icon-btn-danger" onClick={handleDeleteProject} title="Delete Project">
@@ -439,6 +446,14 @@ export default function ProjectDetailPage() {
                 onSuccess={() => refetchTasks()} 
                 projectId={String(id)} 
                 initialStatus={newTaskStatus || undefined}
+            />
+            <EditProjectModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    refetchProject();
+                }}
+                project={project}
             />
             <TaskDetailDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} taskId={selectedTaskId || ''} onUpdate={() => refetchTasks()} currentUserRole={userRole} />
         </div>

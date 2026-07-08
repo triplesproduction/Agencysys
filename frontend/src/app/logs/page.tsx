@@ -60,10 +60,14 @@ export default function LogsPage() {
             }
 
             const results = await Promise.all(promises);
-            setReports(results[0] || []);
+            const rawReports = results[0] || [];
+            const approvedReports = rawReports.filter((r: any) => r.status === 'APPROVED');
+            setReports(approvedReports);
             setWorkHourLogs(results[1] || []);
             if (isAdmin && results[2]) {
-                setAdminEods(results[2]);
+                const rawAdminEods = results[2] || [];
+                const approvedAdminEods = rawAdminEods.filter((r: any) => r.status === 'APPROVED');
+                setAdminEods(approvedAdminEods);
             }
         } catch (err) {
             logger.error('Error', 'Failed to load logs:', err);
@@ -120,6 +124,7 @@ export default function LogsPage() {
         let totalMonth = 0;
         let totalWeek = 0;
         let totalToday = 0;
+        const uniqueDays = new Set<string>();
 
         const employeeTotals: Record<string, { name: string, hours: number, avatar: string | null }> = {};
 
@@ -131,6 +136,7 @@ export default function LogsPage() {
             totalMonth += h;
             if (rDate >= startOfWeek) totalWeek += h;
             if (r.reportDate.startsWith(todayStr)) totalToday += h;
+            uniqueDays.add(r.reportDate);
 
             const empId = r.employeeId || r.employee_id;
             const empName = r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Unknown Employee';
@@ -142,8 +148,9 @@ export default function LogsPage() {
             employeeTotals[empId].hours += h;
         });
 
+        const avgDaily = uniqueDays.size > 0 ? totalMonth / uniqueDays.size : 0;
         const contributors = Object.values(employeeTotals).sort((a, b) => b.hours - a.hours);
-        return { totalMonth, totalWeek, totalToday, contributors };
+        return { totalMonth, totalWeek, totalToday, avgDaily, contributors };
     }, [adminEods, isAdmin]);
 
     // Derive human-readable month label for the selected month
@@ -331,6 +338,13 @@ export default function LogsPage() {
                             <div className="admin-stat-label">Today</div>
                             <div className="admin-stat-value">
                                 {adminStats?.totalToday.toFixed(1) ?? '—'}
+                                <span className="admin-stat-unit">hrs</span>
+                            </div>
+                        </GlassCard>
+                        <GlassCard className="admin-stat-card">
+                            <div className="admin-stat-label">Average Daily</div>
+                            <div className="admin-stat-value">
+                                {adminStats?.avgDaily.toFixed(1) ?? '—'}
                                 <span className="admin-stat-unit">hrs</span>
                             </div>
                         </GlassCard>

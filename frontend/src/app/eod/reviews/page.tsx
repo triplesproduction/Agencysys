@@ -136,7 +136,7 @@ function EODReviewsContent() {
     }, [fetchReports]);
 
     useEffect(() => {
-        api.getEmployees({ limit: 1000 }).then(res => setEmployees(res.data || []));
+        api.getEmployees({ limit: 1000, status: 'ACTIVE' }).then(res => setEmployees(res.data || []));
         const handleOutsideClick = () => setRatingMenuOpen(null);
         window.addEventListener('click', handleOutsideClick);
         return () => window.removeEventListener('click', handleOutsideClick);
@@ -293,7 +293,7 @@ function EODReviewsContent() {
                                                     {report.status !== 'APPROVED' && (
                                                         <div style={{ gridColumn: 'span 2', marginTop: '12px', padding: '20px', background: 'rgba(139, 92, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(139, 92, 246, 0.15)' }} onClick={e => e.stopPropagation()}>
                                                             <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '20px', marginBottom: '16px' }}>
-                                                                <div><label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Adjusted Hours</label><input type="number" step="0.5" value={editHours} onChange={e => setEditHours(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px', color: 'white' }} /></div>
+                                                                <div><label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Adjusted Hours</label><input type="number" step="any" value={editHours} onChange={e => setEditHours(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px', color: 'white' }} /></div>
                                                                 <div><label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', marginBottom: '8px', display: 'block' }}>Admin Note</label><textarea rows={1} value={editNote} onChange={e => setEditNote(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px', color: 'white', resize: 'none' }} /></div>
                                                             </div>
                                                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
