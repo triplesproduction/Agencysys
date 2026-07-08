@@ -116,7 +116,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                         Refresh Account
                     </button>
                     <button
-                        onClick={() => signOut()}
+                        onClick={() => {
+                            signOut();
+                            window.location.href = '/login';
+                        }}
                         style={{ background: 'var(--purple-main)', border: 'none', color: 'white', padding: '10px 24px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}
                     >
                         Sign Out

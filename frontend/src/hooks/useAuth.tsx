@@ -44,11 +44,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
         logger.log(`[Auth] Fetching employee profile for ${userId}...`);
         try {
-            const { data, error } = await supabase
+            // Ensure Supabase client has loaded the session headers before running the query
+            await supabase.auth.getSession();
+
+            let { data, error } = await supabase
                 .from('employees')
                 .select('*')
                 .eq('id', userId)
                 .maybeSingle();
+
+            // If we got an error or no data, wait 500ms and retry (safety net for asynchronous token restoration)
+            if (error || !data) {
+                logger.log('[Auth] Profile query failed or empty. Retrying fetch in 500ms...');
+                await new Promise(r => setTimeout(r, 500));
+                const retryResult = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('id', userId)
+                    .maybeSingle();
+                data = retryResult.data;
+                error = retryResult.error;
+            }
 
             if (error) {
                 logger.error('[Auth] Profile DB error:', error.message);
@@ -134,6 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 // First time we see this user — fetch their profile
                 profileFetchedForRef.current = currentUser.id; // Mark immediately to block concurrent fetches
+                
+                setLoading(true);
 
                 const profile = await fetchProfile(currentUser.id, currentUser.email ?? undefined);
 
@@ -190,9 +208,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 });
             }
 
-            // Let Supabase handle any server-side revocation
-            await supabase.auth.signOut();
-            logger.log('[Auth] Sign out complete.');
+            // Fire and forget server-side sign out so it doesn't block local redirection
+            supabase.auth.signOut().catch((err) => {
+                logger.error('[Auth] Supabase signOut error:', err);
+            });
+            logger.log('[Auth] Sign out cleanup triggered.');
         } catch (error) {
             logger.error('[Auth] Sign out error:', error);
         } finally {
