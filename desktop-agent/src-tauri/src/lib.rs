@@ -332,6 +332,30 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
                 .await
                 .unwrap_or(0.0);
 
+            // Auto clock out if the user has been idle for >= 15 minutes (900 seconds)
+            // (e.g. system is asleep, modern standby S0 active, or user walked away)
+            const AUTO_CLOCKOUT_IDLE_TIMEOUT_SECONDS: f64 = 900.0;
+            if idle_secs >= AUTO_CLOCKOUT_IDLE_TIMEOUT_SECONDS {
+                println!("User has been idle for {:.1} minutes. Auto clocking out...", idle_secs / 60.0);
+                MONITOR_ACTIVE.store(false, Ordering::SeqCst);
+
+                if let Ok(c) = rusqlite::Connection::open(&db_path) {
+                    // Set clock out time to exactly when the user became inactive/idle
+                    let actual_clock_out_time = Utc::now() - chrono::Duration::seconds(idle_secs as i64);
+                    let clock_out_payload = json!({
+                        "endTime": actual_clock_out_time.to_rfc3339()
+                    });
+                    let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "CLOCK_OUT", clock_out_payload);
+                    let _ = db::set_setting(&c, "is_clocked_in", "false");
+                    let _ = db::clear_setting(&c, "session_id");
+                    let _ = db::clear_setting(&c, "is_on_break");
+                    let _ = db::clear_setting(&c, "session_start_time");
+                }
+
+                sync::run_sync_worker(&db_path).await;
+                break;
+            }
+
             // TODO: Bug 1 - Add a signal for active meetings/calls.
             // If feasible without new dependencies, check for audio input/output activity
             // or an active screen-share/meeting app in the foreground (e.g. Zoom, Google Meet).
@@ -768,7 +792,17 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let db_path = db::init_db(&app.handle())?;
-            app.manage(AppState { db_path });
+            app.manage(AppState { db_path: db_path.clone() });
+
+            // Global background sync thread that runs every 5 minutes (300 seconds)
+            let db_path_clone = db_path.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                    sync::run_sync_worker(&db_path_clone).await;
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

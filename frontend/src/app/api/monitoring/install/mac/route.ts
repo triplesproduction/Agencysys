@@ -20,20 +20,30 @@ echo "Step 1: Downloading the latest DMG..."
 curl -L -q --progress-bar -o /tmp/TripleS-Agent.dmg "${downloadUrl}"
 
 echo "Step 2: Mounting the disk image..."
-hdiutil attach /tmp/TripleS-Agent.dmg -nobrowse -mountpoint /Volumes/TripleS-Agent -quiet
+# Detach any existing mounts from previous failed attempts
+hdiutil detach "/Volumes/TripleS OS" -force -quiet 2>/dev/null || true
+hdiutil detach "/Volumes/TripleS-Agent" -force -quiet 2>/dev/null || true
+
+# Mount and capture the mount point dynamically
+MOUNT_INFO=$(hdiutil attach /tmp/TripleS-Agent.dmg -nobrowse -quiet)
+MOUNT_POINT=$(echo "$MOUNT_INFO" | grep -o '/Volumes/.*$')
+
+if [ -z "\${MOUNT_POINT}" ]; then
+    echo "❌ Error: Failed to mount disk image."
+    exit 1
+fi
 
 echo "Step 3: Installing TripleS OS to Applications..."
-# Remove old version if it exists
 if [ -d "/Applications/TripleS OS.app" ]; then
     rm -rf "/Applications/TripleS OS.app"
 fi
-cp -R "/Volumes/TripleS-Agent/TripleS OS.app" /Applications/
+cp -R "\${MOUNT_POINT}/TripleS OS.app" /Applications/
 
 echo "Step 4: Fixing macOS security permissions (removing quarantine)..."
 xattr -cr "/Applications/TripleS OS.app" 2>/dev/null
 
 echo "Step 5: Cleaning up..."
-hdiutil detach /Volumes/TripleS-Agent -quiet
+hdiutil detach "\${MOUNT_POINT}" -force -quiet
 rm -f /tmp/TripleS-Agent.dmg
 
 echo ""
