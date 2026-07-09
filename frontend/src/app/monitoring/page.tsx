@@ -126,14 +126,56 @@ export default function MonitoringDashboard() {
                         checkInTimeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
                     }
 
-                    // Calculate total hours worked today
+                    // Calculate total hours worked today using the exact same heartbeat segment logic as the details page
                     let totalWorkedSeconds = 0;
-                    if (sessions) {
-                        sessions.forEach(s => {
-                            const start = new Date(s.startTime).getTime();
-                            const end = s.endTime ? new Date(s.endTime).getTime() : Date.now();
-                            totalWorkedSeconds += Math.max(0, (end - start) / 1000);
-                        });
+                    if (hbs && hbs.length > 0) {
+                        const sortedHbs = [...hbs].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                        const timelineSegments: { type: string; durationSeconds: number }[] = [];
+                        let currentSegment: { startTime: Date; endTime: Date; type: string } | null = null;
+
+                        for (let i = 0; i < sortedHbs.length; i++) {
+                            const hb = sortedHbs[i];
+                            const hbTime = new Date(hb.timestamp);
+                            const isBreak = hb.status === 'PAUSED';
+                            const hbType = isBreak ? 'BREAK' : 'WORKED';
+
+                            if (!currentSegment) {
+                                currentSegment = {
+                                    startTime: hbTime,
+                                    endTime: hbTime,
+                                    type: hbType
+                                };
+                            } else {
+                                const gapMs = hbTime.getTime() - currentSegment.endTime.getTime();
+                                const gapMins = gapMs / 1000 / 60;
+                                
+                                if (currentSegment.type === hbType && gapMins <= 3) {
+                                    currentSegment.endTime = hbTime;
+                                } else {
+                                    timelineSegments.push({
+                                        type: currentSegment.type,
+                                        durationSeconds: Math.max(60, Math.round((currentSegment.endTime.getTime() - currentSegment.startTime.getTime()) / 1000))
+                                    });
+
+                                    currentSegment = {
+                                        startTime: hbTime,
+                                        endTime: hbTime,
+                                        type: hbType
+                                    };
+                                }
+                            }
+                        }
+
+                        if (currentSegment) {
+                            timelineSegments.push({
+                                type: currentSegment.type,
+                                durationSeconds: Math.max(60, Math.round((currentSegment.endTime.getTime() - currentSegment.startTime.getTime()) / 1000))
+                            });
+                        }
+
+                        totalWorkedSeconds = timelineSegments
+                            .filter(s => s.type === 'WORKED')
+                            .reduce((acc, s) => acc + s.durationSeconds, 0);
                     }
 
                     const workedHours = Math.floor(totalWorkedSeconds / 3600);
