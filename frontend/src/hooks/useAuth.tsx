@@ -41,38 +41,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // on TOKEN_REFRESHED events (which fire every ~60s)
     const profileFetchedForRef = useRef<string | null>(null);
 
-    const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
+        const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
         logger.log(`[Auth] Fetching employee profile for ${userId}...`);
         try {
-            // Ensure Supabase client has loaded the session headers before running the query
             await supabase.auth.getSession();
-
-            let { data, error } = await supabase
-                .from('employees')
-                .select('*')
-                .eq('id', userId)
-                .maybeSingle();
-
-            // If we got an error or no data, wait 500ms and retry (safety net for asynchronous token restoration)
-            if (error || !data) {
-                logger.log('[Auth] Profile query failed or empty. Retrying fetch in 500ms...');
-                await new Promise(r => setTimeout(r, 500));
-                const retryResult = await supabase
+            let data = null, error = null;
+            
+            // Retry up to 3 times to handle Supabase token injection race conditions on hard refresh
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                const res = await supabase
                     .from('employees')
                     .select('*')
                     .eq('id', userId)
                     .maybeSingle();
-                data = retryResult.data;
-                error = retryResult.error;
+                
+                data = res.data;
+                error = res.error;
+
+                if (data && !error) break; // Success!
+                
+                if (attempt < 3) {
+                    logger.log(`[Auth] Profile query failed/empty (attempt ${attempt}). Retrying in ${attempt * 500}ms...`);
+                    await new Promise(r => setTimeout(r, attempt * 500));
+                }
             }
 
             if (error) {
                 logger.error('[Auth] Profile DB error:', error.message);
+                profileFetchedForRef.current = null; // Clear ref so we can retry on next event
                 return null;
             }
 
             if (!data) {
                 logger.warn('[Auth] No employee record found for UID:', userId);
+                profileFetchedForRef.current = null; // Clear ref so we can retry on next event
                 return null;
             }
 

@@ -258,27 +258,31 @@ export const api = {
     },
 
     savePayrollRecord: async (record: any) => {
-        const { data, error } = await supabase
-            .from('payroll_records')
-            .upsert({
-                employeeid: record.employeeId,
-                month: record.month,
-                year: record.year,
-                basesalary: record.baseSalary,
-                deductions: record.deductions,
-                netpayable: record.netPayable,
-                workingdays: record.workingDays,
-                dayspresent: record.daysPresent,
-                approvedleaves: record.approvedLeaves,
-                unpaidabsences: record.unpaidAbsences,
-                bonus: record.bonus || 0,
-                travel_expenses: record.travelExpenses || 0,
-                adjustments_note: record.adjustmentsNote || '',
-                formula: record.formula,
-                status: record.status
-            }, { onConflict: 'employeeid,month,year' })
-            .select()
-            .single();
+        const payload: any = {
+            employeeid: record.employeeId,
+            month: record.month,
+            year: record.year,
+            basesalary: record.baseSalary,
+            deductions: record.deductions,
+            netpayable: record.netPayable,
+            workingdays: record.workingDays,
+            dayspresent: record.daysPresent,
+            approvedleaves: record.approvedLeaves,
+            unpaidabsences: record.unpaidAbsences,
+            bonus: record.bonus || 0,
+            travel_expenses: record.travelExpenses || 0,
+            adjustments_note: record.adjustmentsNote || '',
+            formula: record.formula,
+            status: record.status
+        };
+        let query;
+        if (record.id) {
+            query = supabase.from('payroll_records').update(payload).eq('id', record.id);
+        } else {
+            query = supabase.from('payroll_records').insert(payload);
+        }
+
+        const { data, error } = await query.select().single();
         if (error) throw error;
         return data;
     },

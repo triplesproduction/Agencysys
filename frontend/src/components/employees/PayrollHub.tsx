@@ -139,8 +139,19 @@ export default function PayrollHub({ employees }: PayrollHubProps) {
                     formula: `${base} - (${unpaidAbsences} days * ${dailyRate.toFixed(2)}) + ${bonus} + ${travelExpenses}`
                 };
             });
+            // Filter out inactive/suspended employees who had no activity this month and no saved records
+            const validResults = results.filter((r) => {
+                if (r.id) return true; // Keep if there's already a saved record
+                
+                const isInactive = ['SUSPENDED', 'INACTIVE', 'TERMINATED'].includes(r.employee.status);
+                if (isInactive) {
+                    return r.daysPresent > 0 || r.approvedLeaves > 0;
+                }
+                
+                return true;
+            });
 
-            setPayrollData(results);
+            setPayrollData(validResults);
         } catch (err) {
             logger.error("Error", "Payroll calculation failed:", err);
         } finally {

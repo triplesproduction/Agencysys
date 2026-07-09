@@ -486,51 +486,31 @@
 
 /* Color-Coded Employee Status Cards & Timelines */
 .employee-card.status-active {
-    background: rgba(16, 185, 129, 0.03);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 15px rgba(16, 185, 129, 0.02);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 15px rgba(16, 185, 129, 0.1);
 }
 
 .employee-card.status-active:hover {
-    background: rgba(16, 185, 129, 0.05);
-    border-color: rgba(16, 185, 129, 0.45);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 25px rgba(16, 185, 129, 0.08);
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.8);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 25px rgba(16, 185, 129, 0.2);
 }
 
-.employee-card.status-idle {
-    background: rgba(245, 158, 11, 0.03);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 15px rgba(245, 158, 11, 0.02);
-}
-
-.employee-card.status-idle:hover {
-    background: rgba(245, 158, 11, 0.05);
-    border-color: rgba(245, 158, 11, 0.45);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 25px rgba(245, 158, 11, 0.08);
-}
-
-.employee-card.status-offline {
-    background: rgba(239, 68, 68, 0.02);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 15px rgba(239, 68, 68, 0.01);
-}
-
-.employee-card.status-offline:hover {
-    background: rgba(239, 68, 68, 0.04);
-    border-color: rgba(239, 68, 68, 0.35);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 25px rgba(239, 68, 68, 0.06);
-}
-
+.employee-card.status-idle,
+.employee-card.status-offline,
 .employee-card.status-nodata {
-    background: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 15px rgba(0, 0, 0, 0.2);
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 15px rgba(239, 68, 68, 0.08);
 }
 
+.employee-card.status-idle:hover,
+.employee-card.status-offline:hover,
 .employee-card.status-nodata:hover {
-    background: rgba(255, 255, 255, 0.02);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 25px rgba(255, 255, 255, 0.04);
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.7);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 25px rgba(239, 68, 68, 0.15);
 }
 
 .employee-worked-status {

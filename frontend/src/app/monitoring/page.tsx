@@ -433,6 +433,9 @@ export default function MonitoringDashboard() {
                                                     />
                                                 </div>
                                                 <div className="timeline-milestone-row">
+                                                    <span className="timeline-milestone-tick" style={{ left: '16.67%' }}>2h</span>
+                                                    <span className="timeline-milestone-tick" style={{ left: '33.33%' }}>4h</span>
+                                                    <span className="timeline-milestone-tick" style={{ left: '50%' }}>6h</span>
                                                     <span className="timeline-milestone-tick" style={{ left: '66.67%' }}>8h</span>
                                                     <span className="timeline-milestone-tick" style={{ left: '83.33%' }}>10h</span>
                                                     <span className="timeline-milestone-tick" style={{ left: '100%', transform: 'translateX(-100%)' }}>12h</span>
