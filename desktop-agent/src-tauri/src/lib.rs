@@ -796,7 +796,7 @@ pub fn run() {
 
             // Global background sync thread that runs every 5 minutes (300 seconds)
             let db_path_clone = db_path.clone();
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 loop {
                     tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
                     sync::run_sync_worker(&db_path_clone).await;
