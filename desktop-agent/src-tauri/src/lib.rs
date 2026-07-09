@@ -64,15 +64,32 @@ fn get_battery_status() -> String {
 
     #[cfg(target_os = "windows")]
     {
-        let mut cmd = Command::new("powershell");
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        let output = cmd
-            .args(&["-Command", "(Get-CimInstance Win32_Battery).EstimatedChargeRemaining"])
-            .output();
-        if let Ok(out) = output {
-            let res = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !res.is_empty() {
-                return format!("{}%", res);
+        #[repr(C)]
+        struct SYSTEM_POWER_STATUS {
+            ac_line_status: u8,
+            battery_flag: u8,
+            battery_life_percent: u8,
+            reserved1: u8,
+            battery_life_time: u32,
+            battery_full_life_time: u32,
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetSystemPowerStatus(lpSystemPowerStatus: *mut SYSTEM_POWER_STATUS) -> i32;
+        }
+
+        let mut status = SYSTEM_POWER_STATUS {
+            ac_line_status: 255,
+            battery_flag: 255,
+            battery_life_percent: 255,
+            reserved1: 0,
+            battery_life_time: 0xffffffff,
+            battery_full_life_time: 0xffffffff,
+        };
+
+        unsafe {
+            if GetSystemPowerStatus(&mut status) != 0 && status.battery_life_percent <= 100 {
+                return format!("{}%", status.battery_life_percent);
             }
         }
     }

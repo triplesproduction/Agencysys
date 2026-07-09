@@ -40,7 +40,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://triplesproduction.co/api/desktop-agent/update"
+        "https://triplesproduction.com/api/desktop-agent/update"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVEMUE5RTYwMTA0NDhDMkIKUldRcmpFUVFZSjRhN1c1SEZwMENzTWFsMlh6THBOQjVXeHhaK3ZtVC91Y3VUd2ZYVmVqK2tjZGoK"
     }

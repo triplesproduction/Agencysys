@@ -4,7 +4,7 @@ set -e
 ENV_LOCAL="/Users/suansh/Agency Software/TripleS OS/frontend/.env.local"
 export TAURI_SIGNING_PRIVATE_KEY=$(grep "^TAURI_SIGNING_PRIVATE_KEY=" "$ENV_LOCAL" | cut -d'=' -f2-)
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$(grep "^TAURI_SIGNING_PRIVATE_KEY_PASSWORD=" "$ENV_LOCAL" | cut -d'=' -f2-)
-export TRIPLES_API_BASE_URL="https://triplesproduction.co"
+export TRIPLES_API_BASE_URL="https://triplesproduction.com"
 
 cd "/Users/suansh/Agency Software/TripleS OS/desktop-agent"
 

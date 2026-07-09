@@ -62,7 +62,7 @@ if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -f "$ENV_LOCAL" ]; then
     export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$(grep "^TAURI_SIGNING_PRIVATE_KEY_PASSWORD=" "$ENV_LOCAL" | cut -d'=' -f2-)
 fi
 
-export TRIPLES_API_BASE_URL="https://triplesproduction.co"
+export TRIPLES_API_BASE_URL="https://triplesproduction.com"
 
 npm run tauri build 2>&1
 echo "   ✅ Build complete"

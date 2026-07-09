@@ -253,9 +253,9 @@ export default function MonitoringDashboard() {
                             <div className="step-desc">
                                 Copy and run the installer command below in your Terminal:
                                 <div className="mac-instructions-code-wrapper">
-                                    <code className="mac-instructions-code">curl -sL https://triplesproduction.co/api/monitoring/install/mac | bash</code>
+                                    <code className="mac-instructions-code">curl -sL https://triplesproduction.com/api/monitoring/install/mac | bash</code>
                                     <button onClick={() => {
-                                        navigator.clipboard.writeText('curl -sL https://triplesproduction.co/api/monitoring/install/mac | bash');
+                                        navigator.clipboard.writeText('curl -sL https://triplesproduction.com/api/monitoring/install/mac | bash');
                                         setCopied(true);
                                         setTimeout(() => setCopied(false), 2000);
                                     }} className="mac-instructions-copy-btn">

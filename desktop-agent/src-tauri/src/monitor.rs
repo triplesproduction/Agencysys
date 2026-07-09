@@ -81,27 +81,49 @@ pub async fn get_active_app() -> String {
 
     #[cfg(target_os = "windows")]
     {
-        let mut cmd = TokioCommand::new("powershell");
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        let future = cmd
-            .args(&[
-                "-Command",
-                "$code = '[DllImport(\"user32.dll\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\"user32.dll\")] public static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);'; Add-Type -MemberDefinition $code -Name 'Win32' -Namespace 'API'; $hwnd = [API.Win32]::GetForegroundWindow(); $pid = 0; [API.Win32]::GetWindowThreadProcessId($hwnd, [ref]$pid); if ($pid -gt 0) { (Get-Process -Id $pid).Name } else { 'System' }"
-            ])
-            .kill_on_drop(true)
-            .output();
-
-        match tokio::time::timeout(std::time::Duration::from_secs(2), future).await {
-            Ok(Ok(out)) => {
-                let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if name.is_empty() {
-                    "System".to_string()
-                } else {
-                    name
-                }
-            }
-            _ => "System".to_string(),
+        #[link(name = "user32")]
+        extern "system" {
+            fn GetForegroundWindow() -> *mut std::ffi::c_void;
+            fn GetWindowThreadProcessId(hwnd: *mut std::ffi::c_void, lpdwProcessId: *mut u32) -> u32;
         }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: i32, dwProcessId: u32) -> *mut std::ffi::c_void;
+            fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
+            fn QueryFullProcessImageNameW(
+                hProcess: *mut std::ffi::c_void,
+                dwFlags: u32,
+                lpExeName: *mut u16,
+                lpdwSize: *mut u32,
+            ) -> i32;
+        }
+
+        let hwnd = unsafe { GetForegroundWindow() };
+        if hwnd.is_null() {
+            return "System".to_string();
+        }
+        let mut pid = 0;
+        unsafe { GetWindowThreadProcessId(hwnd, &mut pid); }
+        if pid == 0 {
+            return "System".to_string();
+        }
+        let process_handle = unsafe { OpenProcess(0x1000, 0, pid) }; // PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        if process_handle.is_null() {
+            return "System".to_string();
+        }
+        let mut buf = vec![0u16; 1024];
+        let mut size = buf.len() as u32;
+        let success = unsafe {
+            QueryFullProcessImageNameW(process_handle, 0, buf.as_mut_ptr(), &mut size)
+        };
+        unsafe { CloseHandle(process_handle); }
+        if success != 0 {
+            let path = String::from_utf16_lossy(&buf[..size as usize]);
+            if let Some(name) = std::path::Path::new(&path).file_name() {
+                return name.to_string_lossy().to_string();
+            }
+        }
+        "System".to_string()
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -129,36 +151,36 @@ pub fn get_idle_time_seconds() -> f64 {
 
     #[cfg(target_os = "windows")]
     {
-        let mut cmd = StdCommand::new("powershell");
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        let output = cmd
-            .args(&[
-                "-Command",
-                "$code = '[StructLayout(LayoutKind.Sequential)] public struct LASTINPUTINFO { public uint cbSize; public uint dwTime; } [DllImport(\"user32.dll\")] public static extern bool GetLastInputInfo(ref LASTINPUTINFO plii); [DllImport(\"kernel32.dll\")] public static extern uint GetTickCount();'; Add-Type -MemberDefinition $code -Name 'Win32' -Namespace 'API'; $lii = New-Object API.Win32+LASTINPUTINFO; $lii.cbSize = [System.Runtime.InteropServices.Marshal]::SizeOf($lii); if ([API.Win32]::GetLastInputInfo([ref]$lii)) { ($lii.dwTime) } else { 0 }"
-            ])
-            .output();
+        #[repr(C)]
+        struct LASTINPUTINFO {
+            cbSize: u32,
+            dwTime: u32,
+        }
+        #[link(name = "user32")]
+        extern "system" {
+            fn GetLastInputInfo(plii: *mut LASTINPUTINFO) -> i32;
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetTickCount() -> u32;
+        }
 
-        match output {
-            Ok(out) => {
-                let last_input_ticks_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if let Ok(last_input_ticks) = last_input_ticks_str.parse::<u64>() {
-                    let mut cmd_uptime = StdCommand::new("powershell");
-                    cmd_uptime.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                    let uptime_output = cmd_uptime
-                        .args(&["-Command", "[API.Win32]::GetTickCount()"])
-                        .output();
-                    if let Ok(uo) = uptime_output {
-                        let cur_ticks_str = String::from_utf8_lossy(&uo.stdout).trim().to_string();
-                        if let Ok(cur_ticks) = cur_ticks_str.parse::<u64>() {
-                            if cur_ticks >= last_input_ticks {
-                                return (cur_ticks - last_input_ticks) as f64 / 1000.0;
-                            }
-                        }
-                    }
+        let mut lii = LASTINPUTINFO {
+            cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32,
+            dwTime: 0,
+        };
+        unsafe {
+            if GetLastInputInfo(&mut lii) != 0 {
+                let cur_ticks = GetTickCount();
+                let last_input_ticks = lii.dwTime;
+                if cur_ticks >= last_input_ticks {
+                    (cur_ticks - last_input_ticks) as f64 / 1000.0
+                } else {
+                    0.0
                 }
+            } else {
                 0.0
             }
-            Err(_) => 0.0,
         }
     }
 
