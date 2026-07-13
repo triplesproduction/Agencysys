@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 // Platform-specific download paths — served via a signed URL via this API endpoint.
 // NEVER expose raw Supabase storage URLs directly in client HTML.
 const DOWNLOAD_PATHS: Record<string, string> = {
-    mac: 'installers/TripleS-Agent-1.0.0.dmg',
-    windows: 'installers/TripleS-Agent-1.0.0.exe',
+    mac: 'installers/TripleS-Agent-1.1.2.dmg',
+    windows: 'installers/TripleS-Agent-1.1.2.exe',
 };
 
 export async function GET(req: NextRequest) {

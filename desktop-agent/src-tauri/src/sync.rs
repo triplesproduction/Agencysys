@@ -3,6 +3,12 @@ use serde_json::{json, Value};
 use std::path::Path;
 use rusqlite::params;
 
+// Shared HTTP client — built once, reused across all sync cycles
+static HTTP_CLIENT: std::sync::OnceLock<Client> = std::sync::OnceLock::new();
+fn http_client() -> &'static Client {
+    HTTP_CLIENT.get_or_init(Client::new)
+}
+
 // Backend API base — all requests go through the Next.js server, never directly to Supabase.
 // This prevents the Supabase project URL and anon key from being embedded in the binary.
 // Change this to your production domain when deploying.
@@ -17,9 +23,6 @@ struct QueuedEvent {
     checksum: String,
 }
 
-fn get_setting(conn: &rusqlite::Connection, key: &str) -> Option<String> {
-    crate::db::get_setting(conn, key).unwrap_or(None)
-}
 
 fn fetch_pending_events(db_path: &Path) -> Result<Vec<QueuedEvent>, rusqlite::Error> {
     let conn = rusqlite::Connection::open(db_path)?;
@@ -122,19 +125,19 @@ async fn run_sync_worker_batch(db_path: &Path) -> usize {
                 return 0;
             }
         };
-        let t = match get_setting(&conn, "access_token") { 
+        let t = match crate::db::get_setting(&conn, "access_token").unwrap_or(None) { 
             Some(t) => t, 
             None => { eprintln!("Sync Worker skipped: access_token not found in settings"); return 0 } 
         };
-        let d = match get_setting(&conn, "device_id") { 
+        let d = match crate::db::get_setting(&conn, "device_id").unwrap_or(None) { 
             Some(d) => d, 
             None => { eprintln!("Sync Worker skipped: device_id not found in settings"); return 0 } 
         };
-        let s = match get_setting(&conn, "session_id") { 
+        let s = match crate::db::get_setting(&conn, "session_id").unwrap_or(None) { 
             Some(s) => s, 
             None => { eprintln!("Sync Worker skipped: session_id not found in settings"); return 0 } 
         };
-        let r = get_setting(&conn, "refresh_token").unwrap_or_default();
+        let r = crate::db::get_setting(&conn, "refresh_token").unwrap_or(None).unwrap_or_default();
         let api_url = API_BASE_URL.to_string();
         (t, d, s, r, api_url)
     };
@@ -165,11 +168,11 @@ async fn run_sync_worker_batch(db_path: &Path) -> usize {
         event_ids_in_batch.push(ev.id.clone());
     }
 
-    let client = Client::new();
+    let client = http_client();
     let url = format!("{}/api/desktop-agent/sync", api_base);
 
     let batch_body = json!({
-        "agentVersion": "1.0.0",
+        "agentVersion": env!("CARGO_PKG_VERSION"),
         "deviceId": device_id,
         "sessionId": session_id,
         "events": events_list

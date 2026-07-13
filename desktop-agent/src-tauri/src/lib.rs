@@ -106,7 +106,9 @@ fn get_device_info() -> (String, String) {
         "Linux"
     };
 
-    let hostname = std::env::var("USER")
+    // Windows uses USERNAME, macOS/Linux use USER
+    let hostname = std::env::var("USERNAME")
+        .or_else(|_| std::env::var("USER"))
         .map(|u| format!("{}'s Device", u))
         .unwrap_or_else(|_| "Unknown Device".to_string());
 
@@ -293,22 +295,24 @@ fn check_session_recovery(state: tauri::State<'_, AppState>) -> Result<RecoveryS
     })
 }
 
-fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: String, device_id: String, screenshot_interval: i32, screenshot_quality: i32) {
-    MONITOR_ACTIVE.store(true, Ordering::SeqCst);
+fn read_screenshot_settings(conn: &rusqlite::Connection) -> (i32, i32) {
+    let interval = db::get_setting(conn, "screenshot_interval")
+        .unwrap_or(None)
+        .unwrap_or_else(|| "6".to_string())
+        .parse::<i32>()
+        .unwrap_or(6);
+    let quality = db::get_setting(conn, "screenshot_quality")
+        .unwrap_or(None)
+        .unwrap_or_else(|| "80".to_string())
+        .parse::<i32>()
+        .unwrap_or(80);
+    (interval, quality)
+}
 
-    #[cfg(target_os = "macos")]
-    {
-        #[link(name = "CoreGraphics", kind = "framework")]
-        extern "C" {
-            fn CGPreflightScreenCaptureAccess() -> bool;
-            fn CGRequestScreenCaptureAccess() -> bool;
-        }
-        unsafe {
-            if !CGPreflightScreenCaptureAccess() {
-                println!("Requesting macOS Screen Recording permissions...");
-                let _ = CGRequestScreenCaptureAccess();
-            }
-        }
+fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: String, device_id: String, screenshot_interval: i32, screenshot_quality: i32) {
+    // Guard: prevent double-start if called concurrently (e.g. recovery + clock-in race)
+    if MONITOR_ACTIVE.swap(true, Ordering::AcqRel) {
+        return;
     }
 
     tokio::spawn(async move {
@@ -316,18 +320,15 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
         let mut last_activity_time = Utc::now();
         let mut current_focused_app = monitor::get_active_app().await;
 
-        while MONITOR_ACTIVE.load(Ordering::SeqCst) {
-            let is_on_break = {
-                if let Ok(c) = rusqlite::Connection::open(&db_path) {
-                    db::get_setting(&c, "is_on_break").unwrap_or(None).unwrap_or_else(|| "false".to_string()) == "true"
-                } else {
-                    false
-                }
-            };
+        while MONITOR_ACTIVE.load(Ordering::Acquire) {
+            // One connection per tick — reused for all synchronous reads/writes this iteration
+            let conn_opt = rusqlite::Connection::open(&db_path).ok();
+            let is_on_break = conn_opt.as_ref()
+                .and_then(|c| db::get_setting(c, "is_on_break").unwrap_or(None))
+                .unwrap_or_else(|| "false".to_string()) == "true";
 
             if is_on_break {
-                // If on break, send heartbeat with PAUSED status, skip screenshots & app usage
-                if let Ok(c) = rusqlite::Connection::open(&db_path) {
+                if let Some(ref c) = conn_opt {
                     let heartbeat_payload = json!({
                         "employeeId": employee_id,
                         "status": "PAUSED",
@@ -335,132 +336,92 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
                         "batteryStatus": get_battery_status(),
                         "networkStatus": "online"
                     });
-                    let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "HEARTBEAT", heartbeat_payload);
+                    let _ = db::queue_event(c, &employee_id, &session_id, &device_id, "HEARTBEAT", heartbeat_payload);
                 }
+                drop(conn_opt);
                 sync::run_sync_worker(&db_path).await;
                 sleep(Duration::from_secs(60)).await;
                 continue;
             }
 
-            let _timestamp = Utc::now().to_rfc3339();
-            
-            // Bug 2: Wrap synchronous shelling out in spawn_blocking
             let idle_secs = tokio::task::spawn_blocking(|| monitor::get_idle_time_seconds())
                 .await
                 .unwrap_or(0.0);
 
-            // Auto clock out if the user has been idle for >= 15 minutes (900 seconds)
-            // (e.g. system is asleep, modern standby S0 active, or user walked away)
+            // Auto clock out if the user has been idle for >= 15 minutes
             const AUTO_CLOCKOUT_IDLE_TIMEOUT_SECONDS: f64 = 900.0;
             if idle_secs >= AUTO_CLOCKOUT_IDLE_TIMEOUT_SECONDS {
                 println!("User has been idle for {:.1} minutes. Auto clocking out...", idle_secs / 60.0);
-                MONITOR_ACTIVE.store(false, Ordering::SeqCst);
+                MONITOR_ACTIVE.store(false, Ordering::Release);
 
-                if let Ok(c) = rusqlite::Connection::open(&db_path) {
-                    // Set clock out time to exactly when the user became inactive/idle
+                if let Some(ref c) = conn_opt {
                     let actual_clock_out_time = Utc::now() - chrono::Duration::seconds(idle_secs as i64);
-                    let clock_out_payload = json!({
-                        "endTime": actual_clock_out_time.to_rfc3339()
-                    });
-                    let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "CLOCK_OUT", clock_out_payload);
-                    let _ = db::set_setting(&c, "is_clocked_in", "false");
-                    let _ = db::clear_setting(&c, "session_id");
-                    let _ = db::clear_setting(&c, "is_on_break");
-                    let _ = db::clear_setting(&c, "session_start_time");
+                    let clock_out_payload = json!({"endTime": actual_clock_out_time.to_rfc3339()});
+                    let _ = db::queue_event(c, &employee_id, &session_id, &device_id, "CLOCK_OUT", clock_out_payload);
+                    let _ = db::set_setting(c, "is_clocked_in", "false");
+                    let _ = db::clear_setting(c, "session_id");
+                    let _ = db::clear_setting(c, "is_on_break");
+                    let _ = db::clear_setting(c, "session_start_time");
                 }
-
+                drop(conn_opt);
                 sync::run_sync_worker(&db_path).await;
                 break;
             }
 
-            // TODO: Bug 1 - Add a signal for active meetings/calls.
-            // If feasible without new dependencies, check for audio input/output activity
-            // or an active screen-share/meeting app in the foreground (e.g. Zoom, Google Meet).
-            // For now, this is stubbed out. Future implementation might require a new crate
-            // (e.g., coreaudio on mac, coreaudio-sys, or cpal) or platform-specific APIs.
-            // let is_in_meeting = check_meeting_status();
-            // if is_in_meeting { idle_secs = 0.0; }
-
             let is_fully_idle = idle_secs >= IDLE_DISCARD_CUTOFF_SECONDS;
-            let activity_pct = if is_fully_idle { 
-                0 
+            let activity_pct = if is_fully_idle {
+                0
             } else if idle_secs <= ACTIVITY_IDLE_THRESHOLD_SECONDS {
                 100
             } else {
                 let range = IDLE_DISCARD_CUTOFF_SECONDS - ACTIVITY_IDLE_THRESHOLD_SECONDS;
                 let overage = idle_secs - ACTIVITY_IDLE_THRESHOLD_SECONDS;
-                ((1.0 - (overage / range)) * 100.0).clamp(0.0, 100.0) as i32 
+                ((1.0 - (overage / range)) * 100.0).clamp(0.0, 100.0) as i32
             };
 
-            // 1. Focused Application Tracking
-            // Note: get_active_app() uses TokioCommand with a 2s timeout. Since get_idle_time_seconds 
-            // and screenshot capture are now properly offloaded via spawn_blocking, this 2s timeout 
-            // will not block or stall the tokio worker thread or other tasks.
+            // 1. Application Tracking
             let focused_app = monitor::get_active_app().await;
             let now_time = Utc::now();
             let elapsed_secs = now_time.signed_duration_since(last_activity_time).num_seconds() as i32;
 
             if is_fully_idle {
-                // Discard application usage for this period since the user was idle for the whole duration
                 last_activity_time = now_time;
                 current_focused_app = focused_app;
             } else {
-                if focused_app != current_focused_app {
-                    // App switched — save the completed segment for the previous app
-                    if elapsed_secs > 0 {
-                        if let Ok(c) = rusqlite::Connection::open(&db_path) {
-                            let app_payload = json!({
-                                "employeeId": employee_id,
-                                "appName": current_focused_app,
-                                "startTime": last_activity_time.to_rfc3339(),
-                                "endTime": now_time.to_rfc3339(),
-                                "durationSeconds": elapsed_secs,
-                                "activityPercentage": activity_pct
-                            });
-                            let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "APPLICATION_USAGE", app_payload);
-                        }
+                if elapsed_secs > 0 {
+                    // Flush current app segment (covers both app-switch and 60s same-app flush)
+                    if let Some(ref c) = conn_opt {
+                        let app_payload = json!({
+                            "employeeId": employee_id,
+                            "appName": current_focused_app,
+                            "startTime": last_activity_time.to_rfc3339(),
+                            "endTime": now_time.to_rfc3339(),
+                            "durationSeconds": elapsed_secs,
+                            "activityPercentage": activity_pct
+                        });
+                        let _ = db::queue_event(c, &employee_id, &session_id, &device_id, "APPLICATION_USAGE", app_payload);
                     }
-                    current_focused_app = focused_app;
                     last_activity_time = now_time;
-                } else {
-                    // App has NOT switched — flush the current app every 60s tick so it
-                    // always gets recorded even if the user never switches apps.
-                    if elapsed_secs > 0 {
-                        if let Ok(c) = rusqlite::Connection::open(&db_path) {
-                            let app_payload = json!({
-                                "employeeId": employee_id,
-                                "appName": current_focused_app,
-                                "startTime": last_activity_time.to_rfc3339(),
-                                "endTime": now_time.to_rfc3339(),
-                                "durationSeconds": elapsed_secs,
-                                "activityPercentage": activity_pct
-                            });
-                            let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "APPLICATION_USAGE", app_payload);
-                        }
-                        // Reset timer for next 60s window
-                        last_activity_time = now_time;
-                    }
                 }
+                current_focused_app = focused_app;
             }
 
-            // 2. Heartbeats (Every 60s)
-            let battery = get_battery_status();
-            let network = "online".to_string();
-
-            if let Ok(c) = rusqlite::Connection::open(&db_path) {
+            // 2. Heartbeat
+            if let Some(ref c) = conn_opt {
                 let heartbeat_payload = json!({
                     "employeeId": employee_id,
                     "status": if is_fully_idle { "IDLE" } else { "ACTIVE" },
                     "activityPercentage": activity_pct,
-                    "batteryStatus": battery,
-                    "networkStatus": network
+                    "batteryStatus": get_battery_status(),
+                    "networkStatus": "online"
                 });
-                let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "HEARTBEAT", heartbeat_payload);
+                let _ = db::queue_event(c, &employee_id, &session_id, &device_id, "HEARTBEAT", heartbeat_payload);
             }
 
-            // 3. Screenshots (Every configured interval)
+            // 3. Screenshots — drop connection before spawn_blocking + await
             let screenshot_interval_secs = (screenshot_interval as i64) * 60;
             let secs_since_last_screenshot = now_time.signed_duration_since(last_screenshot_time).num_seconds();
+            drop(conn_opt);
 
             if screenshot_interval > 0 && secs_since_last_screenshot >= screenshot_interval_secs {
                 last_screenshot_time = now_time;
@@ -479,7 +440,6 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
                                 "imageBase64": sc.base64_image
                             });
                             let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "SCREENSHOT", sc_payload);
-                            println!("Screenshot queued at {} ({}s since last)", now_time.to_rfc3339(), secs_since_last_screenshot);
                         }
                     }
                     Ok(None) => { eprintln!("Screenshot capture returned None (permissions issue or no screen)"); }
@@ -487,7 +447,6 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
                 }
             }
 
-            // Sync Worker run
             sync::run_sync_worker(&db_path).await;
 
             let sleep_start = Utc::now();
@@ -496,12 +455,10 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
             let elapsed = Utc::now().signed_duration_since(sleep_start).num_seconds();
             if elapsed > 120 {
                 println!("System sleep/suspension detected (elapsed: {}s). Auto clocking out...", elapsed);
-                MONITOR_ACTIVE.store(false, Ordering::SeqCst);
+                MONITOR_ACTIVE.store(false, Ordering::Release);
 
                 if let Ok(c) = rusqlite::Connection::open(&db_path) {
-                    let clock_out_payload = json!({
-                        "endTime": sleep_start.to_rfc3339()
-                    });
+                    let clock_out_payload = json!({"endTime": sleep_start.to_rfc3339()});
                     let _ = db::queue_event(&c, &employee_id, &session_id, &device_id, "CLOCK_OUT", clock_out_payload);
                     let _ = db::set_setting(&c, "is_clocked_in", "false");
                     let _ = db::clear_setting(&c, "session_id");
@@ -562,17 +519,7 @@ async fn clock_in(state: tauri::State<'_, AppState>) -> Result<String, String> {
     // Persist start time so the UI timer can restore correctly after restarts
     db::set_setting(&conn, "session_start_time", &start_time).map_err(|e| e.to_string())?;
 
-    let screenshot_interval = db::get_setting(&conn, "screenshot_interval")
-        .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "6".to_string())
-        .parse::<i32>()
-        .unwrap_or(6);
-
-    let screenshot_quality = db::get_setting(&conn, "screenshot_quality")
-        .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "80".to_string())
-        .parse::<i32>()
-        .unwrap_or(80);
+    let (screenshot_interval, screenshot_quality) = read_screenshot_settings(&conn);
 
     start_monitoring_threads(state.db_path.clone(), employee_id, session_id, device_id, screenshot_interval, screenshot_quality);
 
@@ -597,17 +544,7 @@ async fn resume_session(state: tauri::State<'_, AppState>) -> Result<(), String>
     let device_id = db::get_setting(&conn, "device_id").map_err(|e| e.to_string())?
         .ok_or_else(|| "No device registered".to_string())?;
 
-    let screenshot_interval = db::get_setting(&conn, "screenshot_interval")
-        .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "6".to_string())
-        .parse::<i32>()
-        .unwrap_or(6);
-
-    let screenshot_quality = db::get_setting(&conn, "screenshot_quality")
-        .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "80".to_string())
-        .parse::<i32>()
-        .unwrap_or(80);
+    let (screenshot_interval, screenshot_quality) = read_screenshot_settings(&conn);
 
     db::set_setting(&conn, "is_on_break", "false").map_err(|e| e.to_string())?;
     start_monitoring_threads(state.db_path.clone(), employee_id, session_id, device_id, screenshot_interval, screenshot_quality);
@@ -808,10 +745,25 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            // Request screen recording permission on the main thread (macOS requires this)
+            #[cfg(target_os = "macos")]
+            {
+                #[link(name = "CoreGraphics", kind = "framework")]
+                extern "C" {
+                    fn CGPreflightScreenCaptureAccess() -> bool;
+                    fn CGRequestScreenCaptureAccess() -> bool;
+                }
+                unsafe {
+                    if !CGPreflightScreenCaptureAccess() {
+                        let _ = CGRequestScreenCaptureAccess();
+                    }
+                }
+            }
+
             let db_path = db::init_db(&app.handle())?;
             app.manage(AppState { db_path: db_path.clone() });
 
-            // Global background sync thread that runs every 5 minutes (300 seconds)
+            // Background sync for pending events when not actively monitoring
             let db_path_clone = db_path.clone();
             tauri::async_runtime::spawn(async move {
                 loop {

@@ -19,3 +19,23 @@ test_*.js
 test_*.ts
 frontend/test_*.js
 frontend/test_*.ts
+frontend/test_*.mjs
+
+# Dev/debug artifacts — never commit these
+frontend/backup_page.tsx
+frontend/recovered_page.tsx
+frontend/recover.py
+frontend/*.patch
+frontend/seed_rules*.ts
+frontend/query_employees*.js
+frontend/query_employees*.mjs
+frontend/get_emp.js
+frontend/list_bucket.js
+frontend/delete_groups.js
+frontend/scratch.js
+
+# Compiled Rust test binaries
+desktop-agent/test_ffi
+desktop-agent/test_ffi.rs
+desktop-agent/test_permissions
+desktop-agent/test_permissions.rs

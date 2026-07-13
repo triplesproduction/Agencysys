@@ -10,7 +10,7 @@ import { logger } from '@/lib/logger';
 import Preloader from '@/components/common/Preloader';
 
 // Hard ceiling: if auth loading hasn't resolved in this many ms, force bail to /login
-const AUTH_HARD_TIMEOUT_MS = 15000;
+const AUTH_HARD_TIMEOUT_MS = 8000;
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const { user, employee, loading, signOut } = useAuth();

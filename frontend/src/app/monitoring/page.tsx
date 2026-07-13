@@ -209,20 +209,12 @@ export default function MonitoringDashboard() {
     useEffect(() => {
         fetchMonitoringData();
 
-        // Subscribe to real-time heartbeat changes
+        // Subscribe to real-time changes across all monitoring tables
         const channel = supabase
-            .channel('realtime-heartbeats')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'employee_heartbeats'
-                },
-                () => {
-                    fetchMonitoringData();
-                }
-            )
+            .channel('realtime-monitoring')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_heartbeats' }, () => fetchMonitoringData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'work_sessions' }, () => fetchMonitoringData())
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'application_usage' }, () => fetchMonitoringData())
             .subscribe();
 
         return () => {

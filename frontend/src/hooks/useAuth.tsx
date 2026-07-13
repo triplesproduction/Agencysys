@@ -42,13 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const profileFetchedForRef = useRef<string | null>(null);
 
         const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
-        logger.log(`[Auth] Fetching employee profile for ${userId}...`);
         try {
+            // Ensure the Supabase client session is initialized before RLS-gated queries
             await supabase.auth.getSession();
+
             let data = null, error = null;
             
-            // Retry up to 3 times to handle Supabase token injection race conditions on hard refresh
-            for (let attempt = 1; attempt <= 3; attempt++) {
+            // Retry twice to handle Supabase token injection race on hard refresh
+            for (let attempt = 1; attempt <= 2; attempt++) {
                 const res = await supabase
                     .from('employees')
                     .select('*')
@@ -58,23 +59,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 data = res.data;
                 error = res.error;
 
-                if (data && !error) break; // Success!
+                if (data && !error) break;
                 
-                if (attempt < 3) {
-                    logger.log(`[Auth] Profile query failed/empty (attempt ${attempt}). Retrying in ${attempt * 500}ms...`);
-                    await new Promise(r => setTimeout(r, attempt * 500));
+                if (attempt < 2) {
+                    await new Promise(r => setTimeout(r, 300));
                 }
             }
 
             if (error) {
                 logger.error('[Auth] Profile DB error:', error.message);
-                profileFetchedForRef.current = null; // Clear ref so we can retry on next event
+                profileFetchedForRef.current = null;
                 return null;
             }
 
             if (!data) {
                 logger.warn('[Auth] No employee record found for UID:', userId);
-                profileFetchedForRef.current = null; // Clear ref so we can retry on next event
+                profileFetchedForRef.current = null;
                 return null;
             }
 
@@ -91,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 status: data.status || 'ACTIVE',
             };
 
-            logger.log('[Auth] Profile resolved. Role:', profile.roleId);
             return profile;
         } catch (err) {
             logger.error('[Auth] Unexpected profile fetch error:', err);
@@ -99,16 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+
     useEffect(() => {
         mountedRef.current = true;
 
-        // Safety net: if nothing resolves in 14s, unblock the UI
+        // Safety net: if nothing resolves in 8s, unblock the UI
         const safetyTimer = setTimeout(() => {
             if (mountedRef.current) {
-                logger.warn('[Auth] Safety timeout — forcing loading = false');
                 setLoading(false);
             }
-        }, 14000);
+        }, 8000);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
@@ -142,13 +141,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Only fetch the employee profile once per user ID.
                 // TOKEN_REFRESHED fires every ~60s — we must NOT re-fetch on it.
                 if (profileFetchedForRef.current === currentUser.id) {
-                    // Profile already loaded (or loading) for this user.
-                    // Only clear loading state if the profile has actually finished fetching.
                     if (employeeRef.current) {
+                        // Profile already loaded — ensure loading is cleared and bail.
                         setLoading(false);
+                        return;
                     }
+                    // Fetch is still in flight — don't return, don't re-trigger.
+                    // The in-flight fetch will call setLoading(false) when done.
                     return;
                 }
+
 
                 // First time we see this user — fetch their profile
                 profileFetchedForRef.current = currentUser.id; // Mark immediately to block concurrent fetches

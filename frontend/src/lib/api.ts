@@ -18,10 +18,6 @@ import {
     BoardDTO
 } from '../types/dto';
 import { supabase } from './supabase';
-// Simple upload rate limiter state
-let uploadHistory: number[] = [];
-const UPLOAD_RATE_LIMIT_MS = 10000; // 10 seconds
-const UPLOAD_RATE_MAX = 5;
 
 const handleSupabaseEvent = (data: any, error: any, context: string) => {
     // Standardized high-fidelity logging for all system events
@@ -974,17 +970,7 @@ export const api = {
 
     // Uploads
     validateUpload: (file: File, maxSizeMB: number, allowedMimeTypes: string[]) => {
-        // 1. Upload Rate Limiter (Sliding Window)
-        const now = Date.now();
-        uploadHistory.push(now);
-        while (uploadHistory.length > 0 && uploadHistory[0] < now - UPLOAD_RATE_LIMIT_MS) {
-            uploadHistory.shift();
-        }
-        if (uploadHistory.length > UPLOAD_RATE_MAX) {
-            throw new Error(`Upload rate limit exceeded. Please wait a few seconds before trying again.`);
-        }
-
-        // 2. File Size Limit
+        // File Size Limit
         const sizeLimit = maxSizeMB * 1024 * 1024;
         if (file.size > sizeLimit) {
             throw new Error(`File size exceeds the ${maxSizeMB}MB limit.`);
