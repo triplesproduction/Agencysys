@@ -72,7 +72,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                 window.location.href = '/login';
             } else if (user && pathname === '/login') {
                 logger.log('[AUTH] AuthGuard: authenticated — navigating to /dashboard');
-                router.replace('/dashboard');
+                // ponytail: give Supabase SSR 50ms to write cookies before Next.js fires the route change
+                setTimeout(() => router.replace('/dashboard'), 50);
             }
         }
     }, [user, loading, pathname, router]);
