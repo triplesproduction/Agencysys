@@ -63,7 +63,7 @@ export default function MonitoringDashboard() {
             if (error) throw error;
 
             setAllApps(prev => prev.map(app => 
-                app.name === appName ? { ...app, isProductive: !currentStatus } : app
+                app.name === appName ? { ...app, status: newStatus } : app
             ));
         } catch (err) {
             console.error('Failed to toggle app productivity:', err);
