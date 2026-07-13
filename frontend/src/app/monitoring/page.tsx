@@ -40,7 +40,7 @@ export default function MonitoringDashboard() {
     const [showMacInstructions, setShowMacInstructions] = useState(false);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState<'employees' | 'classifications'>('employees');
-    const [allApps, setAllApps] = useState<{ name: string; isProductive: boolean }[]>([]);
+    const [allApps, setAllApps] = useState<{ name: string; status: 'neutral' | 'productive' | 'unproductive' }[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [togglingApp, setTogglingApp] = useState<string | null>(null);
 
@@ -50,14 +50,14 @@ export default function MonitoringDashboard() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const toggleAppProductivity = async (appName: string, currentStatus: boolean) => {
+    const updateAppClassification = async (appName: string, newStatus: 'neutral' | 'productive' | 'unproductive') => {
         setTogglingApp(appName);
         try {
             const { error } = await supabase
                 .from('app_classifications')
                 .upsert({
                     appName,
-                    isProductive: !currentStatus
+                    status: newStatus
                 }, { onConflict: 'appName' });
 
             if (error) throw error;
@@ -244,13 +244,13 @@ export default function MonitoringDashboard() {
 
             const { data: classData } = await supabase
                 .from('app_classifications')
-                .select('appName, isProductive');
+                .select('appName, status');
 
-            const classMap = new Map((classData || []).map(c => [c.appName, c.isProductive]));
+            const classMap = new Map((classData || []).map(c => [c.appName, c.status]));
 
             const mappedApps = uniqueNames.map(name => ({
                 name,
-                isProductive: classMap.has(name) ? classMap.get(name) : true
+                status: classMap.get(name) || 'neutral'
             }));
             
             setAllApps(mappedApps);
@@ -542,18 +542,38 @@ export default function MonitoringDashboard() {
                                         <tr key={app.name}>
                                             <td className="app-name-cell">{app.name}</td>
                                             <td>
-                                                <span className={`prod-badge ${app.isProductive ? 'productive' : 'unproductive'}`}>
-                                                    {app.isProductive ? 'Productive' : 'Unproductive'}
+                                                <span className={`prod-badge ${app.status}`}>
+                                                    {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                                                 </span>
                                             </td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                <button
-                                                    onClick={() => toggleAppProductivity(app.name, app.isProductive)}
-                                                    disabled={togglingApp === app.name}
-                                                    className={`toggle-prod-btn ${app.isProductive ? 'to-unproductive' : 'to-productive'}`}
-                                                >
-                                                    {togglingApp === app.name ? 'Updating...' : (app.isProductive ? 'Mark Unproductive' : 'Mark Productive')}
-                                                </button>
+                                            <td style={{ textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                {app.status !== 'productive' && (
+                                                    <button
+                                                        onClick={() => updateAppClassification(app.name, 'productive')}
+                                                        disabled={togglingApp === app.name}
+                                                        className="toggle-prod-btn to-productive"
+                                                    >
+                                                        Mark Productive
+                                                    </button>
+                                                )}
+                                                {app.status !== 'unproductive' && (
+                                                    <button
+                                                        onClick={() => updateAppClassification(app.name, 'unproductive')}
+                                                        disabled={togglingApp === app.name}
+                                                        className="toggle-prod-btn to-unproductive"
+                                                    >
+                                                        Mark Unproductive
+                                                    </button>
+                                                )}
+                                                {app.status !== 'neutral' && (
+                                                    <button
+                                                        onClick={() => updateAppClassification(app.name, 'neutral')}
+                                                        disabled={togglingApp === app.name}
+                                                        className="toggle-prod-btn to-neutral"
+                                                    >
+                                                        Mark Neutral
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

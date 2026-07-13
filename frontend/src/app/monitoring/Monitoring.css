@@ -908,3 +908,21 @@
     border-color: rgba(16, 185, 129, 0.4);
     color: #ffffff;
 }
+
+.prod-badge.neutral {
+    background: rgba(138, 143, 152, 0.12);
+    border: 1px solid rgba(138, 143, 152, 0.3);
+    color: #9CA3AF;
+}
+
+.toggle-prod-btn.to-neutral {
+    background: rgba(138, 143, 152, 0.1);
+    border-color: rgba(138, 143, 152, 0.2);
+    color: #9CA3AF;
+}
+
+.toggle-prod-btn.to-neutral:hover {
+    background: rgba(138, 143, 152, 0.2);
+    border-color: rgba(138, 143, 152, 0.4);
+    color: #ffffff;
+}
