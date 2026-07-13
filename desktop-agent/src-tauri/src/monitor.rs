@@ -68,7 +68,23 @@ pub async fn get_active_app() -> String {
             
         match tokio::time::timeout(std::time::Duration::from_secs(2), future).await {
             Ok(Ok(out)) => {
-                let name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                let mut name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                
+                // ponytail: simplify browser URLs to just their domain to avoid classification spam
+                if let Some(idx) = name.find(" - http") {
+                    let (app_part, url_part) = name.split_at(idx);
+                    let url_str = url_part.trim_start_matches(" - ");
+                    
+                    let domain = url_str
+                        .trim_start_matches("https://")
+                        .trim_start_matches("http://")
+                        .split('/')
+                        .next()
+                        .unwrap_or(url_str);
+                        
+                    name = format!("{} - {}", app_part, domain);
+                }
+
                 if name.is_empty() || name == "System" {
                     get_frontmost_app_name_native().unwrap_or_else(|| "System".to_string())
                 } else {
