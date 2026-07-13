@@ -48,8 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             let data = null, error = null;
             
-            // Retry twice to handle Supabase token injection race on hard refresh
-            for (let attempt = 1; attempt <= 2; attempt++) {
+            // Retry 4 times to handle Supabase token injection race on hard refresh
+            for (let attempt = 1; attempt <= 4; attempt++) {
                 const res = await supabase
                     .from('employees')
                     .select('*')
@@ -61,8 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (data && !error) break;
                 
-                if (attempt < 2) {
-                    await new Promise(r => setTimeout(r, 300));
+                if (attempt < 4) {
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
 
