@@ -223,9 +223,9 @@ export const api = {
 
         // 1. Add to salaryHistory table
         const { data: hike, error: hikeError } = await supabase.from('salary_history').insert({
-            employeeId: employeeId,
+            employeeid: employeeId,
             amount: amount,
-            effectiveDate: effectiveDate,
+            effectivedate: effectiveDate,
             reason: reason
         }).select().single();
         

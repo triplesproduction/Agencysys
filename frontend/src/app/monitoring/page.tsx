@@ -109,7 +109,14 @@ export default function MonitoringDashboard() {
                         const now = Date.now();
                         const diffMinutes = (now - hbTime) / 1000 / 60;
                         if (diffMinutes <= 5) {
-                            runtimeStatus = lastHb.status.toLowerCase() === 'idle' ? 'idle' : 'online';
+                            const statusLower = lastHb.status.toLowerCase();
+                            if (statusLower === 'idle') {
+                                runtimeStatus = 'idle';
+                            } else if (statusLower === 'paused') {
+                                runtimeStatus = 'paused';
+                            } else {
+                                runtimeStatus = 'online';
+                            }
                         }
                     }
 
@@ -368,10 +375,10 @@ export default function MonitoringDashboard() {
                             const workedPct = Math.min((metrics.totalWorkedSeconds / 43200) * 100, 100);
                             
                             // Determine card status class for background coloring
-                            let statusClass = 'status-offline';
+                            let statusClass = '';
                             if (runtimeStatus === 'online') statusClass = 'status-active';
                             else if (runtimeStatus === 'idle') statusClass = 'status-idle';
-                            else if (!hasData) statusClass = 'status-nodata';
+                            else if (runtimeStatus === 'paused') statusClass = 'status-paused';
 
                             return (
                                 <Link key={emp.id} href={`/monitoring/${emp.id}`} style={{ textDecoration: 'none' }}>
