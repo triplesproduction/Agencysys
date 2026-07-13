@@ -39,11 +39,37 @@ export default function MonitoringDashboard() {
     const [loading, setLoading] = useState(true);
     const [showMacInstructions, setShowMacInstructions] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [activeTab, setActiveTab] = useState<'employees' | 'classifications'>('employees');
+    const [allApps, setAllApps] = useState<{ name: string; isProductive: boolean }[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [togglingApp, setTogglingApp] = useState<string | null>(null);
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText('xattr -cr /Applications/TripleS\\ OS.app');
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const toggleAppProductivity = async (appName: string, currentStatus: boolean) => {
+        setTogglingApp(appName);
+        try {
+            const { error } = await supabase
+                .from('app_classifications')
+                .upsert({
+                    appName,
+                    isProductive: !currentStatus
+                }, { onConflict: 'appName' });
+
+            if (error) throw error;
+
+            setAllApps(prev => prev.map(app => 
+                app.name === appName ? { ...app, isProductive: !currentStatus } : app
+            ));
+        } catch (err) {
+            console.error('Failed to toggle app productivity:', err);
+        } finally {
+            setTogglingApp(null);
+        }
     };
 
     const fetchMonitoringData = async () => {
@@ -206,6 +232,28 @@ export default function MonitoringDashboard() {
             );
 
             setEmployees(empsWithMetrics);
+
+            // Fetch all unique apps and their classifications
+            const { data: appUsageData } = await supabase
+                .from('application_usage')
+                .select('appName');
+            
+            const uniqueNames = Array.from(new Set((appUsageData || []).map(a => a.appName)))
+                .filter(Boolean)
+                .sort();
+
+            const { data: classData } = await supabase
+                .from('app_classifications')
+                .select('appName, isProductive');
+
+            const classMap = new Map((classData || []).map(c => [c.appName, c.isProductive]));
+
+            const mappedApps = uniqueNames.map(name => ({
+                name,
+                isProductive: classMap.has(name) ? classMap.get(name) : true
+            }));
+            
+            setAllApps(mappedApps);
         } catch (err) {
             console.error('Error loading monitoring data:', err);
         } finally {
@@ -328,125 +376,198 @@ export default function MonitoringDashboard() {
                 </div>
             )}
 
-            {loading ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: 'var(--purple-main) transparent var(--purple-main) transparent' }}></div>
-                </div>
-            ) : (
-                <>
-                    {/* Stats Summary cards */}
-                    <div className="monitoring-stats-grid">
-                        <div className="stat-card">
-                            <div className="stat-label">Total Staff</div>
-                            <div className="stat-value">{totalEmployees}</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-label">Currently Active</div>
-                            <div className="stat-value" style={{ color: '#2ecc71' }}>{activeCount}</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-label">Idle (5m+)</div>
-                            <div className="stat-value" style={{ color: '#f1c40f' }}>{idleCount}</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-label">Offline</div>
-                            <div className="stat-value" style={{ color: '#a0aec0' }}>{offlineCount}</div>
-                        </div>
+            {/* Tab Navigation */}
+            <div className="monitoring-tabs">
+                <button 
+                    className={`monitoring-tab-btn ${activeTab === 'employees' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('employees')}
+                >
+                    Employees
+                </button>
+                <button 
+                    className={`monitoring-tab-btn ${activeTab === 'classifications' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('classifications')}
+                >
+                    Apps & Websites Classification
+                </button>
+            </div>
+
+            {activeTab === 'employees' ? (
+                loading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: 'var(--purple-main) transparent var(--purple-main) transparent' }}></div>
                     </div>
+                ) : (
+                    <>
+                        {/* Stats Summary cards */}
+                        <div className="monitoring-stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-label">Total Staff</div>
+                                <div className="stat-value">{totalEmployees}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">Currently Active</div>
+                                <div className="stat-value" style={{ color: '#2ecc71' }}>{activeCount}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">Idle (5m+)</div>
+                                <div className="stat-value" style={{ color: '#f1c40f' }}>{idleCount}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">Offline</div>
+                                <div className="stat-value" style={{ color: '#a0aec0' }}>{offlineCount}</div>
+                            </div>
+                        </div>
 
-                    <h2 style={{ fontSize: '1.4rem', marginBottom: '1.2rem', fontWeight: 700 }}>Real-Time Employee Activity</h2>
+                        <h2 style={{ fontSize: '1.4rem', marginBottom: '1.2rem', fontWeight: 700 }}>Real-Time Employee Activity</h2>
 
-                    {/* Employee cards */}
-                    <div className="employee-grid">
-                        {employees.map((emp) => {
-                            const metrics = emp.metrics || {
-                                appsUsedCount: 0,
-                                avgActivePercentage: 0,
-                                checkInTimeStr: '00:00',
-                                hoursWorkedStr: '00h 00m',
-                                runtimeStatus: 'offline',
-                                totalWorkedSeconds: 0,
-                                appInstalled: true
-                            };
-                            const runtimeStatus = metrics.runtimeStatus;
-                            const hasData = metrics.totalWorkedSeconds > 0 || metrics.appsUsedCount > 0;
-                            const activePct = metrics.avgActivePercentage;
-                            // ponytail: 12h cap — upgrade to configurable shift length if needed
-                            const workedPct = Math.min((metrics.totalWorkedSeconds / 43200) * 100, 100);
-                            
-                            // Determine card status class for background coloring
-                            let statusClass = '';
-                            if (runtimeStatus === 'online') statusClass = 'status-active';
-                            else if (runtimeStatus === 'idle') statusClass = 'status-idle';
-                            else if (runtimeStatus === 'paused') statusClass = 'status-paused';
+                        {/* Employee cards */}
+                        <div className="employee-grid">
+                            {employees.map((emp) => {
+                                const metrics = emp.metrics || {
+                                    appsUsedCount: 0,
+                                    avgActivePercentage: 0,
+                                    checkInTimeStr: '00:00',
+                                    hoursWorkedStr: '00h 00m',
+                                    runtimeStatus: 'offline',
+                                    totalWorkedSeconds: 0,
+                                    appInstalled: true
+                                };
+                                const runtimeStatus = metrics.runtimeStatus;
+                                const hasData = metrics.totalWorkedSeconds > 0 || metrics.appsUsedCount > 0;
+                                const activePct = metrics.avgActivePercentage;
+                                // ponytail: 12h cap — upgrade to configurable shift length if needed
+                                const workedPct = Math.min((metrics.totalWorkedSeconds / 43200) * 100, 100);
+                                
+                                // Determine card status class for background coloring
+                                let statusClass = '';
+                                if (runtimeStatus === 'online') statusClass = 'status-active';
+                                else if (runtimeStatus === 'idle') statusClass = 'status-idle';
+                                else if (runtimeStatus === 'paused') statusClass = 'status-paused';
 
-                            return (
-                                <Link key={emp.id} href={`/monitoring/${emp.id}`} style={{ textDecoration: 'none' }}>
-                                    <div className={`employee-card ${statusClass}`}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                                            <div className="employee-info-header" style={{ marginBottom: 0 }}>
-                                                <div className="employee-avatar">
-                                                    {emp.firstName[0]}{emp.lastName[0]}
+                                return (
+                                    <Link key={emp.id} href={`/monitoring/${emp.id}`} style={{ textDecoration: 'none' }}>
+                                        <div className={`employee-card ${statusClass}`}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                                                <div className="employee-info-header" style={{ marginBottom: 0 }}>
+                                                    <div className="employee-avatar">
+                                                        {emp.firstName[0]}{emp.lastName[0]}
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span className="employee-name">{emp.firstName} {emp.lastName}</span>
+                                                        <span className="employee-worked-status">
+                                                            {!metrics.appInstalled ? 'App Not Downloaded' : (hasData ? 'Worked today' : 'Yet to start work')}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span className="employee-name">{emp.firstName} {emp.lastName}</span>
-                                                    <span className="employee-worked-status">
-                                                        {!metrics.appInstalled ? 'App Not Downloaded' : (hasData ? 'Worked today' : 'Yet to start work')}
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <span className={`active-time-text ${runtimeStatus === 'online' ? 'active' : 'inactive'}`}>
+                                                        {activePct}%
                                                     </span>
+                                                    <div className="active-time-label">Active Time</div>
                                                 </div>
                                             </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <span className={`active-time-text ${runtimeStatus === 'online' ? 'active' : 'inactive'}`}>
-                                                    {activePct}%
-                                                </span>
-                                                <div className="active-time-label">Active Time</div>
-                                            </div>
-                                        </div>
 
-                                        <div style={{ marginBottom: '20px' }}>
-                                            {!metrics.appInstalled ? (
-                                                <span className="apps-used-badge no-data" style={{ color: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.1)' }}>
-                                                    App Not Downloaded
-                                                </span>
-                                            ) : hasData ? (
-                                                <span className="apps-used-badge">
-                                                    {metrics.appsUsedCount} apps used
-                                                </span>
-                                            ) : (
-                                                <span className="apps-used-badge no-data">
-                                                    No data
-                                                </span>
-                                            )}
-                                        </div>
+                                            <div style={{ marginBottom: '20px' }}>
+                                                {!metrics.appInstalled ? (
+                                                    <span className="apps-used-badge no-data" style={{ color: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.1)' }}>
+                                                        App Not Downloaded
+                                                    </span>
+                                                ) : hasData ? (
+                                                    <span className="apps-used-badge">
+                                                        {metrics.appsUsedCount} apps used
+                                                    </span>
+                                                ) : (
+                                                    <span className="apps-used-badge no-data">
+                                                        No data
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                        <div className="timeline-section">
-                                            <div className="timeline-labels">
-                                                <span className="timeline-checkin">{metrics.checkInTimeStr} Checked-in</span>
-                                                <span className="timeline-hours">{metrics.hoursWorkedStr} Hours worked</span>
-                                            </div>
-                                            <div className="timeline-bar-container">
-                                                <div className="timeline-bar-wrapper">
-                                                    <div 
-                                                        className="timeline-bar-progress" 
-                                                        style={{ width: `${workedPct}%` }}
-                                                    />
+                                            <div className="timeline-section">
+                                                <div className="timeline-labels">
+                                                    <span className="timeline-checkin">{metrics.checkInTimeStr} Checked-in</span>
+                                                    <span className="timeline-hours">{metrics.hoursWorkedStr} Hours worked</span>
                                                 </div>
-                                                <div className="timeline-milestone-row">
-                                                    <span className="timeline-milestone-tick" style={{ left: '16.67%' }}>2h</span>
-                                                    <span className="timeline-milestone-tick" style={{ left: '33.33%' }}>4h</span>
-                                                    <span className="timeline-milestone-tick" style={{ left: '50%' }}>6h</span>
-                                                    <span className="timeline-milestone-tick" style={{ left: '66.67%' }}>8h</span>
-                                                    <span className="timeline-milestone-tick" style={{ left: '83.33%' }}>10h</span>
-                                                    <span className="timeline-milestone-tick" style={{ left: '100%', transform: 'translateX(-100%)' }}>12h</span>
+                                                <div className="timeline-bar-container">
+                                                    <div className="timeline-bar-wrapper">
+                                                        <div 
+                                                            className="timeline-bar-progress" 
+                                                            style={{ width: `${workedPct}%` }}
+                                                        />
+                                                    </div>
+                                                    <div className="timeline-milestone-row">
+                                                        <span className="timeline-milestone-tick" style={{ left: '16.67%' }}>2h</span>
+                                                        <span className="timeline-milestone-tick" style={{ left: '33.33%' }}>4h</span>
+                                                        <span className="timeline-milestone-tick" style={{ left: '50%' }}>6h</span>
+                                                        <span className="timeline-milestone-tick" style={{ left: '66.67%' }}>8h</span>
+                                                        <span className="timeline-milestone-tick" style={{ left: '83.33%' }}>10h</span>
+                                                        <span className="timeline-milestone-tick" style={{ left: '100%', transform: 'translateX(-100%)' }}>12h</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </Link>
-                            );
-                        })}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </>
+                )
+            ) : (
+                <div className="classification-panel">
+                    <div className="classification-header">
+                        <h2 className="classification-subtitle">Classify Applications & Websites</h2>
+                        <input
+                            type="text"
+                            placeholder="Search apps or websites..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="classification-search"
+                        />
                     </div>
-                </>
+
+                    <div className="classification-table-container">
+                        <table className="classification-table">
+                            <thead>
+                                <tr>
+                                    <th>Application / Website</th>
+                                    <th>Status</th>
+                                    <th style={{ textAlign: 'right' }}>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allApps
+                                    .filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                                    .map(app => (
+                                        <tr key={app.name}>
+                                            <td className="app-name-cell">{app.name}</td>
+                                            <td>
+                                                <span className={`prod-badge ${app.isProductive ? 'productive' : 'unproductive'}`}>
+                                                    {app.isProductive ? 'Productive' : 'Unproductive'}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <button
+                                                    onClick={() => toggleAppProductivity(app.name, app.isProductive)}
+                                                    disabled={togglingApp === app.name}
+                                                    className={`toggle-prod-btn ${app.isProductive ? 'to-unproductive' : 'to-productive'}`}
+                                                >
+                                                    {togglingApp === app.name ? 'Updating...' : (app.isProductive ? 'Mark Unproductive' : 'Mark Productive')}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                {allApps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                                    <tr>
+                                        <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                                            No applications found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             )}
         </div>
     );
