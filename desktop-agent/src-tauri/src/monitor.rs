@@ -191,6 +191,35 @@ pub fn get_idle_time_seconds() -> f64 {
 }
 
 /// Capture screenshot, compress to JPEG with configurable quality, and generate SHA256 hash.
+#[cfg(target_os = "macos")]
+pub fn capture_compressed_screenshot(_quality: u8) -> Option<CompressedScreenshot> {
+    // ponytail: OS native screen capture instead of flaky Rust crate.
+    let path = "/tmp/triples_screen.jpg";
+    let status = StdCommand::new("screencapture")
+        .args(["-x", "-t", "jpg", path])
+        .status()
+        .ok()?;
+        
+    if !status.success() {
+        return None;
+    }
+    
+    let jpeg_bytes = std::fs::read(path).ok()?;
+    
+    // Generate SHA256 Hash
+    let mut hasher = Sha256::new();
+    hasher.update(&jpeg_bytes);
+    let hash_hex = format!("{:x}", hasher.finalize());
+
+    let base64_image = STANDARD.encode(jpeg_bytes);
+
+    Some(CompressedScreenshot {
+        base64_image,
+        sha256_hash: hash_hex,
+    })
+}
+
+#[cfg(target_os = "windows")]
 pub fn capture_compressed_screenshot(quality: u8) -> Option<CompressedScreenshot> {
     let screens = Screen::all().ok()?;
     let screen = screens.first()?;
