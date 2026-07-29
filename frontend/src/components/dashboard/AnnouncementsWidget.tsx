@@ -113,7 +113,7 @@ export default function AnnouncementsWidget({ maxItems = 4 }: { maxItems?: numbe
                         )}
                     </div>
 
-                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
+                    <div className="custom-scrollbar" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px', borderRadius: '16px', marginBottom: '24px', maxHeight: '50vh', overflowY: 'auto' }}>
                         <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem', lineHeight: '1.7', margin: 0, whiteSpace: 'pre-wrap' }}>
                             {ann.message}
                         </p>
