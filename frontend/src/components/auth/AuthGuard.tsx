@@ -90,6 +90,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         return null;
     }
 
+    // ── Session exists on login page — wait for redirect ──────────────────────
+    // Keep showing preloader instead of flashing the login page back.
+    if (user && pathname === '/login') {
+        return <Preloader statusText="Redirecting..." />;
+    }
+
     // ── User set but employee profile not yet fetched ─────────────────────────
     if (user && !employee && pathname !== '/login') {
         if (!profileErrorReady) {
