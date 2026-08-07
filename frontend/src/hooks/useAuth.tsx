@@ -48,8 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             let data = null, error = null;
             
-            // Retry 4 times to handle Supabase token injection race on hard refresh
-            for (let attempt = 1; attempt <= 4; attempt++) {
+            // Retry 10 times to handle Supabase token injection race on hard refresh
+            for (let attempt = 1; attempt <= 10; attempt++) {
                 const res = await supabase
                     .from('employees')
                     .select('*')
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (data && !error) break;
                 
-                if (attempt < 4) {
+                if (attempt < 10) {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             }
@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return profile;
         } catch (err) {
             logger.error('[Auth] Unexpected profile fetch error:', err);
+            profileFetchedForRef.current = null;
             return null;
         }
     };
@@ -102,12 +103,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         mountedRef.current = true;
 
-        // Safety net: if nothing resolves in 8s, unblock the UI
+        // Safety net: if nothing resolves in 15s, unblock the UI
         const safetyTimer = setTimeout(() => {
             if (mountedRef.current) {
                 setLoading(false);
             }
-        }, 8000);
+        }, 15000);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, currentSession) => {
