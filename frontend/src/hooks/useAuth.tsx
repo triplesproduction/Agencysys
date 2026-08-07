@@ -31,7 +31,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
-    const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
+    const [employee, setEmployee] = useState<EmployeeProfile | null>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('triples_os_employee_profile');
+            if (cached) {
+                try { return JSON.parse(cached); } catch (e) {}
+            }
+        }
+        return null;
+    });
     const [loading, setLoading] = useState(true);
 
     // Refs to track stable values across async operations
@@ -43,9 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const fetchProfile = async (userId: string, email?: string): Promise<EmployeeProfile | null> => {
         try {
-            // Ensure the Supabase client session is initialized before RLS-gated queries
-            await supabase.auth.getSession();
-
             let data = null, error = null;
             
             // Retry 10 times to handle Supabase token injection race on hard refresh
@@ -122,6 +127,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setUser(null);
                         setSession(null);
                         setEmployee(null);
+                        if (typeof window !== 'undefined') {
+                            localStorage.removeItem('triples_os_employee_profile');
+                        }
                         employeeRef.current = null;
                         profileFetchedForRef.current = null;
                         setLoading(false);
@@ -180,6 +188,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 employeeRef.current = profile;
                 setEmployee(profile);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('triples_os_employee_profile', JSON.stringify(profile));
+                }
                 setLoading(false);
             }
         );
@@ -197,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Clear only Supabase auth keys to preserve local settings like read announcements
             if (typeof window !== 'undefined') {
                 Object.keys(localStorage).forEach((key) => {
-                    if (key.startsWith('sb-')) {
+                    if (key.startsWith('sb-') || key === 'triples_os_employee_profile') {
                         localStorage.removeItem(key);
                     }
                 });
