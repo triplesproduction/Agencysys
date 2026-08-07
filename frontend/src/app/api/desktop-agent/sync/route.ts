@@ -28,10 +28,10 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // Validate that the employee is active
+        // Validate that the employee is active and fetch policy
         const { data: employee, error: empError } = await reqClient
             .from('employees')
-            .select('status')
+            .select('status, monitoring_policies(*)')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -278,11 +278,18 @@ export async function POST(req: NextRequest) {
                 .in('id', cmdIds);
         }
 
+        const policyData = employee?.monitoring_policies;
+        const policy = Array.isArray(policyData) ? policyData[0] : policyData;
+
         return NextResponse.json({
             success: true,
             syncedIds,
             failedIds,
-            commands
+            commands,
+            policy: policy ? {
+                screenshotInterval: policy.screenshotInterval,
+                screenshotQuality: policy.screenshotQuality
+            } : null
         });
 
     } catch (error: any) {

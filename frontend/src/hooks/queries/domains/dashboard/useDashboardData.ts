@@ -23,95 +23,113 @@ export function useDashboardData() {
     const isEnabled = !!activeEmpId && !authLoading;
 
     // Core Dashboard Data (Blocking render)
-    const tasksQuery = useQuery({
-        queryKey: dashboardKeys.tasks(activeRole, activeEmpId),
-        queryFn: async () => {
-            if (activeRole === 'ADMIN' || activeRole === 'MANAGER') {
-                return api.getTasks(undefined, undefined, 100);
+    // Batch processing technique: useQueries minimizes React re-renders by batching the state updates
+    const results = useQueries({
+        queries: [
+            // 0: tasks
+            {
+                queryKey: dashboardKeys.tasks(activeRole, activeEmpId),
+                queryFn: async () => {
+                    if (activeRole === 'ADMIN' || activeRole === 'MANAGER') {
+                        return api.getTasks(undefined, undefined, 100);
+                    }
+                    return api.getTasks(activeEmpId, undefined, 15);
+                },
+                enabled: isEnabled,
+            },
+            // 1: employees
+            {
+                queryKey: dashboardKeys.employees(),
+                queryFn: () => api.getEmployees({ limit: 100, status: 'ACTIVE' }),
+                enabled: isEnabled,
+            },
+            // 2: monthlyHours
+            {
+                queryKey: dashboardKeys.monthlyHours(activeEmpId),
+                queryFn: () => api.getMonthlyWorkHours(activeEmpId!),
+                enabled: isEnabled && activeRole !== 'ADMIN',
+            },
+            // 3: recentWorkHours
+            {
+                queryKey: dashboardKeys.recentWorkHours(activeEmpId),
+                queryFn: () => api.getRecentWorkHours(activeEmpId!, 5),
+                enabled: isEnabled && activeRole === 'EMPLOYEE',
+            },
+            // 4: myEods
+            {
+                queryKey: dashboardKeys.eods('EMPLOYEE', activeEmpId),
+                queryFn: () => api.getMyEODs(activeEmpId!),
+                enabled: isEnabled && activeRole === 'EMPLOYEE',
+            },
+            // 5: allEods
+            {
+                queryKey: dashboardKeys.eods('ADMIN', activeEmpId),
+                queryFn: () => api.getAllEODs({ limit: 12 }),
+                enabled: isEnabled && activeRole === 'ADMIN',
+            },
+            // 6: myKpi
+            {
+                queryKey: dashboardKeys.kpiProfiles('EMPLOYEE', activeEmpId),
+                queryFn: () => api.getKpiProfile(activeEmpId!),
+                enabled: isEnabled && activeRole === 'EMPLOYEE',
+            },
+            // 7: allKpis
+            {
+                queryKey: dashboardKeys.kpiProfiles('ALL', activeEmpId),
+                queryFn: () => api.getAllKpiProfiles(undefined, 100),
+                enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
+            },
+            // 8: allWorkHours
+            {
+                queryKey: ['dashboard', 'allWorkHours', activeEmpId],
+                queryFn: async () => {
+                    const startOfMonth = new Date();
+                    startOfMonth.setDate(1);
+                    startOfMonth.setHours(0,0,0,0);
+                    
+                    const endOfMonth = new Date(startOfMonth);
+                    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+                    
+                    const { data, error } = await supabase
+                        .from('work_hours')
+                        .select('employeeId, hoursLogged')
+                        .gte('date', startOfMonth.toISOString().split('T')[0])
+                        .lt('date', endOfMonth.toISOString().split('T')[0]);
+                        
+                    if (error) throw error;
+                    return data || [];
+                },
+                enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
+            },
+            // 9: kpiAuditLogs
+            {
+                queryKey: dashboardKeys.kpiAuditLogs(activeRole, activeEmpId),
+                queryFn: () => api.getAllKpiAuditLogs(activeRole === 'ADMIN' ? 10 : 8),
+                enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
+            },
+            // 10: unreadCount
+            {
+                queryKey: dashboardKeys.unreadCount(activeEmpId),
+                queryFn: () => api.getUnreadCount(String(activeEmpId)),
+                enabled: isEnabled,
+                refetchInterval: 10000, // Robust polling fallback
             }
-            return api.getTasks(activeEmpId, undefined, 15);
-        },
-        enabled: isEnabled,
+        ]
     });
 
-    const employeesQuery = useQuery({
-        queryKey: dashboardKeys.employees(),
-        queryFn: () => api.getEmployees({ limit: 100, status: 'ACTIVE' }),
-        enabled: isEnabled,
-    });
-
-    // Secondary Data
-    const monthlyHoursQuery = useQuery({
-        queryKey: dashboardKeys.monthlyHours(activeEmpId),
-        queryFn: () => api.getMonthlyWorkHours(activeEmpId!),
-        enabled: isEnabled && activeRole !== 'ADMIN',
-    });
-
-    const recentWorkHoursQuery = useQuery({
-        queryKey: dashboardKeys.recentWorkHours(activeEmpId),
-        queryFn: () => api.getRecentWorkHours(activeEmpId!, 5),
-        enabled: isEnabled && activeRole === 'EMPLOYEE',
-    });
-
-    const myEodsQuery = useQuery({
-        queryKey: dashboardKeys.eods('EMPLOYEE', activeEmpId),
-        queryFn: () => api.getMyEODs(activeEmpId!),
-        enabled: isEnabled && activeRole === 'EMPLOYEE',
-    });
-
-    const allEodsQuery = useQuery({
-        queryKey: dashboardKeys.eods('ADMIN', activeEmpId),
-        queryFn: () => api.getAllEODs({ limit: 12 }),
-        enabled: isEnabled && activeRole === 'ADMIN',
-    });
-
-    const myKpiQuery = useQuery({
-        queryKey: dashboardKeys.kpiProfiles('EMPLOYEE', activeEmpId),
-        queryFn: () => api.getKpiProfile(activeEmpId!),
-        enabled: isEnabled && activeRole === 'EMPLOYEE',
-    });
-
-    const allKpisQuery = useQuery({
-        queryKey: dashboardKeys.kpiProfiles('ALL', activeEmpId),
-        queryFn: () => api.getAllKpiProfiles(undefined, 100),
-        enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
-    });
-
-    const allWorkHoursQuery = useQuery({
-        queryKey: ['dashboard', 'allWorkHours', activeEmpId],
-        queryFn: async () => {
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0,0,0,0);
-            
-            const endOfMonth = new Date(startOfMonth);
-            endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-            
-            const { data, error } = await supabase
-                .from('work_hours')
-                .select('employeeId, hoursLogged')
-                .gte('date', startOfMonth.toISOString().split('T')[0])
-                .lt('date', endOfMonth.toISOString().split('T')[0]);
-                
-            if (error) throw error;
-            return data || [];
-        },
-        enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
-    });
-
-    const kpiAuditLogsQuery = useQuery({
-        queryKey: dashboardKeys.kpiAuditLogs(activeRole, activeEmpId),
-        queryFn: () => api.getAllKpiAuditLogs(activeRole === 'ADMIN' ? 10 : 8),
-        enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
-    });
-
-    // Unread count (initial load, realtime + 10s polling fallback)
-    const unreadCountQuery = useQuery({
-        queryKey: dashboardKeys.unreadCount(activeEmpId),
-        queryFn: () => api.getUnreadCount(String(activeEmpId)),
-        enabled: isEnabled,
-        refetchInterval: 10000, // Robust polling fallback
-    });
+    const [
+        tasksQuery,
+        employeesQuery,
+        monthlyHoursQuery,
+        recentWorkHoursQuery,
+        myEodsQuery,
+        allEodsQuery,
+        myKpiQuery,
+        allKpisQuery,
+        allWorkHoursQuery,
+        kpiAuditLogsQuery,
+        unreadCountQuery
+    ] = results;
 
     // Real-time synchronization of unread count
     useEffect(() => {
