@@ -309,7 +309,7 @@ fn read_screenshot_settings(conn: &rusqlite::Connection) -> (i32, i32) {
     (interval, quality)
 }
 
-fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: String, device_id: String, screenshot_interval: i32, screenshot_quality: i32) {
+fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: String, device_id: String, _screenshot_interval: i32, _screenshot_quality: i32) {
     // Guard: prevent double-start if called concurrently (e.g. recovery + clock-in race)
     if MONITOR_ACTIVE.swap(true, Ordering::AcqRel) {
         return;
@@ -418,14 +418,23 @@ fn start_monitoring_threads(db_path: PathBuf, employee_id: String, session_id: S
                 let _ = db::queue_event(c, &employee_id, &session_id, &device_id, "HEARTBEAT", heartbeat_payload);
             }
 
-            // 3. Screenshots — drop connection before spawn_blocking + await
-            let screenshot_interval_secs = (screenshot_interval as i64) * 60;
+            // 3. Screenshots — read current settings dynamically from database to support hot-reloading
+            let current_interval = conn_opt.as_ref()
+                .and_then(|c| db::get_setting(c, "screenshot_interval").unwrap_or(None))
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(6);
+            let current_quality = conn_opt.as_ref()
+                .and_then(|c| db::get_setting(c, "screenshot_quality").unwrap_or(None))
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(80);
+
+            let screenshot_interval_secs = (current_interval as i64) * 60;
             let secs_since_last_screenshot = now_time.signed_duration_since(last_screenshot_time).num_seconds();
             drop(conn_opt);
 
-            if screenshot_interval > 0 && secs_since_last_screenshot >= screenshot_interval_secs {
+            if current_interval > 0 && secs_since_last_screenshot >= screenshot_interval_secs {
                 last_screenshot_time = now_time;
-                let sq = screenshot_quality as u8;
+                let sq = current_quality as u8;
                 let sc_result = tokio::task::spawn_blocking(move || {
                     monitor::capture_compressed_screenshot(sq)
                 }).await;

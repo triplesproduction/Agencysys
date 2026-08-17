@@ -94,6 +94,15 @@ fn process_sync_success(conn: &rusqlite::Connection, res_json_res: Result<Value,
                 println!("Executing Remote Command: [id: {}, type: {}]", cmd_id, command_type);
             }
         }
+
+        if let Some(policy) = res_json["policy"].as_object() {
+            if let Some(interval) = policy.get("screenshotInterval").and_then(|v| v.as_i64()) {
+                let _ = crate::db::set_setting(conn, "screenshot_interval", &interval.to_string());
+            }
+            if let Some(quality) = policy.get("screenshotQuality").and_then(|v| v.as_i64()) {
+                let _ = crate::db::set_setting(conn, "screenshot_quality", &quality.to_string());
+            }
+        }
     } else if let Err(e) = res_json_res {
         eprintln!("Sync Worker: Failed to parse success response: {}", e);
     }

@@ -286,13 +286,15 @@ export default function ProjectDetailPage() {
                                 </DragOverlay>
                             </DndContext>
                         ) : (
-                            <div className="empty-backlog-container">
-                                <Target size={64} style={{ opacity: 0.1 }} />
-                                <h2>No units identified</h2>
-                                <p>Initialize tactical units to begin operations on this initiative.</p>
+                            <div className="empty-state" style={{ padding: '8rem 2rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: '32px', border: '1px dashed rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem' }}>
+                                    <Target size={40} style={{ opacity: 0.1 }} />
+                                </div>
+                                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'white', marginBottom: '8px' }}>No tasks assigned</h2>
+                                <p style={{ color: 'rgba(255,255,255,0.3)', maxWidth: '400px', margin: '0 auto 2rem' }}>Add tasks to begin operations on this initiative.</p>
                                 {isAdmin && (
                                     <Button variant="primary" onClick={() => setIsAllocateModalOpen(true)}>
-                                        <Plus size={18} /> Identify First Unit
+                                        <Plus size={18} /> First Task
                                     </Button>
                                 )}
                             </div>

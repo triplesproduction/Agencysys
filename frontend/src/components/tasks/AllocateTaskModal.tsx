@@ -13,7 +13,7 @@ import MultiMemberPicker from '../common/MultiMemberPicker';
 import { EmployeeDTO } from '@/types/dto';
 import { useNotifications } from '../notifications/NotificationProvider';
 import { useAuth } from '@/context/AuthContext';
-import { useCreateTask, useTasks } from '@/hooks/queries/domains/projects/useProjects';
+import { useCreateTask, useTasks, useProjectDetail } from '@/hooks/queries/domains/projects/useProjects';
 import { useEmployees } from '@/hooks/queries/domains/employees/useEmployees';
 import './TasksModal.css';
 
@@ -60,6 +60,13 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
         { limit: 1000 },
         { enabled: isOpen } // Don't fetch while modal is closed
     );
+    const { data: project } = useProjectDetail(projectId || '');
+
+    const filteredEmployees = React.useMemo(() => {
+        if (!projectId || !project?.members) return employees;
+        const memberIds = new Set(project.members.map((m: any) => m.userId));
+        return employees.filter(emp => memberIds.has(emp.id));
+    }, [employees, project, projectId]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -319,7 +326,7 @@ export default function AllocateTaskModal({ isOpen, onClose, onSuccess, projectI
                                 <div className="trello-section-label"><User size={14} /> Assign Members</div>
                                 <MultiMemberPicker 
                                     selectedIds={selectedEmployeeIds}
-                                    members={employees as any}
+                                    members={filteredEmployees as any}
                                     onChange={setSelectedEmployeeIds}
                                 />
                             </div>

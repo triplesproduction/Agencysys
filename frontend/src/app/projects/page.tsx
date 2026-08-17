@@ -52,11 +52,24 @@ export default function ProjectsPage() {
     }, [authEmployee, authLoading]);
 
     const filteredProjects = useMemo(() => {
-        return projects.filter(p => {
+        let filtered = projects.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
+
+        // ponytail: lazy sort — ON_HOLD sinks, the rest bubble up by closest deadline
+        filtered.sort((a, b) => {
+            if (a.status === 'ON_HOLD' && b.status !== 'ON_HOLD') return 1;
+            if (a.status !== 'ON_HOLD' && b.status === 'ON_HOLD') return -1;
+            
+            const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+            const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+            
+            return dateA - dateB;
+        });
+
+        return filtered;
     }, [projects, searchQuery, statusFilter]);
 
     const calculateProgress = (project: ProjectDTO) => {
