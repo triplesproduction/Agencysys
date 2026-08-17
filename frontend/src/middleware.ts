@@ -1,17 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-// ── Admin-only paths (server-enforced) ────────────────────────────────────────
-// These paths must redirect any non-ADMIN role before the page bundle is served.
-const ADMIN_ONLY_PATHS = [
-    '/employees',
-    '/leaves/approvals',
-];
 
-// ── Admin+Manager paths ────────────────────────────────────────────────────────
-const ADMIN_OR_MANAGER_PATHS = [
-    '/eod/reviews',
-];
 
 export async function middleware(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -59,57 +49,11 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url);
     }
 
-    let employeeRow: any = null;
-    if (user) {
-        const { data } = await supabase
-            .from('employees')
-            .select('roleId, status')
-            .eq('id', user.id)
-            .maybeSingle();
-        employeeRow = data;
-    }
-
-    const status = employeeRow?.status || 'ACTIVE';
-
-    // Suspended user trying to access any page except login/auth -> redirect to login with error
-    if (user && status !== 'ACTIVE' && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        url.searchParams.set('error', 'suspended');
-        return NextResponse.redirect(url);
-    }
-
     // Active authenticated user on login page → redirect to dashboard
-    if (user && status === 'ACTIVE' && pathname.startsWith('/login')) {
+    if (user && pathname.startsWith('/login')) {
         const url = request.nextUrl.clone();
         url.pathname = '/dashboard';
         return NextResponse.redirect(url);
-    }
-
-    // ── 2. Role-based authorization gate ──────────────────────────────────────
-    if (user && status === 'ACTIVE') {
-        const isAdminOnly = ADMIN_ONLY_PATHS.some(p => pathname.startsWith(p));
-        const isAdminOrManagerOnly = ADMIN_OR_MANAGER_PATHS.some(p => pathname.startsWith(p));
-
-        if (isAdminOnly || isAdminOrManagerOnly) {
-            const rawRole = employeeRow?.roleId || employeeRow?.role_id || '';
-            const role = String(rawRole).toUpperCase();
-
-            const isAdmin = role.includes('ADMIN');
-            const isManager = role.includes('MANAGER');
-
-            if (isAdminOnly && !isAdmin) {
-                const url = request.nextUrl.clone();
-                url.pathname = '/dashboard';
-                return NextResponse.redirect(url);
-            }
-
-            if (isAdminOrManagerOnly && !isAdmin && !isManager) {
-                const url = request.nextUrl.clone();
-                url.pathname = '/dashboard';
-                return NextResponse.redirect(url);
-            }
-        }
     }
 
     return supabaseResponse;
