@@ -414,13 +414,8 @@ export const api = {
             .select('id, employeeId, reportDate, tasksCompleted, tasksInProgress, completedText, blockers, sentiment, status, work_hours')
             .single();
 
-        let timer: NodeJS.Timeout;
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('submitEOD timed out. Verify your database columns.')), 10000);
-        });
+        const { data: res, error } = await insertPromise;
 
-        const { data: res, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
-        clearTimeout(timer!);
         
         handleSupabaseEvent(res, error, 'Submit EOD');
         
@@ -595,12 +590,7 @@ export const api = {
     // Work Hours
     logWorkHours: async (data: Partial<WorkHourLogDTO>) => {
         const insertPromise = supabase.from('work_hours').insert(data).select().single();
-        let timer: NodeJS.Timeout;
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('logWorkHours timed out. Verify your database columns.')), 10000);
-        });
-        const { data: res, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
-        clearTimeout(timer!);
+        const { data: res, error } = await insertPromise;
         handleSupabaseEvent(res, error, 'Log Work Hours');
         return res as WorkHourLogDTO;
     },
