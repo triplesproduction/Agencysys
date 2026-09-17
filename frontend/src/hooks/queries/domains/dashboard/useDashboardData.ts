@@ -65,7 +65,7 @@ export function useDashboardData() {
             {
                 queryKey: dashboardKeys.eods('ADMIN', activeEmpId),
                 queryFn: () => api.getAllEODs({ limit: 12 }),
-                enabled: isEnabled && activeRole === 'ADMIN',
+                enabled: isEnabled && (activeRole === 'ADMIN' || activeRole === 'MANAGER'),
             },
             // 6: myKpi
             {
