@@ -74,10 +74,9 @@ function EODReviewsContent() {
     });
     const [endDate, setEndDate] = useState(() => {
         const d = new Date();
-        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const y = lastDay.getFullYear();
-        const m = String(lastDay.getMonth() + 1).padStart(2, '0');
-        const day = String(lastDay.getDate()).padStart(2, '0');
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
     });
     const [expandedId, setExpandedId] = useState<string | null>(null);
