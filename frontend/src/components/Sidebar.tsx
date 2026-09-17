@@ -45,7 +45,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Task Allocation', href: '/tasks', icon: CheckSquare },
         { name: 'Notes', href: '/notes', icon: StickyNote },
         { name: 'Whiteboards', href: '/boards', icon: PenTool },
-        { name: 'Employee Monitoring', href: '/monitoring', icon: Monitor },
+
         { name: 'EOD Reviews', href: '/eod/reviews', icon: FileText },
         { name: 'Worklog', href: '/logs', icon: Clock },
         { name: 'Attendance', href: '/attendance', icon: CalendarDays },
@@ -61,7 +61,7 @@ const RoleNavItems: Record<string, NavItem[]> = {
         { name: 'Team Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Notes', href: '/notes', icon: StickyNote },
         { name: 'Whiteboards', href: '/boards', icon: PenTool },
-        { name: 'Employee Monitoring', href: '/monitoring', icon: Monitor },
+
         { name: 'Apply Leave', href: '/leaves', icon: CalendarDays },
         { name: 'Work Logs', href: '/logs', icon: Clock },
         { name: 'Messaging', href: '/messaging', icon: MessageSquare },
