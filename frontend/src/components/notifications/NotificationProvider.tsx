@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -83,11 +83,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         };
     }, [user, authLoading]);
 
-    const removeNotification = (id: string) => {
+    const removeNotification = useCallback((id: string) => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
-    };
+    }, []);
 
-    const addNotification = (notification: Omit<NotificationMessage, 'id'>) => {
+    const addNotification = useCallback((notification: Omit<NotificationMessage, 'id'>) => {
         const liveMessage = { ...notification, id: `local-${Date.now()}` };
         setNotifications((prev) => [...prev, liveMessage]);
 
@@ -95,7 +95,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         setTimeout(() => {
             removeNotification(liveMessage.id);
         }, 6000);
-    };
+    }, [removeNotification]);
 
     const handleNotificationClick = (notif: NotificationMessage) => {
         if (notif.type === 'TASK_ASSIGNED' || notif.type === 'TASK_UPDATED') {

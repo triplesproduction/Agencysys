@@ -66,10 +66,10 @@ function EODReviewsContent() {
     const [search, setSearch] = useState('');
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
-        const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
-        const y = firstDay.getFullYear();
-        const m = String(firstDay.getMonth() + 1).padStart(2, '0');
-        const day = String(firstDay.getDate()).padStart(2, '0');
+        d.setDate(d.getDate() - 7);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
     });
     const [endDate, setEndDate] = useState(() => {
@@ -207,6 +207,15 @@ function EODReviewsContent() {
         return acc;
     }, {} as Record<string, EODReport[]>);
 
+    const handleLoadMore = () => {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() - 7);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        setStartDate(`${y}-${m}-${day}`);
+    };
+
     return (
         <div className="page-root fade-in">
             <PageHeader
@@ -249,10 +258,14 @@ function EODReviewsContent() {
                 <button onClick={fetchReports} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 'var(--radius-sm)', padding: '0 16px', color: 'var(--purple-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', fontWeight: 600, height: '42px', whiteSpace: 'nowrap', flexShrink: 0 }}><RefreshCw size={14} /> Refresh</button>
             </div>
 
-            {isLoading ? (
+            {isLoading && reports.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>{[1, 2, 3].map(i => <div key={i} className="skeleton-pulse" style={{ height: '120px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.04)' }} />)}</div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.2s ease' }}>
+                    {Object.keys(grouped).length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>No EOD reports found for this period.</div>
+                    ) : null}
+                    
                     {Object.entries(grouped).map(([date, dayReports]) => (
                         <div key={date}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
@@ -310,6 +323,27 @@ function EODReviewsContent() {
                             </div>
                         </div>
                     ))}
+
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', marginBottom: '32px' }}>
+                        <button 
+                            onClick={handleLoadMore} 
+                            disabled={isLoading}
+                            style={{ 
+                                background: 'rgba(139, 92, 246, 0.1)', 
+                                border: '1px solid rgba(139, 92, 246, 0.3)', 
+                                color: 'var(--purple-main)', 
+                                padding: '10px 24px', 
+                                borderRadius: '20px', 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600, 
+                                cursor: isLoading ? 'not-allowed' : 'pointer',
+                                opacity: isLoading ? 0.7 : 1,
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {isLoading ? 'Loading...' : 'Load Previous 7 Days'}
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
