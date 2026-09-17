@@ -264,15 +264,24 @@ export default function MonitoringDashboard() {
     useEffect(() => {
         fetchMonitoringData();
 
+        let debounceTimer: NodeJS.Timeout;
+        const debouncedFetch = () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                fetchMonitoringData();
+            }, 3000); // Wait 3s to batch multiple rapid inserts
+        };
+
         // Subscribe to real-time changes across all monitoring tables
         const channel = supabase
             .channel('realtime-monitoring')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_heartbeats' }, () => fetchMonitoringData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'work_sessions' }, () => fetchMonitoringData())
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'application_usage' }, () => fetchMonitoringData())
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employee_heartbeats' }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'work_sessions' }, debouncedFetch)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'application_usage' }, debouncedFetch)
             .subscribe();
 
         return () => {
+            clearTimeout(debounceTimer);
             supabase.removeChannel(channel);
         };
     }, []);
